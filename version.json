@@ -1,13 +1,13 @@
 {
-  "version": "1.0.0",
-  "notes": "Version 1.0 - version number on the title screen",
+  "version": "1.2.0",
+  "notes": "Online play - lobbies, teams, up to 4 wizards",
   "minShell": "0.10.0",
   "released": "2026-11-19",
   "files": [
     {
       "path": "index.html",
-      "sha256": "4ae54aeea24bc8950221c8eaabca8abeb5a17e72d01e8ed8b34a09706f18580c",
-      "bytes": 376558
+      "sha256": "527ecdb27315b28ef8ddcc57fddec028b6dda0b4ca4763bb0205da3d55c2d25b",
+      "bytes": 408737
     }
   ]
 }

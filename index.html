@@ -38,6 +38,19 @@ h3{font-family:Orbitron,system-ui,sans-serif;font-size:.75em;margin:1em 0 .4em;c
 .pad .d{color:var(--dim);font-size:.95em}
 .cards{display:flex;gap:1em;justify-content:center;flex-wrap:wrap}
 .gver{font-family:'Press Start 2P',monospace;font-size:.62em;color:#d9a441;letter-spacing:2px;margin:-.9em 0 .9em;text-shadow:2px 2px 0 #000;opacity:.85}
+.lineup{display:flex;flex-direction:column;gap:.3em;max-width:46em;margin:0 auto}
+.lu{display:flex;align-items:center;gap:.6em;background:#1a120c;border:3px solid #3a2c20;padding:.15em .5em;box-shadow:2px 2px 0 #000}
+#setup h3{margin:.55em 0 .25em}#setup .hint{margin-top:.25em}#setup h2{margin:.2em 0 .3em}
+.lu.off{opacity:.55}.lu b{font-family:'Press Start 2P',monospace;font-size:.8em;width:2.6em}
+.lu .seg{margin:0}.lu .lucols{display:flex;gap:.2em}.lu .psw{width:1.6em;height:1.6em}.lu .d{font-size:.85em;color:#a8957a;min-width:9em;text-align:left}
+.lslots{display:grid;grid-template-columns:repeat(4,1fr);gap:.5em;max-width:62em;margin:0 auto .6em}
+.lslot{background:#1a120c;border:3px solid #3a2c20;box-shadow:3px 3px 0 #000;padding:.4em;display:flex;flex-direction:column;align-items:center;gap:.25em;min-height:11em}
+.lslot.empty{justify-content:center;opacity:.75;border-style:dashed}.lslot.ready{background:#16200f}
+.lsp{width:7.5em;height:6.5em;image-rendering:pixelated}.lsn{font-family:'Press Start 2P',monospace;font-size:.62em}
+.lcols{display:flex;gap:.15em;flex-wrap:wrap;justify-content:center}.lcols .psw{width:1.35em;height:1.35em}.lst{font-size:.85em;color:#a8957a}
+.lopts{display:flex;flex-wrap:wrap;gap:.2em 1.2em;justify-content:center;max-width:62em;margin:0 auto}.lopts h3{margin:.3em 0 .2em}
+.llist{display:flex;flex-direction:column;gap:.3em;min-width:30em}.lrow{display:flex;align-items:center;gap:.8em;background:#1a120c;border:3px solid #3a2c20;padding:.2em .6em}
+.lrow b{font-family:'Press Start 2P',monospace;color:#ffd27a;font-size:.8em;letter-spacing:2px}.lrow span{flex:1;text-align:left;color:#c8b694}
 .mapgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:.45em;max-width:min(58em,90vw);margin:0 auto}
 .mtile{display:flex;flex-direction:column;align-items:center;padding:.35em .35em .4em;background:#1a120c;border:2px solid #4a3b2c;color:#8a7a68;cursor:pointer;font:inherit;box-shadow:3px 3px 0 #000;opacity:.6}
 .mtile.on{border-color:#d9a441;color:#ffe9b8;opacity:1}
@@ -225,6 +238,8 @@ h3{font-size:.55em;color:#c9a874;text-shadow:.15em .15em 0 #000;letter-spacing:.
   <div class="panel" id="library"></div>
   <div class="panel" id="settings"></div>
   <div class="panel" id="maps"></div>
+  <div class="panel" id="online"></div>
+  <div class="panel" id="lobby"></div>
   <div class="panel" id="custom"></div>
   <div class="panel" id="help"></div>
   <div class="panel" id="pause"></div>
@@ -929,7 +944,7 @@ function traceBeam(p, st, x, y, a, left, bn, hit, depth) {
     const nx = x + dx * step, ny = y + dy * step; left -= step;
     let stop = false;
     for (const q of M.players) {
-      if (q.dead || hit.has(q) || (q.id === p.id && pts.length < 2 && depth === 0)) continue;
+      if (q.dead || hit.has(q) || allyOf(q, p) || (q.id === p.id && pts.length < 2 && depth === 0)) continue;
       if (Math.hypot(q.x - nx, q.y - ny) < q.r + 1 + (st.beamW || 1)) {
         hit.add(q);
         if (q.blockT > 0) { ringFx(nx, ny, '#ffffff'); coin(q.id, 2, 'Warded bolts', q.x, q.y - 20); stop = true; end = 'ward'; break; }
@@ -1010,7 +1025,7 @@ function updateAcid(dt) {
       if (Math.random() < dt * .22 && M.fields.filter(f => f.type === 'fgas').length < 18) M.fields.push({ type: 'fgas', x: a.x, y: a.y - 10, r: 34, t: 6, owner: a.owner });
     }
     if (a.fumes && a.k && Math.random() < dt * .25 && M.fields.length < 60) M.fields.push({ type: 'gas', x: a.x, y: a.y - 8, r: 42, t: 2.2, owner: a.owner, amt: 7, col: '#8aff5a' });
-    for (const q of M.players) if (!q.dead && Math.abs(q.x - a.x) < q.r + 3 && Math.abs(q.y - a.y) < q.r + 3) {
+    for (const q of M.players) if (!q.dead && !allyOf(q, M.players[a.owner]) && Math.abs(q.x - a.x) < q.r + 3 && Math.abs(q.y - a.y) < q.r + 3) {
       burn[q.id] += a.pd * (q.id === a.owner ? .25 : 1); a.t -= dt * 1.5;
       if (a.melt && q.id !== a.owner) { q.snipeT = 3; q.snipeBy = a.owner; }
       q.acidBy = a.owner;
@@ -1520,7 +1535,7 @@ function route(from, to, surfs) {
 }
 // simulate our own bullet a little way: would it come back and hit us (bouncy/explosive builds)?
 function safeShot(p, ang) {
-  const st = p.st, foe = M.players[1 - p.id];
+  const st = p.st, foe = enemyOf(p);
   if (st.flame) return true;
   const rad = st.explode ? 80 : (st.rocket || st.grenade) && st.selfBlast > 0 ? st.rad + 8 : 0;
   if (rad && !foe.dead && dist(p, foe) < rad + p.r + 12) return false; // too close to fire an explosive
@@ -1554,8 +1569,14 @@ function buildRange(st) {
   if (st.spd > 2 || st.dmg > 70) return 470;
   return 360;
 }
+// a bot sticks with its target for a moment so it doesn't flip-flop between two nearby foes
+function botTarget(p) {
+  const cur = p.tgt, near = enemyOf(p);
+  if (cur && !cur.dead && cur.team !== p.team && (p.tgtT = (p.tgtT || 0) - 1 / 60) > 0 && dist(p, cur) < dist(p, near) * 1.6) return cur;
+  p.tgt = near; p.tgtT = 1.2; return near;
+}
 function readBot(p) {
-  const foe = M.players[1 - p.id], cfg = BOTS[SET.bot] || BOTS.normal, rects = M.solids, st = p.st;
+  const foe = botTarget(p), cfg = BOTS[SET.bot] || BOTS.normal, rects = M.solids, st = p.st;
   const b = p.bot || (p.bot = { clock: 0, think: 0, dir: 0, mode: 'engage', jukeT: 0, shotT: .5, aimA: p.aim, wob: 0, jumpT: 0, plan: null, baitT: 0, lostT: 0, holdJump: 0 });
   b.clock += DT; b.think -= DT; b.jukeT -= DT; b.shotT -= DT; b.baitT -= DT; b.jumpT -= DT; b.holdJump -= DT;
   const surfs = botSurfaces(), dx = foe.x - p.x, adx = Math.abs(dx), seen = !foe.dead && los(p, foe, rects);
@@ -1704,22 +1725,52 @@ function readBot(p) {
 let M = null, app = 'title', paused = false;
 const COLORS = ['#ff9a2e', '#36e0ff'], NAMES = ['Orange', 'Blue'];
 function newPlayer(id, ctrl) { return { id, ctrl, color: COLORS[id], name: NAMES[id], cards: [], x: 0, y: 0, vx: 0, vy: 0, r: 14.4, hp: 100, prev: {} }; }
+// The lineup: up to 4 slots, each You (keyboard & mouse), Controller, Bot or Off, plus a team colour.
+// Same colour = same team, so all different colours is a free-for-all.
+const TEAM_COLS = ['#ff9a2e', '#36e0ff', '#7dff5a', '#ff5ca8', '#ffd23d', '#b28bff'];
+function defaultLineup(mode) {
+  return mode === 'versus' ? [{ who: 'you', col: TEAM_COLS[0] }, { who: 'pad', col: TEAM_COLS[1] }, { who: 'off', col: TEAM_COLS[2] }, { who: 'off', col: TEAM_COLS[3] }]
+    : [{ who: 'you', col: TEAM_COLS[0] }, { who: 'bot', col: TEAM_COLS[1] }, { who: 'off', col: TEAM_COLS[2] }, { who: 'off', col: TEAM_COLS[3] }];
+}
+function lineupOf(mode) {
+  SET.lineups = SET.lineups || {};
+  let L = SET.lineups[mode];
+  if (!L || L.length !== 4) L = SET.lineups[mode] = defaultLineup(mode);
+  return L;
+}
+// controllers go to Controller slots in order; a spare one also drives the keyboard player
+function lineupCtrls(L) {
+  const ps = pads().map(g => g.index), padSlots = L.filter(s => s.who === 'pad').length, spare = ps.length > padSlots;
+  let k = spare ? 1 : 0;
+  return L.map(s => s.who === 'off' ? null : s.who === 'bot' ? { bot: true } : s.who === 'you' ? { kbm: true, pad: spare ? ps[0] : null } : { pad: ps[k] !== undefined ? ps[k++] : null });
+}
+function lineupProblem(L, game) {
+  const on = L.filter(s => s.who !== 'off');
+  if (on.length < 2) return 'Switch on at least 2 wizards.';
+  if (new Set(on.map(s => s.col)).size < 2) return 'Everyone is on the same team: give someone a different colour.';
+  if (L.filter(s => s.who === 'you').length > 1) return 'Only one wizard can use the keyboard and mouse.';
+  const need = L.filter(s => s.who === 'pad').length, have = pads().length;
+  if (need > have) return 'Connect ' + need + ' controller' + (need > 1 ? 's' : '') + ' (' + have + ' found).';
+  if (game === 'dungeon' && on.length !== 2) return 'Dungeon Run is 1v1: switch on exactly 2 wizards.';
+  return '';
+}
+function teamsDesc(L) {
+  const on = L.filter(s => s.who !== 'off'), cols = [...new Set(on.map(s => s.col))];
+  if (cols.length === on.length) return on.length === 2 ? '1 v 1' : 'Free-for-all (' + on.length + ' wizards)';
+  return cols.map(c => on.filter(s => s.col === c).length).join(' v ');
+}
 function startMatch(mode) {
-  const ps = pads();
-  let c0, c1;
-  if (mode === 'demo') { c0 = { bot: true }; c1 = { bot: true }; }
-  else if (mode === 'bot') { c0 = { kbm: true, pad: ps[0] ? ps[0].index : null }; c1 = { bot: true }; }
-  else if (ps.length >= 2) { c0 = { kbm: true, pad: ps[0].index }; c1 = { pad: ps[1].index }; }
-  else { c0 = { kbm: true }; c1 = { pad: ps[0] ? ps[0].index : 0 }; }
-  M = { mode, players: [newPlayer(0, c0), newPlayer(1, c1)], points: [0, 0], rw: [0, 0], phase: 'count', t: 0, mapIdx: -1, bullets: [], bombs: [], fields: [], rings: [], parts: [], nums: [], timers: [], shake: 0, ts: 1, slowT: 0, lastLoser: -1, roundNo: 0 };
-  const l0 = mode === 'demo' ? randomLook() : Object.assign({}, SET.prof[0]);
-  let l1 = mode === 'bot' || mode === 'demo' ? randomLook(l0.col) : Object.assign({}, SET.prof[1]);
-  if (l1.col === l0.col) l1.col = LOOKS.colors.map(c => c[1]).find(c => c !== l0.col);
-  [l0, l1].forEach((l, i) => { const pl = M.players[i]; pl.look = l; pl.color = l.col; pl.nick = (l.name || '').trim() || (i ? 'Player 2' : 'Player 1'); });
-  if (mode === 'bot') M.players[1].nick = 'Bot';
-  M.game = SET.game; M.rerolls = [2, 2]; // classic and arsenal: two re-rolls per wizard per match
+  let L = mode === 'demo' ? demoLineup() : lineupOf(mode === 'bot' ? 'bot' : 'versus');
+  const ctrls = lineupCtrls(L), slots = L.map((s, i) => ({ s, i, c: ctrls[i] })).filter(o => o.c);
+  M = { mode, players: slots.map((o, j) => newPlayer(j, o.c)), points: {}, rw: {}, phase: 'count', t: 0, mapIdx: -1, bullets: [], bombs: [], fields: [], rings: [], parts: [], nums: [], timers: [], shake: 0, ts: 1, slowT: 0, lastLoser: -1, roundNo: 0 };
+  let bots = 0;
+  slots.forEach((o, j) => { const pl = M.players[j], human = !o.c.bot;
+    const lk = mode === 'demo' || !human ? randomLook(o.s.col) : Object.assign({}, SET.prof[o.i] || randomLook(o.s.col));
+    lk.col = o.s.col; pl.look = lk; pl.team = o.s.col; pl.color = o.s.col; pl.slot = o.i;
+    pl.nick = human ? ((lk.name || '').trim() || 'Player ' + (o.i + 1)) : (mode === 'demo' ? '' : 'Bot' + (++bots > 1 ? ' ' + bots : '')); });
+  M.game = SET.game; M.rerolls = M.players.map(() => 2); // classic and arsenal: two re-rolls per wizard per match
   if (mode === 'demo') { const nm = WIZARD_NAMES.slice().sort(() => Math.random() - .5); M.players.forEach((q, i) => { q.nick = nm[i]; q.look.name = nm[i]; }); M.game = Math.random() < .5 ? 'arsenal' : 'classic'; }
-  if (M.game === 'dungeon') M.run = newRun();
+  if (M.game === 'dungeon') { M.run = newRun(); M.points = [0, 0]; M.rw = [0, 0]; }
   if (M.game === 'arsenal' || M.game === 'dungeon') return beginWeaponPick();
   startRound();
   app = 'match'; show(null); wrap.classList.add('play');
@@ -1727,6 +1778,14 @@ function startMatch(mode) {
 /* ---------- bot exhibition: random wizards fight until any key is pressed ---------- */
 const WIZARD_NAMES = ['Merlwyn', 'Zorbo', 'Grimble', 'Vexa', 'Ostrik', 'Pellandra', 'Bramwick', 'Quillon', 'Morgrel', 'Sibbet', 'Thaddeus', 'Ylva', 'Fenwick', 'Old Hob', 'Nimue', 'Crackle'];
 const DEMO = { on: false, timer: 0, saved: null };
+// exhibitions mix it up: 1v1, 3-way and 4-way free-for-alls, and 2v2
+function demoLineup() {
+  const r = Math.random(), cols = TEAM_COLS.slice().sort(() => Math.random() - .5), B = c => ({ who: 'bot', col: c });
+  if (r < .4) return [B(cols[0]), B(cols[1])];
+  if (r < .6) return [B(cols[0]), B(cols[1]), B(cols[2])];
+  if (r < .8) return [B(cols[0]), B(cols[1]), B(cols[2]), B(cols[3])];
+  return [B(cols[0]), B(cols[1]), B(cols[0]), B(cols[1])];
+}
 function startDemo() {
   if (!DEMO.on) DEMO.saved = { bot: SET.bot, points: SET.points, rounds: SET.rounds, picks: SET.picks };
   DEMO.on = true; SET.bot = 'hard'; SET.points = 3; SET.rounds = 1; SET.picks = Math.random() < .5 ? 'both' : 'loser';
@@ -1752,15 +1811,16 @@ function weaponTurn() {
   WP.botT = p.ctrl.bot ? 1.3 : 0; WP.t0 = performance.now();
   show('wpick');
 }
-function chooseWeapon(i) {
+function chooseWeapon(i, net) {
   if (!WP || WP.lock) return;
   const p = M.players[WP.turn];
-  if (!p.ctrl.bot && performance.now() - (WP.t0 || 0) < 350) return; // ignore the press that opened this screen
+  if (NET.on && !net && !p.ctrl.bot) { if (p.ctrl.local && performance.now() - (WP.t0 || 0) >= 350) netCmd({ k: 'weapon', pi: WP.turn, i }); return; }
+  if (!net && !p.ctrl.bot && performance.now() - (WP.t0 || 0) < 350) return; // ignore the press that opened this screen
   WP.lock = true; WP.sel = i; p.weapon = WEAPON_LIST[i]; renderWPick();
   sfx(520, .1, 'square', .04, 300); setTimeout(() => sfx(780, .16, 'square', .035, 200), 90);
   setTimeout(() => {
     if (!WP || !M) return;
-    if (WP.turn === 0) { WP.turn = 1; weaponTurn(); }
+    if (WP.turn < M.players.length - 1) { WP.turn++; weaponTurn(); }
     else { WP = null; startRound(); app = 'match'; show(null); wrap.classList.add('play'); }
   }, 600);
 }
@@ -1773,6 +1833,7 @@ function wpTick(dt) {
     if (WP.botT <= 0) chooseWeapon(WP.sel);
     return;
   }
+  if (p.ctrl.net && !p.ctrl.local) return;
   WP.navT -= dt;
   const list = p.ctrl.pad !== undefined && p.ctrl.pad !== null ? pads().filter(g => g.index === p.ctrl.pad) : pads();
   for (const gp of list) {
@@ -1782,15 +1843,39 @@ function wpTick(dt) {
     if (PAD.press[gp.index] && PAD.press[gp.index][0]) chooseWeapon(WP.sel);
   }
 }
+function spawnPoints(n) {
+  const base = M.map.sp.map(p => p.slice());
+  if (n <= base.length) return base;
+  if (!M.map._sp || M.map._sp.length < n) {
+    const out = base.slice(), rects = M.solids.filter(r => !r.mover), surfs = botSurfaces().filter(s => s.x2 - s.x1 >= 50 && !s.r.mover && !s.r.box);
+    const cands = [];
+    for (const s of surfs) for (let x = s.x1 + 24; x <= s.x2 - 24; x += 32) { const y = s.y - 16;
+      if (y < 60 || y > H - 40) continue;
+      const pr = { x, y, r: 15 };
+      if (rects.some(r => overlap(pr, r))) continue;
+      if (rects.some(r => x > r.x && x < r.x + r.w && r.y + r.h <= s.y - 1 && r.y + r.h > s.y - 70)) continue; // need head room
+      cands.push([x, y]); }
+    while (out.length < n && cands.length) {
+      let best = 0, bs = -1;
+      cands.forEach((c, i) => { const d = Math.min(...out.map(o => Math.hypot(o[0] - c[0], (o[1] - c[1]) * 1.3))); if (d > bs) { bs = d; best = i; } });
+      out.push(cands.splice(best, 1)[0]);
+    }
+    while (out.length < n) out.push(base[out.length % base.length].slice());
+    M.map._sp = out;
+  }
+  return M.map._sp.slice(0, n);
+}
 function startRound() {
   const pool = mapPool(); let mi; do { mi = pick(pool); } while (mi === M.mapIdx && pool.length > 1);
   M.mapIdx = mi; M.map = MAPS[mi]; M.roundNo++; initWorld();
   M.bullets = []; M.bombs = []; M.fields = []; M.rings = []; M.parts = []; M.nums = []; M.timers = []; M.acid = []; M.beams = [];
+  const sps = spawnPoints(M.players.length).sort(() => Math.random() - .5);
+  if (M.players.length === 2) sps.sort((a, b) => a[0] - b[0]); // 1v1 keeps the map's own left/right starts
   M.players.forEach((p, i) => {
-    p.st = calcStats(p.cards, null); const sp = M.map.sp[i];
+    p.st = calcStats(p.cards, null); const sp = sps[i];
     if (M.game !== 'classic') p.st.maxHp *= 1 + .1 * (M.roundNo - 1); // +10% health every round, so growing damage doesn't end matches instantly
     Object.assign(p, { x: sp[0], y: sp[1], vx: 0, vy: 0, hp: p.st.maxHp, ammo: p.st.ammo, reloadT: 0, atkT: 0, sinceShot: 9, blockCd: 0, blockT: 0, onGround: false, wall: 0, coyote: 0, jumpBuf: 0,
-      aim: i === 0 ? 0 : Math.PI, slowT: 0, slowAmt: 0, stunT: 0, silenceT: 0, dots: [], tempHp: 0, tempT: 0, bloodT: 0, empower: 0, rebirthUsed: false, abyss: 0, abyssT: 0,
+      aim: sp[0] < W / 2 ? 0 : Math.PI, lastBy: undefined, tgt: null, slowT: 0, slowAmt: 0, stunT: 0, silenceT: 0, dots: [], tempHp: 0, tempT: 0, bloodT: 0, empower: 0, rebirthUsed: false, abyss: 0, abyssT: 0,
       stock: [], burstQ: [], dead: false, hurt: false, trapT: 0, wfT: 0, thN: 0, edgeT: 0, chargeT: 0, chargeDir: 0, recoil: 0, recoverT: 0, sawT: 0, radT: 0, flash: 0, pristine: 0, jumpHeld: false, prev: {}, bot: null, deathT: 0,
       bloom: 0, spin: 0, fresh: true, prevShoot: false, trigBuf: 0, tipN: 0, shred: 0, shredT: 0, snipeT: 0, snipeBy: -1 });
     applyWand(p);
@@ -1798,6 +1883,10 @@ function startRound() {
   M.phase = 'count'; M.t = 2.4; M.ts = 1; M.playT = 0; M.ot = 0; M.lavaLv = 0; M.lava = []; M.lavaAcc = 0; M.terrCoin = [0, 0, 0, 0];
 }
 function inputFor(p) {
+  if (p.ctrl.net) return netInputFor(p);
+  return rawInput(p);
+}
+function rawInput(p) {
   if (p.ctrl.bot) return readBot(p);
   let a = p.ctrl.kbm ? readKBM(p) : null;
   const b = p.ctrl.pad !== undefined && p.ctrl.pad !== null ? readPad(p, p.ctrl.pad) : null;
@@ -1828,7 +1917,14 @@ function movePlayer(p, dx, dy) {
   p.onGround = p.vy >= 0 && probe(0, 2);
   p.wall = probe(-2, 0) ? -1 : probe(2, 0) ? 1 : 0;
 }
-function enemyOf(p) { return M.players[1 - p.id]; }
+// ---- teams: wizards sharing a team colour are allies (no friendly fire); everyone else is a foe ----
+const allyOf = (a, b) => !!(a && b && a !== b && a.team === b.team);
+function foesOf(p) { return M.players.filter(q => q !== p && q.team !== p.team); }
+const liveFoes = p => foesOf(p).filter(q => !q.dead);
+// nearest living foe (from p, or from a point); falls back to any foe so callers always get a wizard
+function enemyOf(p, x = p.x, y = p.y) { let best = null, bd = 1e18; for (const q of M.players) if (q !== p && q.team !== p.team && !q.dead) { const d = (q.x - x) ** 2 + (q.y - y) ** 2; if (d < bd) { bd = d; best = q; } } return best || foesOf(p)[0] || p; }
+const foeOfOwner = (id, x, y) => M.players[id] ? enemyOf(M.players[id], x, y) : { dead: true, x: -1e5, y: -1e5, r: 1 };
+const teamKey = p => M.run ? p.id : p.team; // Dungeon Run (always 1v1) keeps its per-player arrays
 function updatePlayer(p, inp, dt) {
   const st = p.st, f = st.f, foe = enemyOf(p);
   if (p.dead) { p.deathT += dt; return; }
@@ -1872,7 +1968,7 @@ function updatePlayer(p, inp, dt) {
   movePlayer(p, p.vx * dt, p.vy * dt);
   for (const pd of M.pads) if (p.vy >= 0 && p.x > pd.x - 4 && p.x < pd.x + pd.w + 4 && p.y + p.r >= pd.y - 3 && p.y + p.r <= pd.y + 10) { p.vy = -1080; p.coyote = 0; ringFx(p.x, p.y + p.r, M.map.a); sfx(260, .25, 'square', .04, 500); FX.pad(p, pd); }
   if (p.chargeT > 0) {
-    if (!foe.dead && dist(p, foe) < p.r + foe.r + 6 && !p.chargeHit) { p.chargeHit = true; damage(foe, st.dmg * .5, p); foe.vx += p.chargeDir.x * 700; foe.vy += p.chargeDir.y * 500 - 200; }
+    for (const foe of liveFoes(p)) if (dist(p, foe) < p.r + foe.r + 6 && !p.chargeHit) { p.chargeHit = true; damage(foe, st.dmg * .5, p); foe.vx += p.chargeDir.x * 700; foe.vy += p.chargeDir.y * 500 - 200; }
     if (p.chargeT - dt <= 0) { p.blockT = .3; p.chargeT = 0; ringFx(p.x, p.y, p.color); }
   }
   // edges
@@ -1902,13 +1998,15 @@ function updatePlayer(p, inp, dt) {
   p.dots = p.dots.filter(d => d.t > 0);
   if (p.dots.length) { const bd = p.dots.find(d => d.burn), bs = bd && M.players[bd.src]; if (bs && bs !== p && bs.wand && bs.wand.att && bs.wand.att.f_wild) { p.wfT -= dt; if (p.wfT <= 0) { p.wfT = .3; if (M.fields.length < 60) M.fields.push({ type: 'fire', x: p.x, y: p.y + p.r - 4, r: 26, t: 1.6, owner: bs.id, amt: 4, col: '#ff7a2a' }); } } }
   // auras
-  if (f.frostaura && !foe.dead && dist(p, foe) < 230) slowP(foe, .4 * f.frostaura, .15);
-  if (f.siphon && !foe.dead && dist(p, foe) < 190) { const a = 14 * f.siphon * dt; damage(foe, a, p, { dot: true, quiet: true }); heal(p, a); }
-  if (p.sawT > 0 && !foe.dead && dist(p, foe) < 78 + foe.r) damage(foe, 50 * (f.buzzsaw || 1) * dt, p, { dot: true, quiet: true });
+  for (const fo of liveFoes(p)) {
+    if (f.frostaura && dist(p, fo) < 230) slowP(fo, .4 * f.frostaura, .15);
+    if (f.siphon && dist(p, fo) < 190) { const a = 14 * f.siphon * dt; damage(fo, a, p, { dot: true, quiet: true }); heal(p, a); }
+    if (p.sawT > 0 && dist(p, fo) < 78 + fo.r) damage(fo, 50 * (f.buzzsaw || 1) * dt, p, { dot: true, quiet: true });
+  }
   if (f.darkcharge) {
     if (p.abyssT > 0) {
-      for (const b of M.bullets) if (b.owner !== p.id && Math.hypot(b.x - p.x, b.y - p.y) < 110) { b.dead = true; puffs(b.x, b.y, '#6a2aff', 3, 60); }
-      if (!foe.dead && dist(p, foe) < 210) { const dx = p.x - foe.x, dy = p.y - foe.y, d = Math.hypot(dx, dy) || 1; foe.vx += dx / d * 900 * dt; foe.vy += dy / d * 900 * dt; damage(foe, 28 * f.darkcharge * dt, p, { dot: true, quiet: true }); }
+      for (const b of M.bullets) if (b.owner !== p.id && !allyOf(M.players[b.owner], p) && Math.hypot(b.x - p.x, b.y - p.y) < 110) { b.dead = true; puffs(b.x, b.y, '#6a2aff', 3, 60); }
+      for (const fo of liveFoes(p)) if (dist(p, fo) < 210) { const dx = p.x - fo.x, dy = p.y - fo.y, d = Math.hypot(dx, dy) || 1; fo.vx += dx / d * 900 * dt; fo.vy += dy / d * 900 * dt; damage(fo, 28 * f.darkcharge * dt, p, { dot: true, quiet: true }); }
     } else if (p.onGround && Math.abs(p.vx) < 25) { p.abyss += dt / 4; if (p.abyss >= 1) { p.abyss = 0; p.abyssT = 5.5; sfx(90, .8, 'sawtooth', .05, -40); } }
     else p.abyss = Math.max(0, p.abyss - dt * .8);
   }
@@ -2029,20 +2127,20 @@ function doBlock(p, free) {
   if (p.st.f.reprise) M.timers.push({ t: .3, fn: () => { if (!p.dead) { p.blockT = .3; ringFx(p.x, p.y, '#ffffff'); blockEffects(p); } } });
 }
 function blockEffects(p) {
-  const f = p.st.f, foe = enemyOf(p), d = foe.dead ? 1e9 : dist(p, foe), st = p.st;
-  if (f.coldsnap && d < 260) slowP(foe, .7, 2 * f.coldsnap);
+  const f = p.st.f, foe = enemyOf(p), st = p.st, inR = r => liveFoes(p).filter(q => dist(p, q) < r);
+  if (f.coldsnap) for (const q of inR(260)) slowP(q, .7, 2 * f.coldsnap);
   if (f.mend) M.fields.push({ type: 'heal', x: p.x, y: p.y, r: 120, t: 3, owner: p.id, amt: 25 * f.mend, col: '#3fc77a' });
   if (f.cluster) for (let i = 0; i < 6 * f.cluster; i++) M.bombs.push({ x: p.x, y: p.y, vx: rnd(-360, 360), vy: rnd(-500, -100), t: 1.6, r: 6, rad: 65, dmg: 22, owner: p.id, contact: true });
   if (f.pulse) for (let i = 0; i < 12; i++) { const a = i * TAU / 12; M.bullets.push({ x: p.x, y: p.y, vx: Math.cos(a) * 520, vy: Math.sin(a) * 520, owner: p.id, dmg: 6 * f.pulse, r: 3.2, hitR: 4.8, bounces: 0, bounced: 0, age: 0, dist: 0, ts: 1, g: 0, drill: 0, life: .9, emp: false, pulse: true, st: null, col: '#7ad7ff' }); }
-  if (f.gravwell && d < 340) knock(foe, p.x, p.y, -900 * f.gravwell);
-  if (f.overload && d < 170) { damage(foe, st.maxHp * .2 * f.overload, p); M.rings.push({ x: p.x, y: p.y, r: 10, max: 170, owner: p.id, dmg: 0, hit: [], col: '#ff5c5c' }); }
+  if (f.gravwell) for (const q of inR(340)) knock(q, p.x, p.y, -900 * f.gravwell);
+  if (f.overload) { for (const q of inR(170)) damage(q, st.maxHp * .2 * f.overload, p); M.rings.push({ x: p.x, y: p.y, r: 10, max: 170, owner: p.id, dmg: 0, hit: [], col: '#ff5c5c' }); }
   if (f.returnfire && !foe.dead) { const sa = p.aim; for (let i = 0; i < f.returnfire; i++) { p.aim = Math.atan2(foe.y - p.y, foe.x - p.x); volley(p); } p.aim = sa; }
   if (f.bullrush) { const ang = p.aim; p.chargeDir = { x: Math.cos(ang), y: Math.sin(ang) * .6 }; p.chargeT = .22; p.chargeHit = false; }
-  if (f.repulse && d < 280) knock(foe, p.x, p.y, 1100 * f.repulse);
-  if (f.hush && d < 240) { foe.silenceT = Math.max(foe.silenceT, 1.5 * f.hush); }
+  if (f.repulse) for (const q of inR(280)) knock(q, p.x, p.y, 1100 * f.repulse);
+  if (f.hush) for (const q of inR(240)) q.silenceT = Math.max(q.silenceT, 1.5 * f.hush);
   if (f.crackle) M.fields.push({ type: 'static', x: p.x, y: p.y, r: 140, t: 2.5, owner: p.id, amt: 22 * f.crackle, col: '#7ad7ff' });
   if (f.buzzsaw) p.sawT = 2;
-  if (f.singularity) { const x = p.x, y = p.y; M.fields.push({ type: 'nova', x, y, r: 300, t: .45, owner: p.id, col: '#c58bff' }); M.timers.push({ t: .45, fn: () => { if (!foe.dead && Math.hypot(foe.x - x, foe.y - y) < 320) { foe.x += (x - foe.x) * .6; foe.y += (y - foe.y) * .6; foe.stunT = Math.max(foe.stunT, 1 * f.singularity); } M.rings.push({ x, y, r: 300, max: 300, owner: p.id, dmg: 0, hit: [], col: '#c58bff', shrink: true }); sfx(120, .5, 'sawtooth', .05, -60); } }); }
+  if (f.singularity) { const x = p.x, y = p.y; M.fields.push({ type: 'nova', x, y, r: 300, t: .45, owner: p.id, col: '#c58bff' }); M.timers.push({ t: .45, fn: () => { for (const q of liveFoes(p)) if (Math.hypot(q.x - x, q.y - y) < 320) { q.x += (x - q.x) * .6; q.y += (y - q.y) * .6; q.stunT = Math.max(q.stunT, 1 * f.singularity); } M.rings.push({ x, y, r: 300, max: 300, owner: p.id, dmg: 0, hit: [], col: '#c58bff', shrink: true }); sfx(120, .5, 'sawtooth', .05, -60); } }); }
   if (f.quickswap) { p.ammo = st.ammo; p.reloadT = 0; if (p.wand) resetDeck(p, true); }
   if (f.blink) {
     const mvx = Math.cos(p.aim), mvy = Math.sin(p.aim); let ok = { x: p.x, y: p.y };
@@ -2056,6 +2154,8 @@ function knock(q, x, y, force) { if (q.dead) return; const dx = q.x - x, dy = q.
 /* ---------- damage ---------- */
 function damage(q, amt, src, o = {}) {
   if (q.dead || amt <= 0) return;
+  if (src && allyOf(q, src)) return; // no friendly fire
+  if (src && src !== q) q.lastBy = src.id;
   const f = q.st.f;
   if (f.slowburn && !o.decayed && !o.edge) { q.dots.push({ dps: amt / 4, t: 4, src: src ? src.id : null, decay: true }); return; }
   let a = amt;
@@ -2079,7 +2179,7 @@ function damage(q, amt, src, o = {}) {
 }
 function die(q) {
   if (q.st.f.rebirth && !q.rebirthUsed) { q.rebirthUsed = true; q.hp = q.st.maxHp; q.dots = []; puffs(q.x, q.y, '#ffd23d', 30, 260); ringFx(q.x, q.y, '#ffd23d'); sfx(400, .6, 'triangle', .05, 600); return; }
-  q.dead = true; q.deathT = 0; q.hp = 0; FX.die(q); if (M.phase === 'play') coin(1 - q.id, 12, 'Kills', q.x, q.y - 30);
+  q.dead = true; q.deathT = 0; q.hp = 0; FX.die(q); if (M.phase === 'play') { const k = q.lastBy !== undefined && q.lastBy !== q.id ? q.lastBy : enemyOf(q).id; coin(k, 12, 'Kills', q.x, q.y - 30); }
   puffs(q.x, q.y, q.color, 40, 380); puffs(q.x, q.y, '#ffffff', 15, 260); M.shake = 20; M.ts = .25; M.slowT = .6;
   sfx(90, .6, 'sawtooth', .07, -50); noise(.4, .1);
 }
@@ -2095,10 +2195,10 @@ function updateBullets(dt) {
     if (b.life !== undefined) { b.life -= dt; if (b.life <= 0) { b.dead = true; if (b.st && b.st.popOnEnd) { impact(b, null); FX.pop(b); } continue; } }
     if (b.kind === 'grenade') { updGrenade(b, bdt); continue; }
     // steering
-    const owner = M.players[b.owner], foe = M.players[1 - b.owner];
+    const owner = M.players[b.owner], foe = foeOfOwner(b.owner, b.x, b.y);
     if (b.kind === 'flame') {
       const k = Math.pow(.3, bdt); b.vx *= k; b.vy = b.vy * k - 230 * bdt;
-      if (b.st.fireShield) for (const ob of M.bullets) if (!ob.dead && ob.owner !== b.owner && ob.kind !== 'flame' && !ob.pulse && Math.abs(ob.x - b.x) < 16 && Math.abs(ob.y - b.y) < 16) { ob.dead = true; puffs(ob.x, ob.y, '#ffd23d', 6, 120); sfx(900, .05, 'square', .02, -400, 'parry'); }
+      if (b.st.fireShield) for (const ob of M.bullets) if (!ob.dead && ob.owner !== b.owner && !allyOf(M.players[ob.owner], owner) && ob.kind !== 'flame' && !ob.pulse && Math.abs(ob.x - b.x) < 16 && Math.abs(ob.y - b.y) < 16) { ob.dead = true; puffs(ob.x, ob.y, '#ffd23d', 6, 120); sfx(900, .05, 'square', .02, -400, 'parry'); }
     }
     if (b.kind === 'rocket') {
       const s0 = Math.hypot(b.vx, b.vy) || 1, ns = Math.min(1350, s0 * (1 + b.st.accel * bdt)); b.vx *= ns / s0; b.vy *= ns / s0;
@@ -2140,7 +2240,7 @@ function updateBullets(dt) {
       if (b.x < -80 || b.x > W + 80 || b.y > H + 80 || b.y < -1200 || b.age > 6) { if (b.kind === 'rocket' && b.x > -20 && b.x < W + 20 && b.y < H + 20) explodeAt(b, null); b.dead = true; break; }
       // players
       for (const q of M.players) {
-        if (q.dead) continue;
+        if (q.dead || allyOf(q, M.players[b.owner])) continue; // bolts pass through teammates
         if (q.id === b.owner && b.age < .35 && !b.bounced) continue;
         if (q.id === b.owner && (b.pulse || b.frag || b.kind !== 'bullet')) continue;
         if (Math.hypot(q.x - b.x, q.y - b.y) < q.r + b.hitR) { if (hitPlayer(q, b) !== false) b.dead = true; break; }
@@ -2195,7 +2295,7 @@ function clashFx(x, y, c1, c2, power, chip) {
   FX.clash(x, y, c1, c2); sfx(1700, .09, 'square', .035, -1100, 'clash'); sfx(240, .12, 'triangle', .05, -120); noise(.06, .05);
 }
 function updGrenade(b, bdt) {
-  const st = b.st, foe = M.players[1 - b.owner], gB = st.gBounce;
+  const st = b.st, foe = foeOfOwner(b.owner, b.x, b.y), gB = st.gBounce;
   b.fuse -= bdt; b.rot = (b.rot || 0) + b.spin * bdt;
   if (b.stuckQ) { const q = b.stuckQ; if (q.dead) { b.stuckQ = null; b.stuckW = true; } else { b.x = q.x + b.ox; b.y = q.y + b.oy; } }
   else if (!b.stuckW) {
@@ -2215,7 +2315,7 @@ function updGrenade(b, bdt) {
       if (b.x < 4) { b.x = 4; b.vx = Math.abs(b.vx) * gB; } else if (b.x > W - 4) { b.x = W - 4; b.vx = -Math.abs(b.vx) * gB; }
       if (b.y > H + 30) { b.dead = true; return; }
       for (const q of M.players) {
-        if (q.dead || q.id === b.owner) continue;
+        if (q.dead || q.id === b.owner || allyOf(q, M.players[b.owner])) continue;
         if (Math.hypot(q.x - b.x, q.y - b.y) < q.r + b.hitR) { if (hitPlayer(q, b) !== false) b.dead = true; return; }
       }
     }
@@ -2317,7 +2417,7 @@ function explode(x, y, rad, dmg, owner, directHit, small, o = {}) {
       if (o.selfFrac) damage(q, dmg * o.selfFrac * (1 - d / (rad + q.r) * .5), q, { self: true });
       knock(q, x, y, o.selfKnock || 280); if ((o.selfKnock || 0) > 500) q.recoverT = .6; continue;
     }
-    if (q.id === owner) continue;
+    if (q.id === owner || allyOf(q, M.players[owner])) continue;
     if (q.blockT > 0) { ringFx(q.x, q.y, '#ffffff'); continue; }
     damage(q, dmg * (q === directHit ? 1 : 1 - d / (rad + q.r) * .5), M.players[owner]); knock(q, x, y, 600 * (o.knockMul || 1));
   }
@@ -2366,7 +2466,7 @@ function updateBombs(dt) {
     else if (!bm.stuck) {
       bm.vy += GRAV * .6 * dt; bm.x += bm.vx * dt; bm.y += bm.vy * dt;
       for (const r of rects) if (bm.x > r.x && bm.x < r.x + r.w && bm.y > r.y - bm.r && bm.y < r.y + r.h) { bm.y = r.y - bm.r; bm.vy *= -.35; bm.vx *= .7; }
-      if (bm.contact) { const foe = M.players[1 - bm.owner]; if (!foe.dead && Math.hypot(foe.x - bm.x, foe.y - bm.y) < foe.r + 8) bm.t = 0; }
+      if (bm.contact && M.players[bm.owner]) { for (const q of liveFoes(M.players[bm.owner])) if (Math.hypot(q.x - bm.x, q.y - bm.y) < q.r + 8) bm.t = 0; }
     }
     if (bm.t <= 0) { bm.dead = true; explode(bm.x, bm.y, bm.rad, bm.dmg, bm.owner, null); }
   }
@@ -2376,12 +2476,14 @@ function updateBombs(dt) {
     if (fd.type === 'fgas') { fd.y = Math.max(30, fd.y - 14 * dt); if (!fd.lit) { for (const o of M.fields) if (o.type === 'fire' && Math.hypot(o.x - fd.x, o.y - fd.y) < o.r + fd.r) { igniteGas(fd, o.owner); break; }
       for (const q of M.players) if (!fd.lit && !q.dead && isBurning(q) && Math.hypot(q.x - fd.x, q.y - fd.y) < fd.r + q.r) igniteGas(fd, q.dots.find(d => d.burn).src); } continue; }
     if (fd.type === 'fire' && Math.random() < dt * 2) for (const k of M.blocks.concat(M.boxes, M.statics)) if (k.hp !== undefined && fd.x > k.x - fd.r && fd.x < k.x + k.w + fd.r && fd.y > k.y - fd.r && fd.y < k.y + k.h + fd.r) ignite(k, fd.owner, 2);
-    const owner = M.players[fd.owner], foe = M.players[1 - fd.owner];
+    const owner = M.players[fd.owner];
     if (!owner) { if (fd.type === 'fire') for (const q of M.players) if (!q.dead && Math.hypot(q.x - fd.x, q.y - fd.y) < fd.r + q.r) damage(q, (fd.amt || 6) * dt, null, { dot: true, quiet: true }); continue; } // lava-lit fire belongs to no one
-    if (fd.type === 'heal' && !owner.dead && Math.hypot(owner.x - fd.x, owner.y - fd.y) < fd.r) heal(owner, fd.amt * dt);
-    if ((fd.type === 'static' || fd.type === 'gas') && !foe.dead && Math.hypot(foe.x - fd.x, foe.y - fd.y) < fd.r + foe.r) { damage(foe, fd.amt * dt, owner, { dot: true, quiet: true }); if (fd.type === 'static') slowP(foe, .45, .2); }
+    if (fd.type === 'heal') for (const q of M.players) if (!q.dead && (q === owner || allyOf(q, owner)) && Math.hypot(q.x - fd.x, q.y - fd.y) < fd.r) heal(q, fd.amt * dt); // mending wards heal the whole team
+    for (const foe of liveFoes(owner)) {
+      if ((fd.type === 'static' || fd.type === 'gas') && Math.hypot(foe.x - fd.x, foe.y - fd.y) < fd.r + foe.r) { damage(foe, fd.amt * dt, owner, { dot: true, quiet: true }); if (fd.type === 'static') slowP(foe, .45, .2); }
+      if (fd.type === 'fire' && Math.hypot(foe.x - fd.x, foe.y - fd.y) < fd.r + foe.r) applyBurn(foe, owner, fd.amt, 1.2);
+    }
     if (fd.type === 'fire') {
-      if (!foe.dead && Math.hypot(foe.x - fd.x, foe.y - fd.y) < fd.r + foe.r) applyBurn(foe, owner, fd.amt, 1.2);
       if (M.parts.length < 900 && Math.random() < fd.r / 60) M.parts.push({ x: fd.x + rnd(-fd.r, fd.r) * .8, y: fd.y + rnd(-fd.r, fd.r) * .3, vx: rnd(-20, 20), vy: rnd(-220, -100), t: rnd(.2, .45), m: .45, col: Math.random() < .5 ? '#ff7a2a' : '#ffd23d', s: rnd(2, 4) });
     }
   }
@@ -2389,7 +2491,7 @@ function updateBombs(dt) {
   for (const rg of M.rings) {
     if (rg.shrink) { rg.r -= 900 * dt; if (rg.r <= 0) rg.dead = true; continue; }
     rg.r += (rg.fx ? 700 : 520) * dt; if (rg.r >= rg.max) rg.dead = true;
-    if (rg.dmg) { const foe = M.players[1 - rg.owner]; if (!foe.dead && !rg.hit.includes(foe) && Math.abs(Math.hypot(foe.x - rg.x, foe.y - rg.y) - rg.r) < foe.r + 6) { rg.hit.push(foe); if (foe.blockT > 0) ringFx(foe.x, foe.y, '#fff'); else damage(foe, rg.dmg, M.players[rg.owner]); } }
+    if (rg.dmg && M.players[rg.owner]) for (const foe of liveFoes(M.players[rg.owner])) if (!rg.hit.includes(foe) && Math.abs(Math.hypot(foe.x - rg.x, foe.y - rg.y) - rg.r) < foe.r + 6) { rg.hit.push(foe); if (foe.blockT > 0) ringFx(foe.x, foe.y, '#fff'); else damage(foe, rg.dmg, M.players[rg.owner]); }
   }
   M.rings = M.rings.filter(r => !r.dead);
 }
@@ -2421,8 +2523,8 @@ function step(dt) {
   if (M.phase === 'play') {
     M.playT += dt; if (M.playT > 40) { if (!M.ot) { sfx(140, .8, 'sawtooth', .05, 60); } M.ot = M.playT - 40; lavaRain(dt); }
     updateLavaDrops(dt);
-    const alive = M.players.filter(p => !p.dead);
-    if (alive.length < 2) { M.phase = 'end'; M.t = 2.2; M.winner = alive.length ? alive[0].id : -1; }
+    const alive = M.players.filter(p => !p.dead), teamsAlive = [...new Set(alive.map(teamKey))];
+    if (teamsAlive.length < 2) { M.phase = 'end'; M.t = 2.2; M.winner = teamsAlive.length ? teamsAlive[0] : -1; }
   } else if (M.phase === 'end') {
     M.t -= dt;
     if (M.t <= 0) endRound();
@@ -2432,13 +2534,15 @@ function endRound() {
   const w = M.winner;
   if (w < 0) { startRound(); return; } // draw — replay
   if (M.game === 'dungeon') return dungeonEndRound(w);
-  const l = 1 - w; M.lastLoser = l;
-  M.rw[w]++;
-  if (M.rw[w] >= SET.rounds) { M.points[w]++; M.rw = [0, 0]; }
+  const losers = M.players.filter(p => p.team !== w), winners = M.players.filter(p => p.team === w);
+  M.losers = losers.map(p => p.id); M.lastLoser = losers.length ? losers[0].id : -1; M.lastWinTeam = w;
+  M.rw[w] = (M.rw[w] || 0) + 1;
+  if (M.rw[w] >= SET.rounds) { M.points[w] = (M.points[w] || 0) + 1; M.rw = {}; }
   if (M.points[w] >= SET.points && M.mode === 'demo') { M.phase = 'over'; app = 'end'; wrap.classList.remove('play'); show('end'); DEMO.timer = setTimeout(() => { if (DEMO.on) startMatch('demo'); }, 3000); return; }
   if (M.points[w] >= SET.points) { M.phase = 'over'; app = 'end'; wrap.classList.remove('play'); show('end'); sfx(523, .2, 'square', .04); setTimeout(() => sfx(784, .4, 'square', .04), 150); return; }
-  M.pickQueue = SET.picks === 'both' ? [w] : [];
-  beginPick(l);
+  // everyone on a losing team picks (in order), then the winners too if both sides pick
+  M.pickQueue = losers.map(p => p.id).concat(SET.picks === 'both' ? winners.map(p => p.id) : []);
+  beginPick(M.pickQueue.shift());
 }
 
 /* ============================ CARD PICK ============================ */
@@ -2462,8 +2566,9 @@ function offerArsenal(p) {
   return out;
 }
 const canReroll = () => PK && M && (M.game === 'classic' || M.game === 'arsenal') && !PK.chosen && (M.rerolls || [0, 0])[PK.pi] > 0;
-function reroll() {
-  if (!canReroll() || performance.now() - PK.t0 < 350) return;
+function reroll(net) {
+  if (NET.on && !net && PK && !M.players[PK.pi].ctrl.bot) { if (M.players[PK.pi].ctrl.local && canReroll() && performance.now() - PK.t0 >= 350) netCmd({ k: 'reroll', pi: PK.pi }); return; }
+  if (!canReroll() || (!net && performance.now() - PK.t0 < 350)) return;
   M.rerolls[PK.pi]--; PK.cards = offerSpells(M.players[PK.pi]); PK.sel = Math.floor(PK.cards.length / 2); PK.t0 = performance.now(); PK.re = true;
   sfx(300, .08, 'square', .03, 500); setTimeout(() => sfx(520, .1, 'triangle', .03, 400), 120); renderPick();
 }
@@ -2473,9 +2578,10 @@ function beginPick(pi) {
   PK = { pi, cards, sel: Math.floor(cards.length / 2), chosen: false, botT: M.players[pi].ctrl.bot ? 1.5 : 0, navT: 0, t0: performance.now() };
   show('pick'); sfx(180, .12, 'square', .03, -60); setTimeout(() => sfx(620, .14, 'triangle', .03, 500), 170); // chest thunk, then the lid creaks open
 }
-function choose(i) {
+function choose(i, net) {
   if (!PK || PK.chosen) return;
-  if (!M.players[PK.pi].ctrl.bot && performance.now() - (PK.t0 || 0) < 350) return; // ignore the press that opened this screen
+  if (NET.on && !net && !M.players[PK.pi].ctrl.bot) { if (M.players[PK.pi].ctrl.local && performance.now() - (PK.t0 || 0) >= 350) { PK.sel = i; netCmd({ k: 'choose', pi: PK.pi, i }); } return; }
+  if (!net && !M.players[PK.pi].ctrl.bot && performance.now() - (PK.t0 || 0) < 350) return; // ignore the press that opened this screen
   PK.chosen = true; PK.sel = i; renderPick();
   const p = M.players[PK.pi], id = PK.cards[i], res = grantCard(p, id);
   sfx(660, .12, 'square', .04, 300);
@@ -2489,7 +2595,7 @@ function pickTick(dt) {
   const p = M.players[PK.pi];
   if (p.ctrl.bot) {
     PK.botT -= dt;
-    if (PK.botT < 1 && !PK.botSel && !PK.re && canReroll() && Math.max(...PK.cards.map(id => CARDS[id].rar)) === 0 && Math.random() < .5) { PK.t0 -= 400; reroll(); PK.botT = 1.3; return; }
+    if (PK.botT < 1 && !PK.botSel && !PK.re && !PK.rrDone && (PK.rrDone = true) && canReroll() && Math.max(...PK.cards.map(id => CARDS[id].rar)) === 0 && Math.random() < .5) { PK.t0 -= 400; reroll(); PK.botT = 1.3; return; }
     if (PK.botT < .7 && !PK.botSel) {
       const own = p.cards.map(id => CARDS[id]); let best = 0, bs = -1e9;
       PK.cards.forEach((id, i) => { const c = CARDS[id]; let sc = c.rar * 1.6 + Math.random() * 2.2 + own.filter(o => o.type === c.type).length * .5;
@@ -2499,6 +2605,7 @@ function pickTick(dt) {
     if (PK.botT <= 0) choose(PK.sel);
     return;
   }
+  if (p.ctrl.net && !p.ctrl.local) return; // another player is choosing on their machine
   // gamepad nav for the picker (or any pad if the picker is keyboard)
   PK.navT -= dt;
   const list = p.ctrl.pad !== undefined && p.ctrl.pad !== null ? pads().filter(g => g.index === p.ctrl.pad) : pads();
@@ -2740,7 +2847,7 @@ function animOf(p) {
   if (!p.onGround) { if (p.vy < -80) { o.flare = -1; o.feet = [0]; o.bob = -1; } else { o.flare = 1; o.feet = [-2, 2]; o.hatLift = p.vy > 380 ? -1 : 0; } if (p.wall && p.vy > 0) { o.sway = p.wall; o.feet = [p.wall * 2]; } }
   if (A.land > 0) { o.bob = 1; o.flare = 1; o.feet = [-3, 2]; }
   if (p.trapT > 0) { o.feet = [-1, 1]; o.flare = 0; }
-  if (M.phase === 'end' && M.winner === p.id && p.onGround) o.bob = -Math.round(Math.abs(Math.sin(t * 8)) * 2); // victory hop
+  if (M.phase === 'end' && M.winner === teamKey(p) && p.onGround) o.bob = -Math.round(Math.abs(Math.sin(t * 8)) * 2); // victory hop
   if (p.flash > 0) o.bob = 1;
   return o;
 }
@@ -3438,15 +3545,32 @@ function drawPlayerUI(p) {
   if (p.shred > .05) { ctx.font = '8px ' + PFONT; ctx.textAlign = 'center'; ctx.fillStyle = '#ff9a2e'; ctx.fillText('+' + Math.round(p.shred * 100) + '%', p.x, ay + 22); }
 }
 function txt(s, x, y, col, size, align = 'center') { ctx.font = size + 'px ' + PFONT; ctx.textAlign = align; ctx.fillStyle = '#000'; ctx.fillText(s, x + size / 6, y + size / 6); ctx.fillStyle = col; ctx.fillText(s, x, y); }
+// teams in player order: { k: team key, col, ps: [players] }
+function teamGroups() { const g = []; for (const p of M.players) { const k = teamKey(p); let t = g.find(x => x.k === k); if (!t) g.push(t = { k, col: p.color, ps: [] }); t.ps.push(p); } return g; }
+const teamName = g => g.ps.map(q => q.nick).join(' & ');
+function drawHUDTeams(G) { // 3 or 4 teams: one score block per team across the top
+  const s = SC * 2, nP = SET.points, nR = SET.rounds;
+  G.forEach((g, gi) => { const cx = W * (gi + .5) / G.length, PT = M.points[g.k] || 0, RW = M.rw[g.k] || 0, w = nP * 24;
+    for (let k = 0; k < nP; k++) { const x = snap(cx - w / 2 + k * 24 + 12) - s, y = 16; ctx.fillStyle = '#000'; ctx.fillRect(x - SC, y - SC, s * 2 + SC * 2, s * 2 + SC * 2); ctx.fillStyle = k < PT ? g.col : '#2a2430'; ctx.fillRect(x, y, s * 2, s * 2); }
+    if (nR > 1) for (let k = 0; k < nR - 1; k++) { const x = snap(cx - (nR - 1) * 7 + k * 14), y = 36; ctx.fillStyle = k < RW ? g.col : '#2a2430'; ctx.fillRect(x, y, SC * 2, SC * 2); }
+    txt(teamName(g).toUpperCase(), cx, 54, g.col, g.ps.length > 1 ? 8 : 9); });
+}
 function drawHUD() {
-  const cx = W / 2, s = SC * 2;
-  for (let i = 0; i < 2; i++) {
-    const p = M.players[i], dir = i === 0 ? -1 : 1;
+  const cx = W / 2, s = SC * 2, G = teamGroups();
+  if (NET.on) { // online status: who left, waiting on a slow connection, ping
+    if (NET.notice && NET.notice.t > 0) txt(NET.notice.msg.toUpperCase(), cx, 92, '#ffd27a', 9);
+    if (NET.waitT > .35) txt('WAITING FOR PLAYERS...', cx, H * .3, '#ffffff', 12);
+    txt((NET.rtt || 0) + ' MS', W - 14, H - 10, '#7a6a58', 7, 'right');
+    if (NET.desync) txt('OUT OF SYNC - TELL CLAUDE', 14, H - 10, '#ff6a5a', 7, 'left');
+  }
+  if (G.length > 2) drawHUDTeams(G);
+  else for (let i = 0; i < 2; i++) {
+    const g = G[i], p = g.ps[0], dir = i === 0 ? -1 : 1, PT = M.points[g.k] || 0, RW = M.rw[g.k] || 0;
     const nP = M.run ? M.run.floors : SET.points, nR = M.run ? 2 : SET.rounds;
-    for (let k = 0; k < nP; k++) { const x = snap(cx + dir * (40 + k * 24)) - s, y = 22; ctx.fillStyle = '#000'; ctx.fillRect(x - SC, y - SC, s * 2 + SC * 2, s * 2 + SC * 2); ctx.fillStyle = k < M.points[i] ? p.color : '#2a2430'; ctx.fillRect(x, y, s * 2, s * 2); }
-    if (nR > 1) for (let k = 0; k < nR - 1; k++) { const x = snap(cx + dir * 22) - SC, y = 44; ctx.fillStyle = k < M.rw[i] ? p.color : '#2a2430'; ctx.fillRect(x, y, SC * 2, SC * 2); }
-    txt(p.nick.toUpperCase(), cx + dir * (56 + nP * 24), 33, p.color, 11, i === 0 ? 'right' : 'left');
-    if (M.game === 'arsenal' && p.weapon) txt(WEAPONS[p.weapon].name.toUpperCase(), cx + dir * (56 + nP * 24), 50, '#d9b26a', 7, i === 0 ? 'right' : 'left');
+    for (let k = 0; k < nP; k++) { const x = snap(cx + dir * (40 + k * 24)) - s, y = 22; ctx.fillStyle = '#000'; ctx.fillRect(x - SC, y - SC, s * 2 + SC * 2, s * 2 + SC * 2); ctx.fillStyle = k < PT ? p.color : '#2a2430'; ctx.fillRect(x, y, s * 2, s * 2); }
+    if (nR > 1) for (let k = 0; k < nR - 1; k++) { const x = snap(cx + dir * 22) - SC, y = 44; ctx.fillStyle = k < RW ? p.color : '#2a2430'; ctx.fillRect(x, y, SC * 2, SC * 2); }
+    txt(teamName(g).toUpperCase(), cx + dir * (56 + nP * 24), 33, p.color, g.ps.length > 1 ? 9 : 11, i === 0 ? 'right' : 'left');
+    if (M.game === 'arsenal' && p.weapon && g.ps.length === 1) txt(WEAPONS[p.weapon].name.toUpperCase(), cx + dir * (56 + nP * 24), 50, '#d9b26a', 7, i === 0 ? 'right' : 'left');
     if (M.run) { const tx = cx + dir * (56 + nP * 24), cy0 = 46, s2 = SC * 2, w = String(M.run.coins[i]).length * 8 + 14, bx = snap(i === 0 ? tx - w : tx);
       ctx.fillStyle = '#000'; ctx.fillRect(bx - 1, cy0 - 1, s2 + 2, s2 + 2); ctx.fillStyle = '#ffd23d'; ctx.fillRect(bx, cy0, s2, s2); ctx.fillStyle = '#a07a1a'; ctx.fillRect(bx + SC, cy0 + SC, SC, SC);
       txt(String(M.run.coins[i]), bx + s2 + 5, cy0 + 8, '#ffd23d', 9, 'left'); }
@@ -3460,7 +3584,7 @@ function drawHUD() {
     if (M.roundNo <= 2) txt('LAVA & THE GLOWING EDGES HURT - BLOCK TO AVOID IT', cx, H * .44 + 70, '#ff8a6a', 9);
     else if (M.game !== 'classic') txt('HEALTH +' + (M.roundNo - 1) * 10 + '%', cx, H * .44 + 70, '#5cd65c', 10);
   }
-  if (M.phase === 'end' && M.t < 2) { const w = M.winner; txt(w < 0 ? 'DRAW' : (M.players[w].nick.toUpperCase() + ' WINS THE ROUND'), cx, H * .42, w < 0 ? '#ffffff' : M.players[w].color, 22); }
+  if (M.phase === 'end' && M.t < 2) { const g = teamGroups().find(t => t.k === M.winner); txt(!g ? 'DRAW' : (teamName(g).toUpperCase() + (g.ps.length > 1 ? ' WIN THE ROUND' : ' WINS THE ROUND')), cx, H * .42, !g ? '#ffffff' : g.col, g && g.ps.length > 1 ? 18 : 22); }
   // damage numbers
   for (const n of M.nums) { const v = parseFloat(n.v) || 30, sz = Math.round(8 + Math.min(8, v / 10)); ctx.globalAlpha = clamp(n.t * 2, 0, 1); txt(String(n.v), snap(n.x), snap(n.y), n.col, sz); } ctx.globalAlpha = 1;
 }
@@ -3490,7 +3614,9 @@ let last = performance.now(), acc = 0;
 function loop(now) {
   const frame = Math.min(.1, (now - last) / 1000); last = now;
   pollPads();
-  if (app === 'match' && !paused) { acc += frame * (SET.speed || 1); while (acc >= DT) { step(DT); RX.tick(DT * (M ? M.ts : 1)); acc -= DT; } }
+  if (NET.ws) netPoll(frame);
+  if (NET.on && app === 'match') { acc += frame; let n = 0; while (acc >= DT && n < 5) { if (!netReady(NET.f)) { NET.waitT += frame; acc = Math.min(acc, DT); break; } NET.waitT = 0; netTick(); acc -= DT; n++; } }
+  else if (app === 'match' && !paused) { acc += frame * (SET.speed || 1); while (acc >= DT) { step(DT); RX.tick(DT * (M ? M.ts : 1)); acc -= DT; } }
   else if (app === 'pick') { pickTick(frame); if (M) { M.parts.forEach(q => { q.t -= frame; }); } }
   else if (app === 'wpick') wpTick(frame);
   else acc = 0;
@@ -3498,13 +3624,191 @@ function loop(now) {
   requestAnimationFrame(loop);
 }
 requestAnimationFrame(loop);
+setTimeout(() => { // visuals and sound never touch the shared gameplay random
+  draw = realRand(draw); drawCustPreview = realRand(drawCustPreview); drawWPickPreview = realRand(drawWPickPreview); sfx = realRand(sfx); noise = realRand(noise); rumble = realRand(rumble); puffs = realRand(puffs);
+  RX.tick = realRand(RX.tick); show = realRand(show);
+  for (const k of Object.keys(FX)) if (typeof FX[k] === 'function') FX[k] = realRand(FX[k]);
+}, 0);
+
+/* ============================ ONLINE ============================
+   Lockstep: every machine runs the same simulation from the same inputs. The server starts each
+   match with a shared random seed, relays every wizard's input for each frame (sent a few frames
+   ahead, so it arrives in time) and every choice (spells, wands, re-rolls) in one fixed order.
+   Gameplay uses a seeded random generator; visuals and sound keep the real one, so they can never
+   push machines out of step. A fingerprint every 2 s catches it if they ever do. */
+const DEFAULT_SERVER = '167.99.101.133:7777', NET_PROTO = 1;
+const REAL_RANDOM = Math.random;
+let SIM_RNG = 1;
+function simRandom() { let t = SIM_RNG = (SIM_RNG + 0x6D2B79F5) | 0; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }
+function realRand(fn) { return function () { const r = Math.random; Math.random = REAL_RANDOM; try { return fn.apply(this, arguments); } finally { Math.random = r; } }; }
+const NET = { ws: null, status: 'off', err: '', id: 0, list: [], lobby: null, on: false, me: -1, delay: 6, f: 0, sent: -1, inputs: new Map(), humans: [], leftAt: {}, cmdQ: [], cur: null,
+  rtt: 0, pingT: 0, waitT: 0, desync: 0, overlay: false, saved: null, joinCode: '', retryT: 0, test: null };
+const netSend = m => { if (NET.ws && NET.ws.readyState === 1) NET.ws.send(JSON.stringify(m)); };
+const netCmd = c => netSend({ t: 'cmd', c });
+const myProfile = () => SET.prof[0] || {};
+function netConnect() {
+  if (NET.ws && NET.ws.readyState <= 1) return;
+  if (location.protocol === 'https:') { NET.status = 'off'; NET.err = 'Online play works in the desktop version of Retro Shot.'; return refreshOnline(); }
+  NET.status = 'connecting'; NET.err = ''; refreshOnline();
+  let ws; try { ws = new WebSocket('ws://' + (SET.server || DEFAULT_SERVER)); } catch (e) { NET.status = 'off'; NET.err = "Couldn't reach the server."; return refreshOnline(); }
+  NET.ws = ws;
+  ws.onopen = () => { const pr = myProfile(); netSend({ t: 'hello', v: NET_PROTO, name: (pr.name || '').trim() || 'Wizard', look: pr }); };
+  ws.onclose = () => { const was = NET.status; NET.ws = null; NET.status = 'off'; if (!NET.err) NET.err = was === 'online' ? 'Lost connection to the server.' : "Couldn't reach the server - is it running?";
+    if (NET.on) { netEndLocal(); app = 'online'; } NET.lobby = null; if (app === 'online' || app === 'lobby' || app === 'title') { app = 'online'; show('online'); } };
+  ws.onerror = () => {};
+  ws.onmessage = ev => { let m; try { m = JSON.parse(ev.data); } catch (e) { return; } netMsg(m); };
+}
+function netMsg(m) {
+  switch (m.t) {
+    case 'welcome': NET.status = 'online'; NET.id = m.id; NET.list = m.lobbies || []; NET.err = ''; return refreshOnline();
+    case 'lobbies': NET.list = m.list; if (app === 'online') refreshOnline(); return;
+    case 'err': NET.err = m.msg; if (app === 'online' || app === 'lobby') refreshOnline(); return;
+    case 'pong': NET.rtt = Math.round(performance.now() - m.ts); netSend({ t: 'rtt', ms: NET.rtt }); return;
+    case 'lobby': NET.lobby = m.lobby; NET.err = '';
+      if (!NET.on && (app === 'online' || app === 'lobby' || app === 'end' || app === 'title')) { if (app !== 'lobby') { app = 'lobby'; show('lobby'); } else refreshLobby(); }
+      return;
+    case 'start': return startNetMatch(m);
+    case 'in': { if (!NET.on) return; let row = NET.inputs.get(m.f); if (!row) NET.inputs.set(m.f, row = new Map()); row.set(m.p, m.d); return; }
+    case 'cmd': if (NET.on) NET.cmdQ.push(m.c); return;
+    case 'left': if (NET.on) { NET.leftAt[m.p] = m.f; NET.humans = NET.humans.filter(h => h !== m.p); NET.cmdQ.push({ k: 'left', pi: m.p }); const q = M && M.players[m.p]; if (q) NET.notice = { msg: q.nick + ' left - a bot takes over', t: 4 }; } return;
+    case 'desync': NET.desync++; console.warn('Retro Shot: machines drifted apart at frame', m.f); return;
+  }
+}
+function netPoll(dt) {
+  NET.pingT -= dt; if (NET.pingT <= 0 && NET.status === 'online') { NET.pingT = 2; netSend({ t: 'ping', ts: performance.now() }); }
+  if (NET.notice) NET.notice.t -= dt;
+  if (NET.on) netProcessCmds();
+}
+// ---- inputs are packed small: [move x100, buttons, aim x1000, aim point x, y] ----
+function encodeIn(i) { return [Math.round((i.mx || 0) * 100), (i.jump ? 1 : 0) | (i.shoot ? 2 : 0) | (i.block ? 4 : 0), Math.round((i.aim || 0) * 1000), Math.round(i.aimPt ? i.aimPt.x : 0), Math.round(i.aimPt ? i.aimPt.y : 0)]; }
+function decodeIn(d) { return { mx: d[0] / 100, jump: !!(d[1] & 1), shoot: !!(d[1] & 2), block: !!(d[1] & 4), aim: d[2] / 1000, aimPt: { x: d[3], y: d[4] } }; }
+function netInputFor(p) {
+  const d = NET.cur && NET.cur.get(p.id);
+  return d ? decodeIn(d) : { mx: 0, jump: false, shoot: false, block: false, aim: Math.round(p.aim * 1000) / 1000, aimPt: { x: Math.round(p.x), y: Math.round(p.y) } };
+}
+function netReady(f) {
+  if (f < NET.delay) return true;
+  const row = NET.inputs.get(f);
+  for (const h of Object.keys(NET.leftAt).length ? M.players.map(q => q.id).filter(id => NET.leftAt[id] !== undefined ? f < NET.leftAt[id] : NET.humans.includes(id)) : NET.humans) if (!row || !row.has(h)) return false;
+  return true;
+}
+function netTick() {
+  const me = M.players[NET.me], tf = NET.f + NET.delay;
+  if (me && NET.sent < tf && NET.humans.includes(NET.me)) { // my input for a few frames ahead
+    const raw = NET.overlay ? { mx: 0, jump: false, shoot: false, block: false, aim: me.aim, aimPt: { x: me.x, y: me.y } } : NET.test ? NET.test(me, NET.f) : rawInput(me);
+    const d = encodeIn(raw); let row = NET.inputs.get(tf); if (!row) NET.inputs.set(tf, row = new Map()); row.set(NET.me, d);
+    netSend({ t: 'in', f: tf, d }); NET.sent = tf;
+  }
+  for (const id in NET.leftAt) if (NET.leftAt[id] === NET.f && M.players[id]) M.players[id].ctrl = { bot: true };
+  NET.cur = NET.inputs.get(NET.f) || new Map();
+  step(DT); RX.tick(DT * (M ? M.ts : 1));
+  NET.inputs.delete(NET.f - 2);
+  if (NET.f % 120 === 60 && M) netSend({ t: 'hash', f: NET.f, h: netHash() });
+  NET.f++;
+}
+function netHash() {
+  let h = SIM_RNG | 0;
+  const mix = v => { h = Math.imul(h ^ (Math.round(v * 16) | 0), 2654435761) | 0; };
+  for (const p of M.players) { mix(p.x); mix(p.y); mix(p.hp); mix(p.dead ? 1 : 0); }
+  mix(M.bullets.length); mix(M.bombs.length); mix(M.statics.length); mix(NET.f);
+  return (h >>> 0).toString(36);
+}
+// choices from the server are applied in order, each once the screen it belongs to is up
+function netProcessCmds() {
+  for (let guard = 0; NET.cmdQ.length && guard < 8; guard++) {
+    const c = NET.cmdQ[0];
+    if (c.k === 'choose' || c.k === 'reroll') { if (!PK || PK.pi !== c.pi || PK.chosen) return; NET.cmdQ.shift(); if (c.k === 'choose') choose(c.i, true); else reroll(true); }
+    else if (c.k === 'weapon') { if (!WP || WP.turn !== c.pi || WP.lock) return; NET.cmdQ.shift(); WP.sel = c.i; chooseWeapon(c.i, true); }
+    else if (c.k === 'wact') { if (!WE || WE.p.id !== c.pi) return; NET.cmdQ.shift(); wandAct(c.a, c.v, true); }
+    else if (c.k === 'left') { // in a match the frame clock switches them over; between rounds it happens here, in the same order everywhere
+      if (app === 'match') return; NET.cmdQ.shift(); const q = M.players[c.pi]; if (!q) continue; q.ctrl = { bot: true };
+      if (WE && WE.p === q) { if (WE.pending) botTakeSpell(q, WE.pending); else if (WE.up) botUpgrade(q, WE.up); const d = WE.done; WE = null; if (d) d(); } }
+    else NET.cmdQ.shift();
+  }
+}
+function startNetMatch(m) {
+  NET.on = true; NET.me = m.you; NET.delay = m.delay; NET.f = 0; NET.sent = m.delay - 1; NET.inputs = new Map(); NET.cmdQ = []; NET.leftAt = {}; NET.desync = 0; NET.overlay = false;
+  NET.humans = m.players.filter(p => p.human).map(p => p.pid);
+  if (!NET.saved) NET.saved = { game: SET.game, points: SET.points, rounds: SET.rounds, picks: SET.picks, bot: SET.bot, nums: SET.nums, mapsOff: SET.mapsOff, speed: SET.speed };
+  Object.assign(SET, { game: m.opts.game, points: m.opts.points, rounds: m.opts.rounds, picks: m.opts.picks, bot: m.opts.bot, nums: true, mapsOff: [], speed: 1 });
+  SIM_RNG = m.seed | 0; Math.random = simRandom; // from here on, gameplay randomness is shared
+  const ps = pads();
+  M = { mode: 'online', players: m.players.map((pl, j) => newPlayer(j, !pl.human ? { bot: true } : pl.pid === m.you ? { net: true, local: true, kbm: true, pad: ps[0] ? ps[0].index : null } : { net: true })),
+    points: {}, rw: {}, phase: 'count', t: 0, mapIdx: -1, bullets: [], bombs: [], fields: [], rings: [], parts: [], nums: [], timers: [], shake: 0, ts: 1, slowT: 0, lastLoser: -1, roundNo: 0 };
+  m.players.forEach((pl, j) => { const q = M.players[j], lk = pl.human ? Object.assign(randomLook(pl.col), pl.look || {}) : randomLook(pl.col);
+    lk.col = pl.col; q.look = lk; q.team = pl.col; q.color = pl.col; q.nick = pl.name; q.slot = pl.slot; });
+  M.game = SET.game; M.rerolls = M.players.map(() => 2);
+  PK = null; WP = null; WE = null; paused = false; acc = 0;
+  if (M.game === 'arsenal') return beginWeaponPick();
+  startRound(); app = 'match'; show(null); wrap.classList.add('play');
+}
+function netEndLocal() {
+  NET.on = false; Math.random = REAL_RANDOM; NET.overlay = false;
+  if (NET.saved) { Object.assign(SET, NET.saved); NET.saved = null; }
+  PK = null; WP = null; WE = null; M = null; paused = false; wrap.classList.remove('play');
+}
+function backToLobby() { netSend({ t: 'endmatch' }); netEndLocal(); app = 'lobby'; show('lobby'); }
+// ---- screens ----
+function refreshOnline() { if (app === 'online') { const f = focusIdx; show('online'); focusIdx = Math.min(f, navItems().length - 1); markFocus(); } else if (app === 'lobby') refreshLobby(); }
+function refreshLobby() { if (app !== 'lobby') return; const f = focusIdx; show('lobby'); focusIdx = Math.min(f, navItems().length - 1); markFocus(); }
+function lobbySprite(cv, look, col) {
+  const S = spriteBuf(cv.width, cv.height); for (let i = 0; i < S.buf.length; i++) S.buf[i] = packC(20, 15, 11);
+  for (let x = 2; x < cv.width - 2; x++) S.buf[(cv.height - 3) * cv.width + x] = packC(90, 72, 52);
+  const lk = Object.assign({ shape: 'circle', hat: 'wizard', eyes: 'normal', gun: 'body' }, look || {}, { col });
+  drawPChar(S.A, S.E, cv.width >> 1, cv.height - 8, lookOpts(lk, { aim: -.2, t: 1 }));
+  cv.getContext('2d').putImageData(S.img, 0, 0);
+}
+const ONLINE_UI = {
+  online() {
+    const st = NET.status, pr = myProfile();
+    const list = NET.list.length ? NET.list.map(L => `<div class="lrow"><b>${L.code}</b><span>${L.host}'s lobby · ${L.n} player${L.n > 1 ? 's' : ''}${L.bots ? ' + ' + L.bots + ' bot' + (L.bots > 1 ? 's' : '') : ''} · ${L.game === 'arsenal' ? 'Arsenal' : 'Classic'}</span><button class="btn small" data-act="njoin" data-v="${L.code}">Join</button></div>`).join('') : '<div class="hint">No open lobbies right now. Create one and send your friends the code.</div>';
+    $('online').innerHTML = `<h2>Online</h2>
+      <div class="sub" style="margin-bottom:.6em">${st === 'online' ? `Connected <span style="color:#7dff5a">●</span> as <b style="color:${pr.col || '#ffd27a'}">${(pr.name || 'Wizard').replace(/</g, '')}</b> · ping ${NET.rtt || '…'} ms` : st === 'connecting' ? 'Connecting to the server…' : '<span style="color:#ff9a6a">Not connected</span>'}</div>
+      ${NET.err ? `<div class="hint" style="color:#ff9a6a">${NET.err}</div>` : ''}
+      ${st === 'online' ? `<div><button class="btn" data-act="ncreate">Create lobby</button></div>
+        <div class="seg" style="margin:.6em 0;align-items:center;gap:.4em"><input class="nm" id="joinIn" maxlength="4" placeholder="CODE" style="width:6em;text-transform:uppercase;text-align:center" value="${NET.joinCode}"><button class="btn small" data-act="njoincode">Join with code</button></div>
+        <h3>Open lobbies</h3><div class="llist">${list}</div>` : `<button class="btn" data-act="nconnect">${st === 'connecting' ? 'Connecting…' : 'Connect'}</button>`}
+      <div class="hint" style="margin-top:.8em">Your name and wizard come from <b>Customize</b> (Player 1).</div>
+      <div style="margin-top:.6em"><button class="btn small" data-act="go" data-v="custom">Customize</button><button class="btn" data-act="nback">Back</button></div>`;
+    const ji = $('joinIn'); if (ji) { ji.addEventListener('input', () => { NET.joinCode = ji.value.toUpperCase(); }); ji.addEventListener('keydown', e => { if (e.code === 'Enter') act('njoincode'); }); }
+  },
+  lobby() {
+    const L = NET.lobby; if (!L) { $('lobby').innerHTML = '<h2>Lobby</h2><div class="hint">Joining…</div>'; return; }
+    const meSlot = L.slots.findIndex(s => s.kind === 'human' && s.cid === NET.id), me = L.slots[meSlot], on = L.slots.filter(s => s.kind !== 'empty');
+    const teams = [...new Set(on.map(s => s.col))], desc = teams.length === on.length ? (on.length === 2 ? '1 v 1' : 'Free-for-all') : teams.map(c => on.filter(s => s.col === c).length).join(' v ');
+    const waiting = L.slots.filter(s => s.kind === 'human' && !s.ready).map(s => s.name);
+    const status = L.state === 'match' ? 'A match is still finishing - waiting for everyone to get back…' : L.countdown ? `Starting in ${L.countdown}…` : on.length < 2 ? 'Need at least 2 wizards (add a bot or invite a friend).' : teams.length < 2 ? 'Everyone is on the same team - pick different colours.' : waiting.length ? 'Waiting for ' + waiting.join(', ') + ' to ready up.' : '';
+    const swatch = (i, s, can) => TEAM_COLS.map(c => `<button class="psw${s.col === c ? ' sel' : ''}" ${can ? `data-act="nteam" data-v="${i}:${c}"` : 'disabled'} title="Team colour"><i style="background:${c}"></i></button>`).join('');
+    const card = (s, i) => s.kind === 'empty' ? `<div class="lslot empty"><div class="lsn">Open</div><div class="hint" style="margin:.3em 0">Waiting for a friend</div><button class="btn small" data-act="naddbot">Add bot</button></div>`
+      : `<div class="lslot${s.ready ? ' ready' : ''}" style="border-color:${s.col}"><canvas class="lsp" width="30" height="26" data-i="${i}"></canvas>
+          <div class="lsn" style="color:${s.col}">${(s.name || '').replace(/</g, '')}${i === meSlot ? ' (you)' : ''}</div>
+          <div class="lcols">${swatch(i, s, i === meSlot || s.kind === 'bot')}</div>
+          <div class="lst">${s.kind === 'bot' ? `Bot (${L.opts.bot}) <button class="btn small" data-act="ndelbot" data-v="${i}">Remove</button>` : s.ready ? '<b style="color:#7dff5a">READY</b>' : 'not ready'}${s.kind === 'human' && s.ping ? ` <span class="hint">· ${s.ping} ms</span>` : ''}</div></div>`;
+    const opt = (k, vals, names) => vals.map((v, j) => `<button class="btn small ${L.opts[k] === v ? 'sel' : ''}" data-act="nopt" data-v="${k}:${v}">${names[j]}</button>`).join('');
+    $('lobby').innerHTML = `<h2>Lobby <span style="color:#ffd27a;letter-spacing:4px">${L.code}</span></h2>
+      <div class="hint" style="margin:-.2em 0 .6em">Send friends the code <b style="color:#ffd27a">${L.code}</b>. Same colour = same team · <b style="color:#ffe9b8">${desc}</b></div>
+      <div class="lslots">${L.slots.map(card).join('')}</div>
+      <div class="lopts">
+        <div><h3>Mode</h3><div class="seg">${opt('game', ['classic', 'arsenal'], ['Classic', 'Arsenal'])}</div></div>
+        <div><h3>Match length</h3><div class="seg">${opt('points', [3, 5, 7], ['First to 3', '5', '7'])}</div></div>
+        <div><h3>Rounds per point</h3><div class="seg">${opt('rounds', [1, 2], ['1', '2'])}</div></div>
+        <div><h3>Spell picks</h3><div class="seg">${opt('picks', ['loser', 'both'], ['Losers pick', 'Everyone'])}</div></div>
+        <div><h3>Bots</h3><div class="seg">${opt('bot', ['easy', 'normal', 'hard'], ['Easy', 'Normal', 'Hard'])}</div></div>
+      </div>
+      <div class="hint" style="min-height:1.3em;color:${L.countdown ? '#7dff5a' : '#ffd27a'}">${status}</div>
+      ${NET.err ? `<div class="hint" style="color:#ff9a6a">${NET.err}</div>` : ''}
+      <div style="margin-top:.4em">${me ? `<button class="btn ${me.ready ? 'sel' : ''}" data-act="nready">${me.ready ? 'Ready!' : 'Ready up'}</button>` : ''}<button class="btn small" data-act="nleave">Leave lobby</button></div>
+      <div class="hint">Anyone can change the options or add bots. The match starts when every player is ready.</div>`;
+    document.querySelectorAll('#lobby canvas.lsp').forEach(cv => { const s = L.slots[+cv.dataset.i]; lobbySprite(cv, s.kind === 'bot' ? { shape: 'hex', hat: 'hood', eyes: 'visor' } : s.look, s.col); });
+  }
+};
 
 /* ============================ UI ============================ */
 const $ = id => document.getElementById(id);
-const PANELS = ['title', 'setup', 'pick', 'end', 'library', 'settings', 'maps', 'help', 'pause', 'custom', 'controls', 'wpick', 'wand', 'shop'];
+const PANELS = ['title', 'setup', 'pick', 'end', 'library', 'settings', 'maps', 'online', 'lobby', 'help', 'pause', 'custom', 'controls', 'wpick', 'wand', 'shop'];
 let focusIdx = 0;
 // shown under the title logo; bump with each published update (MAKE-UPDATE uses the same number)
-const GAME_VERSION = '1.0.0';
+const GAME_VERSION = '1.2.0';
 function drawMapPreviews() {
   document.querySelectorAll('#maps canvas[data-m]').forEach(cv => {
     const m = MAPS[+cv.dataset.m], c = cv.getContext('2d'), k = cv.width / W; c.imageSmoothingEnabled = false;
@@ -3610,6 +3914,7 @@ function drawLookTiles() {
   });
 }
 const UI = {
+  ...ONLINE_UI,
   custom() {
     const lk = SET.prof[custIdx];
     const tiles = (k, list) => list.map(([n, v]) => `<button class="ltile${lk[k] === v ? ' sel' : ''}" data-act="look" data-k="${k}" data-v="${v}" title="${n}"><canvas class="lt" data-k="${k}" data-v="${v}"></canvas><span>${n}</span></button>`).join('');
@@ -3651,20 +3956,29 @@ const UI = {
       <button class="btn" data-act="go" data-v="maps">Maps (${MAPS.filter(mapOn).length}/${MAPS.length})</button>
       <button class="btn" data-act="go" data-v="settings">Settings</button>
       <button class="btn" data-act="go" data-v="help">How to Play</button>
-      <button class="btn" disabled>Online — coming next</button>${window.desktop ? '<button class="btn" data-act="quitapp">Quit game</button>' : ''}
+      <button class="btn" data-act="nopen">Online</button>${window.desktop ? '<button class="btn" data-act="quitapp">Quit game</button>' : ''}
       <div class="hint">${n ? n + ' controller' + (n > 1 ? 's' : '') + ' connected' : 'No controller detected — press a button on your controller to connect it'}</div>`;
   },
   setup() {
-    const pd = padsHTML(setupMode);
-    $('setup').innerHTML = `<h2>${setupMode === 'bot' ? 'Play vs Bot' : 'Local Versus'}</h2>${pd.html}
+    const key = setupMode === 'bot' ? 'bot' : 'versus', L = lineupOf(key), ctr = lineupCtrls(L), prob = lineupProblem(L, SET.game), anyBot = L.some(x => x.who === 'bot');
+    const WHO = [['you', 'You'], ['pad', 'Controller'], ['bot', 'Bot'], ['off', 'Off']];
+    const detail = (x, c) => x.who === 'off' ? '' : x.who === 'bot' ? 'Computer (' + SET.bot + ')' : x.who === 'you' ? 'Keyboard & mouse' + (c.pad !== null && c.pad !== undefined ? ' + Controller ' + (c.pad + 1) : '') : (c.pad !== null && c.pad !== undefined ? 'Controller ' + (c.pad + 1) : '<span style="color:#ff7a5a">no controller</span>');
+    const rows = L.map((x, i) => `<div class="lu${x.who === 'off' ? ' off' : ''}"><b style="color:${x.who === 'off' ? '#6a5a48' : x.col}">P${i + 1}</b>
+        <div class="seg">${WHO.filter(([w]) => w !== 'you' || i === 0).filter(([w]) => i > 0 || w !== 'off').map(([w, n]) => `<button class="btn small ${x.who === w ? 'sel' : ''}" data-act="luwho" data-v="${i}:${w}">${n}</button>`).join('')}</div>
+        <div class="lucols">${TEAM_COLS.map(c => `<button class="psw${x.col === c ? ' sel' : ''}" title="Team colour" data-act="lucol" data-v="${i}:${c}"><i style="background:${c}"></i></button>`).join('')}</div>
+        <span class="d">${detail(x, ctr[i] || {})}</span></div>`).join('');
+    $('setup').innerHTML = `<h2>${setupMode === 'bot' ? 'Play vs Bot' : 'Local Versus'}</h2>
+      <h3>Wizards</h3><div class="lineup">${rows}</div>
+      <div class="hint" style="margin:.3em 0 0">Same colour = same team · all different = free-for-all &nbsp;→&nbsp; <b style="color:#ffe9b8">${teamsDesc(L)}</b></div>
       <h3>Game mode</h3><div class="seg">${[['classic', 'Classic'], ['arsenal', 'Arsenal'], ['dungeon', 'Dungeon Run']].map(([k, n]) => `<button class="btn small ${SET.game === k ? 'sel' : ''}" data-act="game" data-v="${k}">${n}</button>`).join('')}</div>
       <div class="hint" style="margin-top:.4em;max-width:34em">${SET.game === 'dungeon' ? 'Pick a starting wand, then fight through 5 floors (best of 3 rounds each). There are no card picks: you earn coins for damage, kills, wards, warded bolts, bolt clashes, trick shots, smashed terrain and more, and spend them with a mysterious merchant after every floor. Most floors won takes the run.' : SET.game === 'arsenal' ? 'Each player picks one of ' + WEAPON_LIST.length + ' elemental wands (fire, laser, bomb, spark, bubble, acid) and keeps it. Between rounds you get 3 cards for your element (new spells or attunements that change how it behaves), plus a spell upgrade and a wand upgrade.' : 'Everyone starts with the same Apprentice Wand and adds spells to it between rounds.'}</div>
-      ${setupMode === 'bot' ? `<h3>Bot difficulty</h3><div class="seg">${['easy', 'normal', 'hard'].map(d => `<button class="btn small ${SET.bot === d ? 'sel' : ''}" data-act="bot" data-v="${d}">${d}</button>`).join('')}</div>` : ''}
-      ${SET.game === 'dungeon' ? '' : `<h3>Card picks</h3><div class="seg">${[['loser', 'Loser picks (ROUNDS)'], ['both', 'Both players pick']].map(([k, n]) => `<button class="btn small ${(SET.picks || 'loser') === k ? 'sel' : ''}" data-act="picks" data-v="${k}">${n}</button>`).join('')}</div>
+      ${anyBot ? `<h3>Bot difficulty</h3><div class="seg">${['easy', 'normal', 'hard'].map(d => `<button class="btn small ${SET.bot === d ? 'sel' : ''}" data-act="bot" data-v="${d}">${d}</button>`).join('')}</div>` : ''}
+      ${SET.game === 'dungeon' ? '' : `<h3>Card picks</h3><div class="seg">${[['loser', 'Loser picks (ROUNDS)'], ['both', 'Everyone picks']].map(([k, n]) => `<button class="btn small ${(SET.picks || 'loser') === k ? 'sel' : ''}" data-act="picks" data-v="${k}">${n}</button>`).join('')}</div>
       <h3>Match length</h3><div class="seg">${[3, 5, 7].map(d => `<button class="btn small ${SET.points === d ? 'sel' : ''}" data-act="points" data-v="${d}">First to ${d}</button>`).join('')}</div>
       <div class="seg" style="margin-top:.3em">${[1, 2].map(d => `<button class="btn small ${SET.rounds === d ? 'sel' : ''}" data-act="rounds" data-v="${d}">${d} round${d > 1 ? 's' : ''} per point</button>`).join('')}</div>`}
       <div style="height:1em"></div>
-      <button class="btn" data-act="start" ${pd.ok ? '' : 'disabled'}>Start</button>
+      ${prob ? `<div class="hint" style="color:#ff9a6a;margin-bottom:.5em">${prob}</div>` : ''}
+      <button class="btn" data-act="start" ${prob ? 'disabled' : ''}>Start</button>
       <button class="btn small" data-act="go" data-v="title">Back</button>`;
   },
   pick() { renderPick(); },
@@ -3699,12 +4013,12 @@ const UI = {
       <div><button class="btn small" data-act="resetctl">Reset to defaults</button><button class="btn" data-act="ctlback">Done</button></div>`;
   },
   end() {
-    const w = M.points[0] > M.points[1] ? 0 : 1, p = M.players[w];
-    $('end').innerHTML = `<div class="pickhead" style="color:${p.color};font-size:3em">${p.nick === 'You' ? 'You win!' : p.nick + ' wins!'}</div>
-      <div class="score">${M.points[0]} — ${M.points[1]}</div>${M.run ? '<div class="sub">Floors cleared</div>' + runSummaryHTML() : ''}
+    const G = teamGroups(), win = G.slice().sort((a, b) => (M.points[b.k] || 0) - (M.points[a.k] || 0))[0], p = win.ps[0];
+    $('end').innerHTML = `<div class="pickhead" style="color:${p.color};font-size:${win.ps.length > 1 ? 2.2 : 3}em">${teamName(win) + (win.ps.length > 1 ? ' win!' : ' wins!')}</div>
+      <div class="score">${scoreLine()}</div>${M.run ? '<div class="sub">Floors cleared</div>' + runSummaryHTML() : ''}
       <div class="decks">${M.players.map(q => `<div><h3 style="color:${q.color}">${poss(q)} wand${wtag(q)}</h3><div class="minis">${q.wand ? q.wand.spells.map(id => id ? `<span class="mini" style="border-color:${TYPE_COL[SPELLS[id].kind]};color:${TYPE_COL[SPELLS[id].kind]}">${SPELLS[id].name}</span>` : '').join('') : ''}${q.cards.filter(id => !CARDS[id].spell && !CARDS[id].wandup).map(id => `<span class="mini r${CARDS[id].rar}">${CARDS[id].name}</span>`).join('')}</div></div>`).join('')}</div>
       <div style="height:1.4em"></div>
-      <button class="btn" data-act="rematch">Rematch</button><button class="btn" data-act="go" data-v="title">Main Menu</button>`;
+      ${M.mode === 'online' ? `<button class="btn" data-act="nlobby">Back to lobby</button>` : `<button class="btn" data-act="rematch">Rematch</button><button class="btn" data-act="go" data-v="title">Main Menu</button>`}`;
   },
   library() {
     const sec = (title, col, ids) => `<h3 style="color:${col}">${title}</h3><div class="lib">${ids.slice().sort((a, b) => CARDS[a].rar - CARDS[b].rar).map(id => cardHTML(id)).join('')}</div>`;
@@ -3729,8 +4043,10 @@ const UI = {
     const tog = (k, n) => `<div class="row"><div class="t"><div class="n">${n}</div></div><button class="btn small ${SET[k] ? 'sel' : ''}" data-act="toggle" data-v="${k}">${SET[k] ? 'On' : 'Off'}</button></div>`;
     $('settings').innerHTML = `<h2>Settings</h2><div class="row"><div class="t"><div class="n">Game speed</div><div class="d">Slows or speeds up the whole match</div></div><div class="seg">${[.8, .9, 1, 1.1].map(v => `<button class="btn small ${SET.speed === v ? 'sel' : ''}" data-act="speed" data-v="${v}">${Math.round(v * 100)}%</button>`).join('')}</div></div>${tog('sound', 'Sound')}${tog('shake', 'Screen shake')}${tog('nums', 'Damage numbers')}
       <div class="row"><div class="t"><div class="n">Controls</div><div class="d">Rebind keys, mouse and controller buttons</div></div><button class="btn small" data-act="ctl" data-v="settings">Open</button></div>
+      <div class="row"><div class="t"><div class="n">Online server</div><div class="d">Address of the Retro Shot server</div></div><input class="nm" id="srvIn" style="width:12em" value="${SET.server || DEFAULT_SERVER}"></div>
       ${window.desktop ? '<div class="row"><div class="t"><div class="n">Fullscreen</div><div class="d">Also F11 or Alt+Enter</div></div><button class="btn small" data-act="fullscr">Toggle</button></div>' : ''}
       <div style="height:1em"></div><button class="btn" data-act="go" data-v="title">Back</button>`;
+    const si = $('srvIn'); if (si) si.addEventListener('change', () => { SET.server = si.value.trim() || DEFAULT_SERVER; saveSet(); if (NET.ws) NET.ws.close(); });
   },
   help() {
     $('help').innerHTML = `<h2>How to Play</h2>
@@ -3785,22 +4101,26 @@ const CHEST_SVG = (() => {
   const lid = px(1, 0, 22, 8, '#5a3418') + px(2, 1, 20, 6, '#9a6030') + px(3, 0, 18, 1, '#b5733a') + px(1, 6, 22, 2, '#d9a441') + px(4, 0, 2, 8, '#d9a441') + px(18, 0, 2, 8, '#d9a441') + px(10, 5, 4, 3, '#ffd27a');
   return `<div class="chest" aria-hidden="true"><div class="cglow"></div><svg class="clid" viewBox="0 0 24 8" shape-rendering="crispEdges">${lid}</svg><svg class="cbase" viewBox="0 0 24 12" shape-rendering="crispEdges">${base}</svg></div>`;
 })();
+function scoreLine() {
+  const G = teamGroups(), pts = G.map(g => `<span style="color:${g.col}">${M.points[g.k] || 0}</span>`).join(' — ');
+  return pts + (SET.rounds > 1 && !M.run ? ` &nbsp;·&nbsp; rounds ${G.map(g => `<span style="color:${g.col}">${M.rw[g.k] || 0}</span>`).join('–')}` : '');
+}
 function renderPick() {
   if (!PK) return; setTimeout(() => magicDom($('pick')), 0);
-  const p = M.players[PK.pi], o = M.players[1 - PK.pi];
-  const lost = PK.pi === M.lastLoser;
-  $('pick').innerHTML = `<div class="pickhead" style="color:${p.color}">${p.nick + (lost ? ' lost the round' : ' won the round') + (p.ctrl.bot ? ' and is choosing a card…' : ': pick a card')}</div>
-    <div class="hint" style="margin:-.2em 0 .6em">${SET.picks === 'both' ? 'Both players pick a card after every round (loser first).' : 'The loser of each round picks a card, to help them catch up. You can change this in the match setup.'}</div>
-    <div class="score">${M.points[0]} — ${M.points[1]}${SET.rounds > 1 ? ` &nbsp;·&nbsp; rounds ${M.rw[0]}–${M.rw[1]}` : ''}</div>
+  const p = M.players[PK.pi], others = M.players.filter(q => q !== p);
+  const lost = !M.losers || M.losers.includes(PK.pi);
+  $('pick').innerHTML = `<div class="pickhead" style="color:${p.color}">${p.nick + (lost ? ' lost the round' : ' won the round') + (p.ctrl.bot || (p.ctrl.net && !p.ctrl.local) ? ' and is choosing a card…' : ': pick a card')}</div>
+    <div class="hint" style="margin:-.2em 0 .6em">${SET.picks === 'both' ? 'Everyone picks a card after every round (losers first).' : (M.players.length > 2 ? 'Every wizard on a losing team picks a card, to help them catch up.' : 'The loser of each round picks a card, to help them catch up.') + ' You can change this in the match setup.'}</div>
+    <div class="score">${scoreLine()}</div>
     <div class="cards deal" style="--e:${((performance.now() - PK.t0) / 1000).toFixed(3)}s">${CHEST_SVG}${PK.cards.map((id, i) => `<div class="cslot" style="--dx:${((PK.cards.length - 1) / 2 - i).toFixed(1)};--i:${i};--rot:${((i * 37) % 5 - 2) * 14}deg">${cardHTML(id, `data-act="card" data-v="${i}"`).replace('class="card', `class="card${i === PK.sel && !p.ctrl.bot ? ' focus' : ''}${PK.chosen && i === PK.sel ? ' chosen' : ''}${p.ctrl.bot && i === PK.sel && PK.botSel ? ' focus' : ''}`)}</div>`).join('')}</div>
     ${M.game === 'classic' || M.game === 'arsenal' ? `<div style="margin:.9em 0 0">${p.ctrl.bot ? `<span class="hint">${M.rerolls[PK.pi]} re-roll${M.rerolls[PK.pi] === 1 ? '' : 's'} left</span>` : `<button class="btn small" data-act="pkreroll"${canReroll() ? '' : ' disabled style="opacity:.4"'}>Re-roll (${M.rerolls[PK.pi]} left)</button>`}</div>` : ''}
     ${M.game === 'arsenal' ? `<div class="hint" style="margin:1.4em 0 0">3 <b style="color:#ffd23d">${WEAPONS[p.weapon].name}</b> upgrades + 2 general cards</div>` : ''}
-    <div class="decks">${[p, o].map(q => `<div><h3 style="color:${q.color}">${poss(q)} cards${wtag(q)}</h3><div class="minis">${q.wand ? q.wand.spells.map(id => id ? `<span class="mini" style="border-color:${TYPE_COL[SPELLS[id].kind]};color:${TYPE_COL[SPELLS[id].kind]}">${SPELLS[id].name}</span>` : '<span class="mini" style="opacity:.4">empty</span>').join('') : ''}${q.cards.filter(id => !CARDS[id].spell && !CARDS[id].wandup).map(id => `<span class="mini r${CARDS[id].rar}">${CARDS[id].name}</span>`).join('')}</div></div>`).join('')}</div>
+    <div class="decks">${[p, ...others].map(q => `<div><h3 style="color:${q.color}">${poss(q)} cards${wtag(q)}</h3><div class="minis">${q.wand ? q.wand.spells.map(id => id ? `<span class="mini" style="border-color:${TYPE_COL[SPELLS[id].kind]};color:${TYPE_COL[SPELLS[id].kind]}">${SPELLS[id].name}</span>` : '<span class="mini" style="opacity:.4">empty</span>').join('') : ''}${q.cards.filter(id => !CARDS[id].spell && !CARDS[id].wandup).map(id => `<span class="mini r${CARDS[id].rar}">${CARDS[id].name}</span>`).join('')}</div></div>`).join('')}</div>
     <div class="hint">${p.ctrl.bot ? '' : 'Click a card · or ← → and Enter · or stick and A' + (M.game === 'classic' || M.game === 'arsenal' ? ' · R or Y to re-roll' : '')}</div>`;
 }
 function renderWPick() {
   if (!WP || !M) return; setTimeout(() => magicDom($('wpick')), 0);
-  const p = M.players[WP.turn], o = M.players[1 - WP.turn], bot = p.ctrl.bot;
+  const p = M.players[WP.turn], prevs = M.players.slice(0, WP.turn).filter(q => q.weapon), bot = p.ctrl.bot;
   const labels = ['Damage', 'Fire rate', 'Ammo', 'Range', 'Splash'];
   $('wpick').innerHTML = `<div class="pickhead" style="color:${p.color}">${bot ? p.nick + ' is choosing a weapon…' : (M.mode === 'bot' ? 'Choose your weapon' : p.nick + ': choose your weapon')}</div>
     <div class="sub" style="margin:.1em 0 1em">You keep it for the whole match and add spells to its slots between rounds.</div>
@@ -3808,7 +4128,7 @@ function renderWPick() {
       return `<div class="wcard${i === WP.sel && (!bot || WP.botSel) ? ' focus' : ''}${WP.lock && i === WP.sel ? ' chosen' : ''}" data-act="weapon" data-v="${i}">
         <canvas class="wcv" data-w="${w}" width="320" height="170"></canvas><div class="n">${W_.name}</div><div class="d">${W_.desc}</div>
         <div class="bars">${W_.bars.map((v, k) => `<div><span>${labels[k]}</span>${[1, 2, 3, 4, 5].map(n => `<i class="${n <= v ? 'on' : ''}"></i>`).join('')}</div>`).join('')}</div></div>`; }).join('')}</div>
-    ${WP.turn === 1 && o.weapon ? `<div class="hint">${o.nick} picked <b style="color:#ffd23d">${WEAPONS[o.weapon].name}</b></div>` : ''}
+    ${prevs.length ? `<div class="hint">${prevs.map(o => `<span style="color:${o.color}">${o.nick}</span> picked <b style="color:#ffd23d">${WEAPONS[o.weapon].name}</b>`).join(' · ')}</div>` : ''}
     <div class="hint">${bot ? '' : 'Click a weapon · or ← → and Enter · or stick and A'}</div>`;
   wpPrevT = 0;
   // hovering a wand with the mouse selects it (and starts its firing-range demo) without rebuilding the screen
@@ -3920,8 +4240,9 @@ function renderWand() {
     <div class="hint" style="max-width:44em">While you hold cast, every <b>projectile</b> fires on its own recharge timer, boosted by any <b>modifiers</b> just to its left (which slow its recharge a little).</div>
     <div style="margin-top:.8em">${(WE.arr || (!WE.pending && !WE.up)) && WE.sel >= 0 && w.spells[WE.sel] ? '<button class="btn small" data-act="wdiscard">Discard selected</button>' : ''}${WE.pending || WE.up ? `<button class="btn small" data-act="warr">${WE.arr ? 'Back to ' + (WE.pending ? 'placing' : 'upgrading') : 'Rearrange first'}</button> <button class="btn small" data-act="wdropnew">Skip it</button>` : '<button class="btn" data-act="wdone">Done</button>'}</div>`;
 }
-function wandAct(a, v) {
+function wandAct(a, v, net) {
   if (!WE) return; const w = WE.p.wand;
+  if (NET.on && !net) { if (WE.p.ctrl.local) netCmd({ k: 'wact', pi: WE.p.id, a, v }); return; }
   let finish = false;
   if (a === 'wslot') {
     const i = +v;
@@ -4145,9 +4466,23 @@ function act(a, v, el) {
     case 'go': app = v === 'title' ? 'title' : 'menu'; M = v === 'title' ? null : M; wrap.classList.remove('play'); return show(v);
     case 'setup': setupMode = v; app = 'menu'; return show('setup');
     case 'bot': SET.bot = v; saveSet(); return show('setup');
+    case 'luwho': case 'lucol': { const [i, w] = v.split(':'), L = lineupOf(setupMode === 'bot' ? 'bot' : 'versus'); if (a === 'luwho') L[+i].who = w; else L[+i].col = w; saveSet(); const f = focusIdx; show('setup'); focusIdx = f; markFocus(); return; }
     case 'points': SET.points = +v; saveSet(); return show('setup');
     case 'rounds': SET.rounds = +v; saveSet(); return show('setup');
     case 'toggle': SET[v] = !SET[v]; saveSet(); return show('settings');
+    case 'nopen': app = 'online'; show('online'); if (NET.status === 'off') { NET.err = ''; netConnect(); } else netSend({ t: 'list' }); return;
+    case 'nconnect': NET.err = ''; return netConnect();
+    case 'nback': if (NET.lobby) netSend({ t: 'leave' }); NET.lobby = null; app = 'title'; return show('title');
+    case 'ncreate': { const pr = myProfile(); netSend({ t: 'look', name: (pr.name || '').trim() || 'Wizard', look: pr }); return netSend({ t: 'create' }); }
+    case 'njoin': { const pr = myProfile(); netSend({ t: 'look', name: (pr.name || '').trim() || 'Wizard', look: pr }); return netSend({ t: 'join', code: v }); }
+    case 'njoincode': { const c = (NET.joinCode || '').trim().toUpperCase(); if (c.length !== 4) { NET.err = 'Lobby codes are 4 letters.'; return refreshOnline(); } return act('njoin', c); }
+    case 'nleave': netSend({ t: 'leave' }); NET.lobby = null; app = 'online'; show('online'); return netSend({ t: 'list' });
+    case 'nready': { const L = NET.lobby, me = L && L.slots.find(s => s.kind === 'human' && s.cid === NET.id); return netSend({ t: 'ready', v: !(me && me.ready) }); }
+    case 'nteam': { const [i, c] = v.split(':'); return netSend({ t: 'team', slot: +i, col: c }); }
+    case 'naddbot': return netSend({ t: 'addbot' });
+    case 'ndelbot': return netSend({ t: 'delbot', slot: +v });
+    case 'nopt': { const [k, x] = v.split(':'); return netSend({ t: 'opt', k, v: isNaN(+x) ? x : +x }); }
+    case 'nlobby': return backToLobby();
     case 'quitapp': if (window.desktop) window.desktop.quit(); return;
     case 'fullscr': if (window.desktop) window.desktop.toggleFullscreen(); return;
     case 'mapt': case 'mapall': { const off = new Set(SET.mapsOff || []);
@@ -4165,11 +4500,11 @@ function act(a, v, el) {
     case 'card': if (PK && !M.players[PK.pi].ctrl.bot) choose(+v); return;
     case 'pkreroll': if (PK && !M.players[PK.pi].ctrl.bot) reroll(); return;
     case 'resume': return setPause(false);
-    case 'quit': paused = false; M = null; app = 'title'; wrap.classList.remove('play'); return show('title');
+    case 'quit': if (NET.on) { netSend({ t: 'leave' }); netEndLocal(); NET.lobby = null; return show('online'); } paused = false; M = null; app = 'title'; wrap.classList.remove('play'); return show('title');
   }
 }
 document.addEventListener('click', e => { const b = e.target.closest('[data-act]'); if (!b || b.disabled) return; act(b.dataset.act, b.dataset.v, b); });
-function setPause(on) { if (app !== 'match') return; paused = on; show(on ? 'pause' : null); wrap.classList.toggle('play', !on); }
+function setPause(on) { if (app !== 'match') return; if (NET.on) { NET.overlay = on; show(on ? 'pause' : null); wrap.classList.toggle('play', !on); return; } paused = on; show(on ? 'pause' : null); wrap.classList.toggle('play', !on); }
 function uiKey(e) {
   if ($('controls').classList.contains('on') && e.code === 'Escape') return act('ctlback');
   if (app === 'match' && (e.code === 'Escape' || SET.keys.pause.includes(e.code))) return setPause(!paused);
