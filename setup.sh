@@ -1,8 +1,8 @@
 #!/bin/bash
 # Retro Shot server: install or update. Run as root on Ubuntu:
-#   curl -fsSL https://raw.githubusercontent.com/Maasmania/Retro-Shot/main/server/setup.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/Maasmania/Retro-Shot/main/setup.sh | bash
 set -e
-SRC=https://raw.githubusercontent.com/Maasmania/Retro-Shot/main/server
+SRC=https://raw.githubusercontent.com/Maasmania/Retro-Shot/main
 echo "== Retro Shot server setup =="
 if ! command -v node >/dev/null 2>&1 || [ "$(node -p 'process.versions.node.split(".")[0]')" -lt 18 ]; then
   echo "-- installing Node.js"; apt-get update -y -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq nodejs npm

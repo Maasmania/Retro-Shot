@@ -27,7 +27,7 @@ function lobbyView(L) {
       : s.kind === 'bot' ? { kind: 'bot', col: s.col, name: s.name } : { kind: 'empty' }) };
 }
 function broadcastLobby(L) { const v = lobbyView(L); for (const s of L.slots) if (s.kind === 'human') send(clients.get(s.cid), { t: 'lobby', lobby: v }); }
-function lobbyList() { return [...lobbies.values()].filter(L => L.state === 'lobby').map(L => ({ code: L.code, n: L.slots.filter(s => s.kind === 'human').length, bots: L.slots.filter(s => s.kind === 'bot').length, game: L.opts.game, host: (clients.get((L.slots.find(s => s.kind === 'human') || {}).cid) || {}).name || '?' })); }
+function lobbyList() { return [...lobbies.values()].filter(L => L.state === 'lobby').map(L => ({ code: L.code, n: L.slots.filter(s => s.kind === 'human').length, bots: L.slots.filter(s => s.kind === 'bot').length, game: L.opts.game, ver: (clients.get((L.slots.find(s => s.kind === 'human') || {}).cid) || {}).ver, host: (clients.get((L.slots.find(s => s.kind === 'human') || {}).cid) || {}).name || '?' })); }
 function freeCol(L) { const used = L.slots.filter(s => s.kind !== 'empty').map(s => s.col); return TEAM_COLS.find(c => !used.includes(c)) || TEAM_COLS[0]; }
 function humans(L) { return L.slots.filter(s => s.kind === 'human'); }
 
@@ -75,15 +75,15 @@ function handle(c, m) {
   switch (m.t) {
     case 'hello':
       if (m.v !== PROTO) return send(c, { t: 'err', msg: 'This game version is too old or new for the server - update the game.' });
-      c.name = cleanName(m.name); c.look = cleanLook(m.look); c.ok = true;
-      return send(c, { t: 'welcome', id: c.id, lobbies: lobbyList() });
+      c.name = cleanName(m.name); c.look = cleanLook(m.look); c.ver = String(m.ver || '?').slice(0, 12); c.ok = true;
+      return send(c, { t: 'welcome', id: c.id, lobbies: lobbyList().filter(L => L.ver === c.ver) });
     case 'ping': return send(c, { t: 'pong', ts: m.ts });
     case 'rtt': c.rtt = Math.max(1, Math.min(2000, +m.ms || 0)); return;
   }
   if (!c.ok) return;
   const L = c.lobby ? lobbies.get(c.lobby) : null;
   switch (m.t) {
-    case 'list': return send(c, { t: 'lobbies', list: lobbyList() });
+    case 'list': return send(c, { t: 'lobbies', list: lobbyList().filter(L => L.ver === c.ver) });
     case 'look': c.name = cleanName(m.name); c.look = cleanLook(m.look); if (L) broadcastLobby(L); return;
     case 'create': {
       if (c.lobby) leaveLobby(c);
@@ -94,6 +94,8 @@ function handle(c, m) {
       const T = lobbies.get(String(m.code || '').toUpperCase().trim());
       if (!T) return send(c, { t: 'err', msg: 'No lobby with that code.' });
       if (T.state !== 'lobby') return send(c, { t: 'err', msg: 'That lobby is in a match - try again when it ends.' });
+      const host = humans(T).map(s => clients.get(s.cid))[0];
+      if (host && host.ver !== c.ver) return send(c, { t: 'err', msg: `That lobby is on version ${host.ver} and you have ${c.ver}. Restart the game to update, then try again.` });
       const i = T.slots.findIndex(s => s.kind === 'empty');
       if (i < 0) return send(c, { t: 'err', msg: 'That lobby is full.' });
       if (c.lobby) leaveLobby(c);
@@ -148,5 +150,5 @@ wss.on('connection', (ws, req) => {
   ws.on('error', () => {});
 });
 // keep lobby browsers fresh and connections alive
-setInterval(() => { const list = lobbyList(); for (const c of clients.values()) if (c.ok && !c.lobby) send(c, { t: 'lobbies', list }); }, 3000);
+setInterval(() => { for (const c of clients.values()) if (c.ok && !c.lobby) send(c, { t: 'lobbies', list: lobbyList().filter(L => L.ver === c.ver) }); }, 3000);
 server.listen(PORT, () => log('Retro Shot server listening on', PORT));

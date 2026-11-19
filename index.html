@@ -51,6 +51,21 @@ h3{font-family:Orbitron,system-ui,sans-serif;font-size:.75em;margin:1em 0 .4em;c
 .lopts{display:flex;flex-wrap:wrap;gap:.2em 1.2em;justify-content:center;max-width:62em;margin:0 auto}.lopts h3{margin:.3em 0 .2em}
 .llist{display:flex;flex-direction:column;gap:.3em;min-width:30em}.lrow{display:flex;align-items:center;gap:.8em;background:#1a120c;border:3px solid #3a2c20;padding:.2em .6em}
 .lrow b{font-family:'Press Start 2P',monospace;color:#ffd27a;font-size:.8em;letter-spacing:2px}.lrow span{flex:1;text-align:left;color:#c8b694}
+.hint:not(.keep),.row .d{display:none!important}
+.guide{display:flex;gap:1em;max-width:66em;margin:0 auto;text-align:left;align-items:flex-start}
+.gnav{display:flex;flex-direction:column;gap:.25em;min-width:11.5em}.gnav .btn{text-align:left;width:100%}
+.gpage{flex:1;background:#1a120c;border:3px solid #3a2c20;box-shadow:3px 3px 0 #000;padding:.7em 1em;max-height:72vh;overflow-y:auto;color:#d8ccb4;line-height:1.4}
+.gpage p{margin:.45em 0}.gpage b{color:#ffe9b8}
+.grow{display:flex;gap:.8em;flex-wrap:wrap;margin-bottom:.4em}
+.gdemo{margin:0;display:flex;flex-direction:column;align-items:center}.gdemo canvas{width:16em;height:8.96em;image-rendering:pixelated;border:3px solid #4a3b2c;box-shadow:3px 3px 0 #000;background:#0c0907}
+.gdemo.small canvas{width:9.5em;height:5em}.gdemo figcaption{font-size:.85em;color:#a8957a;margin-top:.25em}
+.gel{display:grid;grid-template-columns:repeat(3,auto);gap:.5em .8em;justify-content:start;margin-bottom:.4em}
+.gwand{display:flex;gap:.3em;padding:.3em;background:#120c08;border:3px solid #4a3b2c;box-shadow:3px 3px 0 #000;height:8.3em;align-items:center}
+.gws{width:5.4em;height:6.6em;border:3px solid #6a4a2a;background:#2a1a10;display:flex;flex-direction:column;justify-content:space-between;padding:.25em;font-size:.72em;position:relative;overflow:hidden}
+.gws.mod{border-color:#3a5a8a;background:#121a2a}.gws b{color:#ffd27a;font-size:.95em}.gws.mod b{color:#9ac8ff}.gws em{font-style:normal;color:#a8957a}
+.gws i{position:absolute;left:0;bottom:0;height:4px;width:100%;background:#ff9a2e;transform-origin:left;animation:gfill linear infinite}
+@keyframes gfill{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+.gcoins{display:grid;grid-template-columns:1fr 1fr;gap:.2em 1em;margin:.4em 0;font-size:.92em}.gcoins div{display:flex;gap:.5em}.gcoins b{min-width:7.5em}.gcoins span{color:#a8957a}
 .mapgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:.45em;max-width:min(58em,90vw);margin:0 auto}
 .mtile{display:flex;flex-direction:column;align-items:center;padding:.35em .35em .4em;background:#1a120c;border:2px solid #4a3b2c;color:#8a7a68;cursor:pointer;font:inherit;box-shadow:3px 3px 0 #000;opacity:.6}
 .mtile.on{border-color:#d9a441;color:#ffe9b8;opacity:1}
@@ -1317,7 +1332,7 @@ function ropeDist(m, x, y) { const g = m.hang, x1 = g.ax, y1 = g.ay, x2 = m.x + 
 const ROCK_CS = 6; // rock cell size (game px)
 function makeRockGrid(r, mat) {
   const main = r.h >= 40 || r.w >= 300, cols = Math.ceil(r.w / ROCK_CS), rows = Math.ceil(r.h / ROCK_CS);
-  const g = { x: r.x, y: r.y, w: r.w, h: r.h, cs: ROCK_CS, cols, rows, mat, cellMax: mat ? ({ b: 14, w: 7, c: 5 })[mat] : main ? 26 : 10, hp: new Float32Array(cols * rows), alive: new Uint8Array(cols * rows).fill(1), pieces: [], dmgd: false };
+  const g = { x: r.x, y: r.y, w: r.w, h: r.h, cs: ROCK_CS, cols, rows, mat, cellMax: mat ? ({ b: 42, w: 20, c: 14 })[mat] : main ? 85 : 32, hp: new Float32Array(cols * rows), alive: new Uint8Array(cols * rows).fill(1), pieces: [], dmgd: false };
   g.hp.fill(g.cellMax);
   const piece = gridPiece(g, r.x, r.y, r.w, r.h); g.pieces = [piece]; (mat ? M.blocks : M.statics).push(piece);
 }
@@ -1417,7 +1432,7 @@ const bound = a => SET.keys[a].some(held);
 const padBound = (s, a) => SET.pad[a].some(i => i >= 0 && s.btn[i]);
 const padEdge = (s, pr, a) => SET.pad[a].some(i => i >= 0 && s.btn[i] && !(pr.btn && pr.btn[i]));
 
-const PAD = { prev: {}, press: {}, dir: {}, vEdge: {}, hEdge: {} };
+const PAD = { prev: {}, press: {}, dir: {}, vEdge: {}, hEdge: {}, rep: {} };
 function pads() { try { return [...(navigator.getGamepads ? navigator.getGamepads() : [])].filter(Boolean); } catch (e) { return []; } }
 function padState(gp) {
   const b = i => !!(gp.buttons[i] && (gp.buttons[i].pressed || gp.buttons[i].value > .35));
@@ -2249,7 +2264,7 @@ function updateBullets(dt) {
   }
   for (const b of M.bullets) if (!b.dead) for (const m of M.movers) if (m.hang && !m.hang.cut && !(b.ropes && b.ropes.includes(m)) && ropeDist(m, b.x, b.y) < 1.5 + b.hitR * .6) { (b.ropes = b.ropes || []).push(m); ropeHit(m, b.kind === 'flame' ? b.dmg * 2 : b.dmg, b.owner); }
   // black holes devour breakable things they touch
-  for (const b of M.bullets) if (b.voids && !b.dead) { CUR_OWNER = b.owner; for (const k of M.blocks.concat(M.boxes, M.statics)) if (b.x > k.x - 14 && b.x < k.x + k.w + 14 && b.y > k.y - 14 && b.y < k.y + k.h + 14) hurtBlock(k, k.rock ? 40 : 999, false, b.x, b.y, 14); for (const m of M.movers) if (m.hang && !m.hang.cut && ropeDist(m, b.x, b.y) < 16) ropeHit(m, 999); }
+  for (const b of M.bullets) if (b.voids && !b.dead) { CUR_OWNER = b.owner; for (const k of M.blocks.concat(M.boxes, M.statics)) if (b.x > k.x - 14 && b.x < k.x + k.w + 14 && b.y > k.y - 14 && b.y < k.y + k.h + 14) hurtBlock(k, k.g ? 14 : 999, false, b.x, b.y, 14); for (const m of M.movers) if (m.hang && !m.hang.cut && ropeDist(m, b.x, b.y) < 16) ropeHit(m, 999); }
   bulletClashes();
   firePayloads();
   M.bullets = M.bullets.filter(b => !b.dead);
@@ -2422,7 +2437,7 @@ function explode(x, y, rad, dmg, owner, directHit, small, o = {}) {
     damage(q, dmg * (q === directHit ? 1 : 1 - d / (rad + q.r) * .5), M.players[owner]); knock(q, x, y, 600 * (o.knockMul || 1));
   }
   for (const bx of M.boxes) { const cx = bx.x + bx.w / 2, cy = bx.y + bx.h / 2, d = Math.hypot(cx - x, cy - y) || 1; if (d < rad + 30) { bx.vx += (cx - x) / d * 520; bx.vy += (cy - y) / d * 420 - 200; } }
-  for (const k of M.blocks.concat(M.boxes, M.statics)) { if (k.hp === undefined) continue; const nx = clamp(x, k.x, k.x + k.w), ny = clamp(y, k.y, k.y + k.h), d = Math.hypot(nx - x, ny - y); if (d < rad) { if (k.g) hurtBlock(k, dmg * (small ? 1 : 1.6) * (o.terr || 1), false, x, y, rad); else hurtBlock(k, dmg * (small ? 1 : 1.6) * (o.terr || 1) * (1 - d / rad * .5)); if (o.fire) ignite(k, owner); } }
+  for (const k of M.blocks.concat(M.boxes, M.statics)) { if (k.hp === undefined) continue; const nx = clamp(x, k.x, k.x + k.w), ny = clamp(y, k.y, k.y + k.h), d = Math.hypot(nx - x, ny - y); if (d < rad) { if (k.g) hurtBlock(k, dmg * (o.terr || 1), false, x, y, rad * .75); else hurtBlock(k, dmg * (small ? 1 : 1.6) * (o.terr || 1) * (1 - d / rad * .5)); if (o.fire) ignite(k, owner); } }
   for (const fd of M.fields) if (fd.type === 'fgas' && !fd.lit && Math.hypot(fd.x - x, fd.y - y) < rad + fd.r) igniteGas(fd, owner);
   for (const m of M.movers) if (m.hang && !m.hang.cut) { const cx = m.x + m.w / 2, cy = m.y + m.h / 2, d = Math.hypot(cx - x, cy - y) || 1; if (d < rad + 60) { m.hang.vx += (cx - x) / d * 260; m.hang.vy += (cy - y) / d * 260; } if (ropeDist(m, x, y) < rad * .6) ropeHit(m, dmg * .6); }
   M.rings.push({ x, y, r: 6, max: rad, owner, dmg: 0, hit: [], col: '#ffb347', fx: true }); FX.boom(x, y, rad, small);
@@ -2686,6 +2701,7 @@ function buildScene(statics, palIdx, seedN) {
     if (y < st * 30 + 4 && (x & 3) !== 0 && hash2(x >> 2, 1, s) > .55) v *= .5;
     BASE[y * LW + x] = packC(P.bg[0] * v | 0, P.bg[1] * v | 0, P.bg[2] * v | 0);
   }
+  paintBackdrop(P, s);
   BGP.set(BASE);
   const R = seeded(seedN + 11);
   for (const r of statics) {
@@ -2704,6 +2720,82 @@ function buildScene(statics, palIdx, seedN) {
     // torches on some wide ledges
     if (r.w >= 60 && r.y > 120 && r.y < H - 30 && R() < .7 && RX.drips.length < 4) RX.drips.push({ x: Math.round((r.x + 15 + R() * (r.w - 30)) / SC), liq: R() < .3, rate: .25 + R() * .35, col: R() < .5 ? P.top : P.rock });
     if (r.w >= 100 && r.y > 120 && r.y < H - 30 && R() < .45 && RX.torches.length < 5) RX.torches.push({ x: Math.round((r.x + 10 + R() * (r.w - 20)) / SC), y: y0 - 1, ph: R() * 10 });
+  }
+}
+
+/* ---------- level backdrops: a painted far layer per biome, plus a few softly animated details ----------
+   Purely visual (drawn only into empty space, using the real random), so gameplay and online sync never see it. */
+function bgMix(x, y, col, a) { x |= 0; y |= 0; if (x < 0 || y < 0 || x >= LW || y >= LH) return; const i = y * LW + x, c = BASE[i];
+  BASE[i] = packC((c & 255) * (1 - a) + col[0] * a | 0, ((c >>> 8) & 255) * (1 - a) + col[1] * a | 0, ((c >>> 16) & 255) * (1 - a) + col[2] * a | 0); }
+function bgRect(x0, y0, w, h, col, a) { for (let y = Math.max(0, y0 | 0); y < Math.min(LH, y0 + h); y++) for (let x = Math.max(0, x0 | 0); x < Math.min(LW, x0 + w); x++) bgMix(x, y, col, a); }
+function bgEll(cx, cy, rx, ry, col, a, half) { for (let y = Math.floor(cy - ry); y <= cy + (half ? 0 : ry); y++) for (let x = Math.floor(cx - rx); x <= cx + rx; x++) { const d = ((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2; if (d <= 1) bgMix(x, y, col, a * (d > .8 ? .7 : 1)); } }
+function paintBackdrop(P, s) {
+  const R = seeded(s * 31 + 5), dk = P.bg.map(v => v * .45), mid = P.rock.map(v => v * .38), FX2 = [];
+  RX.bg = { n: P.n, items: FX2, motes: [] };
+  const mote = (n, f) => { for (let i = 0; i < n; i++) RX.bg.motes.push(f(i)); };
+  if (P.n === 'mine') { // timber supports with hanging lanterns, dust in the air
+    for (let x = 20 + R() * 30; x < LW - 10; x += 60 + R() * 30) { const top = 14 + R() * 10; bgRect(x, top, 3, LH, mid, .8); bgRect(x - 14, top, 31, 3, mid, .8); bgRect(x - 6, top + 3, 2, 6, mid, .4); bgRect(x + 7, top + 3, 2, 6, mid, .4);
+      if (R() < .7) FX2.push({ k: 'lantern', x: x + (R() < .5 ? -10 : 12), y: top + 3, len: 6 + R() * 5 | 0, ph: R() * 9 }); }
+    for (let x = 0; x < LW; x += 2) if (hash2(x, 3, s) > .4) bgMix(x, LH - 34 + (hash2(x, 4, s) * 2 | 0), mid, .25);
+    mote(40, () => ({ x: R() * LW, y: R() * LH, vx: 1.5 + R() * 2, vy: -.4 + R() * .8, ph: R() * 9, c: [150, 128, 96], a: .35 }));
+  } else if (P.n === 'fungal') { // giant mushrooms with pulsing glowing caps, rising spores
+    for (let k = 0; k < 7; k++) { const x = 20 + k * 55 + R() * 30, h = 50 + R() * 70, y = LH - 20 - h, r = 12 + R() * 16, st = 3 + R() * 4;
+      bgRect(x - st / 2, y, st, h + 20, mid, .6); bgEll(x, y + 2, r, r * .55, [52, 30, 70], .7, true);
+      FX2.push({ k: 'cap', x, y: y - r * .25, r, ph: R() * 9, c: R() < .5 ? [190, 80, 255] : [80, 220, 200] }); }
+    mote(45, () => ({ x: R() * LW, y: R() * LH, vx: -.5 + R(), vy: -2 - R() * 3, ph: R() * 9, c: R() < .5 ? [200, 110, 255] : [110, 255, 220], em: .5 }));
+  } else if (P.n === 'frost') { // ice spires from floor and ceiling, an aurora shimmer, falling snow
+    for (let k = 0; k < 16; k++) { const x = R() * LW, h = 20 + R() * 55, w = 4 + R() * 8, up = R() < .55;
+      for (let j = 0; j < h; j++) { const ww = w * (1 - j / h); bgRect(x - ww / 2, up ? LH - 18 - j : j, ww, 1, [150, 190, 230], .22 + (j < 2 ? .1 : 0)); } }
+    FX2.push({ k: 'aurora' });
+    mote(70, () => ({ x: R() * LW, y: R() * LH, vx: -1 + R() * 2, vy: 4 + R() * 5, ph: R() * 9, c: [230, 240, 255], a: .55 }));
+  } else if (P.n === 'jungle') { // roots and trunks, swaying vines, a waterfall, fireflies
+    for (let k = 0; k < 6; k++) { const x = 10 + k * 70 + R() * 30, w = 6 + R() * 8; bgRect(x, 0, w, LH, [24, 36, 20], .55);
+      for (let j = 0; j < 3; j++) { const by = 30 + R() * 140, dir = R() < .5 ? -1 : 1; for (let t = 0; t < 22; t++) bgRect(x + w / 2 + dir * t, by - t * .5, 2, 2, [24, 36, 20], .5); } }
+    for (let k = 0; k < 14; k++) FX2.push({ k: 'vine', x: R() * LW, len: 18 + R() * 50 | 0, ph: R() * 9 });
+    FX2.push({ k: 'fall', x: 40 + R() * (LW - 80) | 0, w: 5 + R() * 4 | 0 });
+    mote(22, () => ({ x: R() * LW, y: 30 + R() * (LH - 60), vx: 0, vy: 0, ph: R() * 9, c: [190, 255, 90], em: .9, fly: 1 }));
+  } else if (P.n === 'desert') { // ruined columns and arches, slow sun shafts, drifting sand
+    for (let k = 0; k < 6; k++) { const x = 15 + k * 66 + R() * 20, h = 60 + R() * 80, w = 9 + R() * 5, y = LH - 18 - h;
+      bgRect(x, y, w, h, mid, .5); bgRect(x - 3, y - 3, w + 6, 3, mid, .55); if (R() < .4) bgRect(x - 2, y + h * .4, w + 4, 2, dk, .3);
+      if (k % 2 === 0) bgEll(x + w + 25, y + 4, 26, 16, mid, .28, true); }
+    for (let k = 0; k < 3; k++) FX2.push({ k: 'shaft', x: 40 + R() * (LW - 80), w: 14 + R() * 18, ph: R() * 9 });
+    mote(50, () => ({ x: R() * LW, y: LH * .3 + R() * LH * .7, vx: 8 + R() * 10, vy: -.5 + R(), ph: R() * 9, c: [214, 176, 110], a: .45 }));
+  } else { // vault: tall arches, hanging banners, glowing runes, rising embers
+    for (let x = 10; x < LW; x += 52) { bgRect(x, 30, 6, LH, mid, .45); bgRect(x + 46, 30, 6, LH, mid, .45); for (let a = 0; a <= 26; a++) { const t = a / 26 * Math.PI; bgRect(x + 26 - Math.cos(t) * 23, 30 - Math.sin(t) * 18, 3, 3, mid, .45); } }
+    for (let k = 0; k < 6; k++) FX2.push({ k: 'banner', x: 20 + k * 66 + R() * 20 | 0, y: 34 + R() * 8 | 0, w: 9, h: 22 + R() * 10 | 0, ph: R() * 9, c: [[150, 40, 40], [40, 60, 130], [120, 90, 30]][k % 3] });
+    for (let k = 0; k < 5; k++) FX2.push({ k: 'rune', x: 30 + R() * (LW - 60), y: 40 + R() * 100, r: 5 + R() * 4, ph: R() * 9, c: [255, 120, 70] });
+    mote(30, () => ({ x: R() * LW, y: R() * LH, vx: -.5 + R(), vy: -3 - R() * 3, ph: R() * 9, c: [255, 150, 60], em: .8 }));
+  }
+}
+const bgFree = i => !ROCK[i] && !DYN[i] && !T[i];
+function bgA(x, y, c, a) { x |= 0; y |= 0; if (x < 0 || y < 0 || x >= LW || y >= LH) return; const i = y * LW + x; if (!bgFree(i)) return; const o = ALB[i];
+  ALB[i] = packC((o & 255) * (1 - a) + c[0] * a | 0, ((o >>> 8) & 255) * (1 - a) + c[1] * a | 0, ((o >>> 16) & 255) * (1 - a) + c[2] * a | 0); }
+function bgE(x, y, r, g, b) { x |= 0; y |= 0; if (x < 0 || y < 0 || x >= LW || y >= LH || !bgFree(y * LW + x)) return; pE(x, y, r, g, b); }
+function drawBackdrop() {
+  const B = RX.bg; if (!B) return; const t = RX.t;
+  for (const it of B.items) {
+    if (it.k === 'lantern') { const sw = Math.sin(t * 1.3 + it.ph) * 1.6, ex = it.x + sw, ey = it.y + it.len, fl = .8 + .2 * Math.sin(t * 9 + it.ph * 3);
+      for (let j = 0; j < it.len; j++) bgA(it.x + sw * j / it.len, it.y + j, [70, 60, 50], .6);
+      bgA(ex, ey, [90, 70, 40], 1); bgA(ex, ey + 1, [90, 70, 40], 1); bgE(ex, ey + 1, 180 * fl, 110 * fl, 40 * fl); bgE(ex, ey, 120 * fl, 60 * fl, 20 * fl); addLight(ex * SC, ey * SC, 46, 255, 160, 70, .22 * fl); }
+    else if (it.k === 'cap') { const p = .5 + .5 * Math.sin(t * 1.1 + it.ph), c = it.c; for (let k = 0; k < 7; k++) { const a = k / 6 * Math.PI; bgE(it.x - Math.cos(a) * it.r * .75, it.y - Math.sin(a) * it.r * .3, c[0] * .25 * p, c[1] * .25 * p, c[2] * .25 * p); }
+      if ((RX.frame & 3) === 0) addLight(it.x * SC, it.y * SC, it.r * SC * 1.4, c[0], c[1], c[2], .1 * p); }
+    else if (it.k === 'aurora') { for (let x = 0; x < LW; x += 2) { const y = 14 + Math.sin(x * .03 + t * .4) * 6 + Math.sin(x * .011 - t * .25) * 8, k = .5 + .5 * Math.sin(x * .02 + t * .7);
+      for (let j = 0; j < 7; j++) bgE(x, y + j, 20 * k * (1 - j / 7), 90 * k * (1 - j / 7), 70 * k * (1 - j / 7) + 30 * (1 - j / 7)); } }
+    else if (it.k === 'vine') { for (let j = 0; j < it.len; j++) { const sw = Math.sin(t * .9 + it.ph + j * .06) * (j / it.len) * 3; bgA(it.x + sw, j, [40, 90, 34], .75); if (j % 7 === 3) bgA(it.x + sw + 1, j, [60, 130, 44], .75); } }
+    else if (it.k === 'fall') { for (let y = 0; y < LH; y++) for (let x = 0; x < it.w; x++) { const v = ((y - t * 60 + x * 7) % 11 + 11) % 11; bgA(it.x + x, y, v < 3 ? [170, 210, 230] : [70, 120, 150], v < 3 ? .5 : .3); }
+      for (let x = -3; x < it.w + 3; x++) bgA(it.x + x, LH - 19 - (Math.sin(t * 8 + x) > .6 ? 1 : 0), [200, 230, 240], .5); }
+    else if (it.k === 'shaft') { const p = .6 + .4 * Math.sin(t * .35 + it.ph); for (let y = 0; y < LH * .85; y += 1) { const x0 = it.x + y * .45; for (let x = 0; x < it.w; x += 2) if (((x + y) & 3) === 0) bgE(x0 + x, y, 14 * p, 10 * p, 4 * p); } }
+    else if (it.k === 'banner') { for (let j = 0; j < it.h; j++) { const sw = Math.sin(t * 1.2 + it.ph + j * .12) * (j / it.h) * 2; for (let x = 0; x < it.w; x++) bgA(it.x + x + sw, it.y + j, j > it.h - 3 && (x & 1) ? [20, 14, 12] : it.c, .7); }
+      for (let x = -1; x <= it.w; x++) bgA(it.x + x, it.y - 1, [110, 90, 60], .8); }
+    else if (it.k === 'rune') { const p = Math.max(0, Math.sin(t * .8 + it.ph)), c = it.c; for (let k = 0; k < 14; k++) { const a = k / 14 * TAU + t * .3; bgE(it.x + Math.cos(a) * it.r, it.y + Math.sin(a) * it.r, c[0] * .35 * p, c[1] * .35 * p, c[2] * .35 * p); }
+      bgE(it.x, it.y, c[0] * .4 * p, c[1] * .4 * p, c[2] * .4 * p); }
+  }
+  for (const m of B.motes) {
+    let x, y;
+    if (m.fly) { x = m.x + Math.sin(t * .5 + m.ph) * 18 + Math.sin(t * 1.3 + m.ph * 2) * 6; y = m.y + Math.cos(t * .4 + m.ph) * 12; }
+    else { x = ((m.x + m.vx * t + Math.sin(t * .8 + m.ph) * 3) % LW + LW) % LW; y = ((m.y + m.vy * t) % LH + LH) % LH; }
+    if (m.em) { const blink = m.fly ? Math.max(0, Math.sin(t * 2 + m.ph * 3)) : .6 + .4 * Math.sin(t * 3 + m.ph); bgE(x, y, m.c[0] * m.em * blink, m.c[1] * m.em * blink, m.c[2] * m.em * blink); }
+    else bgA(x, y, m.c, m.a);
   }
 }
 function buildBg() { buildScene(M.statics, M.mapIdx, M.mapIdx + 1); RX.scene = 'match'; RX.key = M.roundNo; }
@@ -3475,6 +3567,7 @@ function drawMatchSprites() {
 function composeFrame(sc) {
   ALB.set(BASE); EMr.fill(0); EMg.fill(0); EMb.fill(0);
   const amb = RX.pal.amb; Lr.fill(0); Lg.fill(0); Lb.fill(0); Gr.fill(0); Gg.fill(0); Gb.fill(0);
+  drawBackdrop();
   drawSceneSprites(sc);
   drawPowder();
   drawLava();
@@ -3614,6 +3707,7 @@ let last = performance.now(), acc = 0;
 function loop(now) {
   const frame = Math.min(.1, (now - last) / 1000); last = now;
   pollPads();
+  drawHelpDemos(Math.min(frame, .05));
   if (NET.ws) netPoll(frame);
   if (NET.on && app === 'match') { acc += frame; let n = 0; while (acc >= DT && n < 5) { if (!netReady(NET.f)) { NET.waitT += frame; acc = Math.min(acc, DT); break; } NET.waitT = 0; netTick(); acc -= DT; n++; } }
   else if (app === 'match' && !paused) { acc += frame * (SET.speed || 1); while (acc >= DT) { step(DT); RX.tick(DT * (M ? M.ts : 1)); acc -= DT; } }
@@ -3625,10 +3719,151 @@ function loop(now) {
 }
 requestAnimationFrame(loop);
 setTimeout(() => { // visuals and sound never touch the shared gameplay random
-  draw = realRand(draw); drawCustPreview = realRand(drawCustPreview); drawWPickPreview = realRand(drawWPickPreview); sfx = realRand(sfx); noise = realRand(noise); rumble = realRand(rumble); puffs = realRand(puffs);
+  draw = realRand(draw); drawHelpDemos = realRand(drawHelpDemos); drawCustPreview = realRand(drawCustPreview); drawWPickPreview = realRand(drawWPickPreview); sfx = realRand(sfx); noise = realRand(noise); rumble = realRand(rumble); puffs = realRand(puffs);
   RX.tick = realRand(RX.tick); show = realRand(show);
   for (const k of Object.keys(FX)) if (typeof FX[k] === 'function') FX[k] = realRand(FX[k]);
 }, 0);
+
+
+/* ============================ HOW TO PLAY: a tabbed guide with little animated demos ============================ */
+const HELP = { tab: 'basics', t: 0, st: {} };
+const demo = (d, cap, w = 100, h = 56) => `<figure class="gdemo"><canvas data-d="${d}" width="${w}" height="${h}"></canvas>${cap ? `<figcaption>${cap}</figcaption>` : ''}</figure>`;
+const gp = t => `<p>${t}</p>`;
+const HELP_PAGES = {
+  basics: { name: 'Basics', html: () => `<div class="grow">${demo('move', 'Run, jump and wall-jump')}${demo('cast', 'Hold cast and every spell fires')}</div>
+    ${gp('Retro Shot is a duel between wizards. Knock out the other side to win the round; win rounds to score points. The first team to reach the match length (3, 5 or 7 points) wins.')}
+    ${gp('Your wand fires on its own while you hold <b>cast</b>. Every projectile in it has its own recharge timer, so a wand full of spells keeps firing.')}
+    ${gp('Hold <b>ward</b> to raise a shield that stops bolts and blasts. It has a cooldown, so time it.')}
+    ${gp('<b>Lose a round, get stronger:</b> after each round the losers pick a spell card (see <b>Cards &amp; Wands</b>). Cards stack for the whole match.')}` },
+  controls: { name: 'Controls', html: () => `<div class="keys"><b>Keyboard & mouse</b><span></span>
+        <span>Move</span><b>${bindText('left')} · ${bindText('right')}</b><span>Jump · wall jump</span><b>${bindText('jump')}</b><span>Aim</span><b>Mouse</b><span>Cast</span><b>${bindText('shoot')}</b><span>Ward</span><b>${bindText('block')}</b><span>Pause</span><b>${bindText('pause')}</b>
+        <b style="margin-top:.6em">Controller</b><span></span>
+        <span>Move</span><b>Left stick / D-pad</b><span>Jump</span><b>${padText('jump')}</b><span>Aim</span><b>Right stick${SET.aimLeft ? ' (or left)' : ''}</b><span>Cast</span><b>${padText('shoot')}</b><span>Ward</span><b>${padText('block')}</b><span>Pause</span><b>${padText('pause')}</b></div>
+      <button class="btn small" data-act="ctl" data-v="help" style="margin-top:.8em">Change controls</button>
+      ${gp('In menus: the D-pad or stick moves (hold it to scroll), <b>A</b> selects, <b>B</b> goes back. On the card screen press <b>R</b> or <b>Y</b> to re-roll. <b>Esc</b> always pauses.')}
+      ${gp('Desktop version: <b>F11</b> or <b>Alt+Enter</b> toggles fullscreen.')}` },
+  combat: { name: 'Casting & Warding', html: () => `<div class="grow">${demo('ward', 'A ward stops the bolt')}${demo('clash', 'Bolt clashes: strength vs strength')}</div>
+    ${gp('<b>Casting:</b> each projectile recharges on its own; stronger spells recharge slower. The pips under your wizard fill up as each one recharges.')}
+    ${gp('<b>Warding</b> stops bolts, beams and explosions, and saves you from the arena edges. Damage over time (burning, poison, acid) goes straight through it.')}
+    ${gp('<b>Bolt clashes:</b> enemy bolts that meet trade blows. Each bolt has strength equal to its damage (explosives a bit more). The weaker one is destroyed and the stronger flies on, weakened by that much. So a 10-damage missile takes five 2-damage sparks to stop. Evenly matched bolts cancel out.')}
+    ${gp('<b>Careful:</b> your own bouncing bolts and explosions can hurt you. The screen edges bounce you back and hurt, unless you ward.')}` },
+  cards: { name: 'Cards & Wands', html: () => `<div class="grow">${demo('pick', 'After a round: open the chest, pick a card')}
+      <figure class="gdemo"><div class="gwand">${[['Spark Bolt', 'proj', 0.7], ['Damage Plus', 'mod', 0], ['Magic Arrow', 'proj', 1.6], ['Bomb', 'proj', 2.7]].map(([n, k, cd]) => `<div class="gws ${k}"><b>${n}</b>${k === 'proj' ? `<i style="animation-duration:${cd}s"></i><em>${cd}s</em>` : '<em>boosts →</em>'}</div>`).join('')}</div><figcaption>Each projectile recharges on its own timer</figcaption></figure></div>
+    ${gp('After each round every wizard on a losing team opens the chest and picks <b>1 of 5 cards</b> (or everyone picks, if the match is set up that way). Not keen on any of them? You get <b>2 re-rolls</b> per match in Classic and Arsenal.')}
+    ${gp('<b>Projectiles</b> (orange) fire bolts. <b>Modifiers</b> (blue) boost the projectile just to their <b>right</b> and make it recharge a little slower. <b>Spell upgrades</b> improve one slot: Empower Spell (+1 level), Twin Cast (one more copy), Efficient Casting (recharges faster). <b>Wand upgrades</b> change the whole wand: faster recharge, faster bolts, Echo (a chance to cast twice), steadier aim, or an extra slot (up to 8).')}
+    ${gp('Picking a spell opens the <b>wand editor</b>: choose a slot to put it in (an empty one, or replace one). <b>Rearrange first</b> lets you swap spells around before placing it.')}
+    ${gp('Classic starts everyone on a 4-slot wand with a single Spark Bolt. Arsenal and Dungeon Run start you with an elemental wand (see <b>Arsenal Wands</b>).')}` },
+  teams: { name: 'Teams', html: () => `<div class="grow">${demo('teams', 'Bolts pass through teammates')}</div>
+    ${gp('Up to <b>4 wizards</b>. In the setup screen (or an online lobby) each one picks a <b>team colour</b>: same colour = same team, all different colours = free-for-all. Mix it however you like: 1v1, 2v2, 3v1, or a 4-way brawl.')}
+    ${gp('There is <b>no friendly fire</b>: your bolts fly through teammates and your blasts don\'t hurt them. Mending Ward heals the whole team.')}
+    ${gp('A round ends when one team is left standing. Points are scored per team, and every wizard on a losing team gets to pick a card.')}
+    ${gp('Each slot can be <b>You</b> (keyboard and mouse), a <b>Controller</b>, a <b>Bot</b> (easy, normal or hard), or <b>Off</b>.')}` },
+  arsenal: { name: 'Arsenal Wands', html: () => `<div class="gel">${WEAPON_LIST.map(w => `<figure class="gdemo small"><canvas data-d="el:${w}" width="40" height="21"></canvas><figcaption><b>${WEAPONS[w].name}</b></figcaption></figure>`).join('')}</div>
+    ${gp('In <b>Arsenal</b> each wizard picks one elemental wand and keeps it all match. After a round the losers get 3 cards for their element, plus a spell upgrade and a wand upgrade.')}
+    ${gp('<b>Fire</b> sets wizards, wood and crates alight, and spreads. <b>Laser</b> is an instant beam that can reflect, split or cut through terrain. <b>Bomb</b> lobs fused charges that blow the level apart. <b>Spark</b> fires fast crackling bolts that can split and call lightning. <b>Bubble</b> drifts, traps wizards and swallows bolts. <b>Acid</b> pools on surfaces, eats slowly through anything breakable and gives off flammable gas.')}
+    ${gp('<b>Attunements</b> upgrade every spell of your element at once; <b>Unique</b> cards can only be taken once.')}
+    ${gp('Health grows <b>10% every round</b> in Arsenal and Dungeon Run, so stacked-up wands don\'t end matches instantly.')}` },
+  arena: { name: 'Arena & Hazards', html: () => `<div class="grow">${demo('erode', 'Terrain chips away where it\'s hit')}${demo('lava', 'Overtime: lava drips and pools')}</div>
+    ${gp('<b>Almost everything breaks.</b> Bolts and blasts chip chunks out of rock, brick, wood and crystal; the debris falls as sand. Only the floor along the very bottom is permanent. Thick main floors take a lot more to break than thin ledges.')}
+    ${gp('<b>Overtime</b> starts after 40 seconds: lava gathers on the ceiling and drips down, burning and melting whatever it lands on, and slowly pools up from the bottom.')}
+    ${gp('<b>Jump pads</b> (glowing chevrons) launch you high. <b>Crates</b> can be pushed around and blasted apart. Some platforms <b>move</b>, and a moving one can crush you. <b>Rope platforms</b> swing and sag under weight; hit the rope to drop them. <b>Lava</b> fills pits at the bottom: stay out.')}
+    ${gp('Every map has its own cave: mines, fungal caverns, frozen halls, jungle, desert ruins and old vaults. Turn maps on or off in <b>Maps</b> on the title screen.')}` },
+  dungeon: { name: 'Dungeon Run', html: () => `${gp('A 1v1 run through <b>five floors</b>, best of three rounds on each. There are no card picks between rounds: you earn <b>coins</b> for everything you do.')}
+    <div class="gcoins">${COIN_RULES.map(([k, v]) => `<div><b>${k}</b><span>${v}</span></div>`).join('')}</div>
+    ${gp('After every floor each wizard visits the <b>merchant</b> to buy spells, spell and wand upgrades, perks, or a mysterious flask. Coins you don\'t spend carry over. Whoever wins the most floors wins the run.')}` },
+  online: { name: 'Online', html: () => `${gp('Open <b>Online</b> on the title screen (desktop version). <b>Create lobby</b> and send friends the 4-letter code, or join an open lobby from the list.')}
+    ${gp('In the lobby you can see everyone\'s wizard. Anyone can change the mode, match length, picks and bots, and add or remove bots; any change un-readies everyone. Pick your team colour, press <b>Ready up</b>, and the match starts 3 seconds after everyone is ready.')}
+    ${gp('Everyone\'s inputs take effect after the same short delay (set from the players\' pings), so nobody has an advantage. If someone leaves mid-match, a bot takes over their wizard.')}
+    ${gp('Everyone needs the same game version: the game updates itself when you start it, and the lobby list only shows lobbies on your version.')}` }
+};
+// ---- demo scenes: drawn with the game's own sprites into tiny pixel canvases ----
+function guideBg(S, w, h, fy, tone) {
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const n = vnoise(x / 6, y / 6, 21), v = 10 + n * 14 + (y / h) * 8; S.buf[y * w + x] = packC(v * 1.1 | 0, v * .86 | 0, v * .72 | 0); }
+  for (let y = fy; y < h; y++) for (let x = 0; x < w; x++) { const n = hash2(x, y, 9), d = y - fy; S.buf[y * w + x] = d < 1 ? packC(170, 146, 96) : packC(90 + n * 26 | 0, 70 + n * 18 | 0, 50); }
+}
+const GLOOK = () => Object.assign({ shape: 'circle', hat: 'wizard', eyes: 'normal', gun: 'body' }, SET.prof[0] || {}, { col: '#ff9a2e' });
+const GFOE = { shape: 'square', hat: 'horns', eyes: 'angry', gun: 'body', col: '#36e0ff' };
+function gWiz(S, x, y, look, o) { drawPChar(S.A, S.E, Math.round(x), Math.round(y), lookOpts(look, Object.assign({ t: HELP.t }, o))); }
+function gBolt(S, b, col, len = 5) { for (let k = 0; k < len; k++) S.E(b.x - Math.sign(b.vx) * k, b.y, col[0] * (1 - k / len), col[1] * (1 - k / len), col[2] * (1 - k / len)); S.E(b.x, b.y, 255, 255, 255); }
+function gBurst(D, x, y, col, n = 7) { for (let k = 0; k < n; k++) { const a = Math.random() * TAU, v = 8 + Math.random() * 18; D.f.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 6, t: .4, c: col }); } }
+function gParts(S, D, dt, fy) { for (const p of D.f) { p.vy += 40 * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.t -= dt; if (p.y > fy - 1) { p.y = fy - 1; p.vy *= -.3; } const k = Math.min(1, p.t * 3); if (p.sand) S.A(p.x, p.y, packC(p.c[0], p.c[1], p.c[2])); else S.E(p.x, p.y, p.c[0] * k, p.c[1] * k, p.c[2] * k); } D.f = D.f.filter(p => p.t > 0); }
+const SCENES = {
+  move(S, D, dt, w, h) { const fy = 46; guideBg(S, w, h, fy); const p = stagePose(HELP.t); gWiz(S, p.x, fy + p.y, GLOOK(), { aim: p.aim, anim: p.anim });
+    if (p.cast) { D.cd = (D.cd || 0) - dt; if (D.cd <= 0) { D.cd = .45; D.b.push({ x: p.x - 9, y: fy - 2, vx: -90 }); } }
+    for (const b of D.b) { b.x += b.vx * dt; gBolt(S, b, [255, 170, 80]); } D.b = D.b.filter(b => b.x > -6); },
+  cast(S, D, dt, w, h) { const fy = 46; guideBg(S, w, h, fy); const tx = 88;
+    for (let y = fy - 8; y < fy; y++) { S.A(tx, y, D.hit > 0 ? packC(255, 255, 255) : packC(170, 130, 70)); S.A(tx + 1, y, D.hit > 0 ? packC(255, 255, 255) : packC(140, 104, 56)); } D.hit = Math.max(0, (D.hit || 0) - dt);
+    const slots = D.sl || (D.sl = [{ cd: .7, t: 0, c: [150, 200, 255] }, { cd: 1.6, t: .5, c: [255, 210, 120] }]);
+    gWiz(S, 18, fy, GLOOK(), { aim: -.03, recoil: D.rec || 0 }); D.rec = Math.max(0, (D.rec || 0) - dt * 5);
+    slots.forEach((sl, i) => { sl.t += dt; if (sl.t >= sl.cd) { sl.t = 0; D.b.push({ x: 28, y: fy - 3, vx: i ? 70 : 110, c: sl.c, big: i }); D.rec = 1; }
+      const k = sl.t / sl.cd; for (let x = 0; x < 4; x++) S.A(12 + i * 6 + x, fy + 3, x < k * 4 ? packC(sl.c[0], sl.c[1], sl.c[2]) : packC(40, 34, 30)); });
+    for (const b of D.b) { b.x += b.vx * dt; gBolt(S, b, b.c, b.big ? 7 : 5); if (b.big) S.E(b.x, b.y - 1, b.c[0] * .5, b.c[1] * .5, b.c[2] * .5); if (b.x >= tx - 1) { b.dead = 1; D.hit = .1; gBurst(D, tx - 1, b.y, b.c); } }
+    D.b = D.b.filter(b => !b.dead); gParts(S, D, dt, fy); },
+  ward(S, D, dt, w, h) { const fy = 46; guideBg(S, w, h, fy); D.cd = (D.cd ?? .6) - dt;
+    if (D.cd <= 0) { D.cd = 1.7; D.b.push({ x: 72, y: fy - 3, vx: -80 }); }
+    let ward = 0; for (const b of D.b) { b.x += b.vx * dt; if (b.x < 40) ward = 1; gBolt(S, b, [120, 230, 255]); if (b.x < 28) { b.dead = 1; gBurst(D, 28, b.y, [220, 240, 255], 9); D.flash = .25; } }
+    D.b = D.b.filter(b => !b.dead); D.flash = Math.max(0, (D.flash || 0) - dt);
+    gWiz(S, 20, fy, GLOOK(), { aim: 0 }); gWiz(S, 80, fy, GFOE, { aim: Math.PI });
+    if (ward || D.flash > 0) { const r = 8 + (D.flash > 0 ? 1 : 0); for (let k = 0; k < 24; k++) { const a = k / 24 * TAU + HELP.t * 4; S.E(20 + Math.cos(a) * r, fy - 3 + Math.sin(a) * r, 150, 210, 255); } }
+    gParts(S, D, dt, fy); },
+  clash(S, D, dt, w, h) { const fy = 46; guideBg(S, w, h, fy); D.cd = (D.cd ?? .2) - dt; D.cs = (D.cs ?? .5) - dt;
+    if (D.cd <= 0) { D.cd = 3.2; D.big = { x: 22, y: fy - 4, vx: 26, hp: 5 }; }
+    if (D.cs <= 0) { D.cs = .32; D.b.push({ x: 76, y: fy - 4, vx: -70 }); }
+    const B = D.big;
+    for (const b of D.b) { b.x += b.vx * dt; gBolt(S, b, [140, 200, 255], 4); if (B && Math.abs(b.x - B.x) < 3) { b.dead = 1; B.hp--; gBurst(D, b.x, b.y, [180, 220, 255], 5); if (B.hp <= 0) { gBurst(D, B.x, B.y, [255, 170, 60], 14); D.big = null; } } if (b.x < 14) b.dead = 1; }
+    D.b = D.b.filter(b => !b.dead);
+    if (D.big) { B.x += B.vx * dt; const r = 1 + B.hp * .5; for (let y = -r; y <= r; y++) for (let x = -r; x <= r; x++) if (x * x + y * y <= r * r) S.E(B.x + x, B.y + y, 255, 150 + B.hp * 15, 60); for (let k = 0; k < 6; k++) S.E(B.x - r - k, B.y, 200 * (1 - k / 6), 100 * (1 - k / 6), 30); if (B.x > 80) D.big = null; }
+    gWiz(S, 14, fy, GLOOK(), { aim: 0 }); gWiz(S, 86, fy, GFOE, { aim: Math.PI }); gParts(S, D, dt, fy); },
+  teams(S, D, dt, w, h) { const fy = 46; guideBg(S, w, h, fy); D.cd = (D.cd ?? .4) - dt; D.hp = D.hp ?? 1;
+    if (D.cd <= 0) { D.cd = 1.4; D.b.push({ x: 18, y: fy - 3, vx: 85 }); }
+    for (const b of D.b) { b.x += b.vx * dt; gBolt(S, b, [255, 170, 80]); if (b.x >= 62) { b.dead = 1; D.hp = Math.max(.1, D.hp - .22); D.fl = .12; gBurst(D, 62, b.y, [120, 230, 255]); } }
+    D.b = D.b.filter(b => !b.dead); D.fl = Math.max(0, (D.fl || 0) - dt); if (D.hp <= .12) D.hp = 1;
+    const ally = Object.assign({}, GLOOK(), { hat: 'brim', shape: 'triangle' });
+    gWiz(S, 12, fy, GLOOK(), { aim: 0 }); gWiz(S, 38, fy, ally, { aim: 0 }); gWiz(S, 66, fy, GFOE, { aim: Math.PI, flash: D.fl > 0 }); gWiz(S, 88, fy, Object.assign({}, GFOE, { hat: 'hood', shape: 'hex' }), { aim: Math.PI });
+    const bar = (x, k, c) => { for (let i = 0; i < 8; i++) S.A(x - 4 + i, fy - 18, i < k * 8 ? c : packC(40, 30, 30)); };
+    bar(12, 1, packC(120, 230, 90)); bar(38, 1, packC(120, 230, 90)); bar(66, D.hp, packC(120, 230, 90)); bar(88, 1, packC(120, 230, 90)); gParts(S, D, dt, fy); },
+  erode(S, D, dt, w, h) { const fy = 46; guideBg(S, w, h, fy);
+    if (!D.g || HELP.t - D.t0 > 9) { D.t0 = HELP.t; D.g = []; for (let y = 0; y < 8; y++) for (let x = 0; x < 34; x++) D.g.push(1); D.cd = 0; }
+    const gx = 46, gy = 24; D.cd -= dt;
+    if (D.cd <= 0) { D.cd = .35; const yy = gy + 1 + Math.floor(Math.random() * 6); D.b.push({ x: 16, y: yy, vx: 110, ty: yy }); }
+    for (const b of D.b) { b.x += b.vx * dt; gBolt(S, b, [255, 170, 80]);
+      const cx = Math.floor(b.x - gx), cy = b.ty - gy; if (cx >= 0 && cx < 34 && D.g[cy * 34 + cx]) { b.dead = 1; gBurst(D, b.x, b.y, [255, 200, 120], 4);
+        for (let dy = -1; dy <= 1; dy++) for (let dx = 0; dx <= 1; dx++) { const X = cx + dx, Y = cy + dy; if (X >= 0 && X < 34 && Y >= 0 && Y < 8 && D.g[Y * 34 + X] && Math.random() < .8) { D.g[Y * 34 + X] = 0; D.f.push({ x: gx + X, y: gy + Y, vx: Math.random() * 6 - 3, vy: 0, t: 4, c: [130, 104, 74], sand: 1 }); } } }
+      if (b.x > w) b.dead = 1; }
+    D.b = D.b.filter(b => !b.dead);
+    for (let y = 0; y < 8; y++) for (let x = 0; x < 34; x++) if (D.g[y * 34 + x]) S.A(gx + x, gy + y, y < 2 ? packC(150, 122, 80) : packC(100 + hash2(x, y, 3) * 20 | 0, 78, 56));
+    gWiz(S, 12, fy, GLOOK(), { aim: -.02 }); gParts(S, D, dt, fy); },
+  lava(S, D, dt, w, h) { if (!D.t0 || HELP.t - D.t0 > 11) { D.t0 = HELP.t; D.lv = 0; D.drops = []; D.plat = 1; } const fy = 52 - Math.round(D.lv); guideBg(S, w, h, 52);
+    for (let x = 0; x < w; x++) S.A(x, 0, packC(90, 70, 56));
+    D.cd = (D.cd || 0) - dt; if (D.cd <= 0) { D.cd = .25; D.drops.push({ x: 6 + Math.random() * (w - 12), y: 1, vy: 0, hang: .6 + Math.random() * .6 }); }
+    const px = 34, py = 30, pw = 30;
+    for (const d of D.drops) { if (d.hang > 0) { d.hang -= dt; S.E(d.x, d.y, 255, 120, 30); continue; } d.vy += 60 * dt; d.y += d.vy * dt;
+      S.E(d.x, d.y, 255, 150, 40); S.E(d.x, d.y - 1, 160, 60, 10);
+      if (D.plat && d.x > px && d.x < px + pw && d.y >= py) { d.dead = 1; D.plat = Math.max(0, D.plat - .02); }
+      if (d.y >= fy) { d.dead = 1; D.lv = Math.min(18, D.lv + .18); } }
+    D.drops = D.drops.filter(d => !d.dead);
+    if (D.plat > 0) for (let y = 0; y < 4; y++) for (let x = 0; x < pw; x++) if (hash2(x, y, 7) < D.plat + .3) S.A(px + x, py + y, D.plat < .5 && y === 0 ? packC(200, 90, 40) : packC(110, 86, 62));
+    for (let y = fy; y < h; y++) for (let x = 0; x < w; x++) { const f = .7 + .3 * Math.sin(x * .3 + HELP.t * 3 + y); S.buf[y * w + x] = packC(220 * f | 0, 80 * f | 0, 20); S.E(x, y, 60 * f, 15, 0); }
+    gWiz(S, 49, py, GLOOK(), { aim: -.6 }); },
+  pick(S, D, dt, w, h) { const fy = 50; guideBg(S, w, h, fy); const u = HELP.t % 4.2, cx = 50;
+    const lid = u > .35 ? Math.min(1, (u - .35) / .2) : 0;
+    for (let y = 0; y < 7; y++) for (let x = -8; x < 8; x++) S.A(cx + x, fy - 7 + y, y === 0 || y === 6 ? packC(220, 170, 70) : (x === -5 || x === 4) ? packC(220, 170, 70) : packC(130, 80, 40));
+    for (let x = -8; x < 8; x++) { S.A(cx + x - lid * 3, fy - 8 - lid * 4 - (x + 8) * lid * .2, packC(150, 96, 48)); }
+    if (lid > 0) for (let k = 0; k < 10; k++) S.E(cx - 6 + k * 1.3, fy - 8 - Math.random() * 4 * lid, 255, 220, 120);
+    for (let i = 0; i < 5; i++) { const k = clamp((u - .55 - i * .08) / .4, 0, 1), e = 1 - (1 - k) ** 3, tx = 14 + i * 18, ty = 12, x = cx + (tx - cx) * e, y = fy - 8 + (ty - (fy - 8)) * e + (k >= 1 ? Math.sin(HELP.t * 2 + i) : 0);
+      if (k <= 0) continue; const rc = [[200, 200, 200], [90, 200, 255], [200, 110, 255], [255, 200, 60], [90, 200, 255]][i];
+      for (let yy = -5; yy <= 5; yy++) for (let xx = -3; xx <= 3; xx++) S.A(x + xx, y + yy, Math.abs(xx) === 3 || Math.abs(yy) === 5 ? packC(rc[0], rc[1], rc[2]) : packC(40, 30, 26)); S.E(x, y - 1, rc[0] * .5, rc[1] * .5, rc[2] * .5); } }
+};
+function drawHelpDemos(dt) {
+  const panel = document.getElementById('help'); if (!panel || !panel.classList.contains('on')) return;
+  HELP.t += dt;
+  panel.querySelectorAll('canvas[data-d]').forEach(cv => {
+    const d = cv.dataset.d, w = cv.width, h = cv.height, S = spriteBuf(w, h), D = HELP.st[d] || (HELP.st[d] = { b: [], f: [] });
+    if (d.startsWith('el:')) { const wd = d.slice(3), lk = GLOOK(), r = wandDemo(S, wd, D, dt, w, h, lk); drawPGun(S.A, S.E, r.cx, r.cy, 4, { st: calcStats([], wd), aim: r.aim, col: lk.col, gunCol: lk.gun === 'body' ? lk.col : lk.gun, t: HELP.t, recoil: D.rec || 0, noHand: true }); }
+    else if (SCENES[d]) SCENES[d](S, D, dt, w, h);
+    cv.getContext('2d').putImageData(S.img, 0, 0);
+  });
+}
 
 /* ============================ ONLINE ============================
    Lockstep: every machine runs the same simulation from the same inputs. The server starts each
@@ -3652,7 +3887,7 @@ function netConnect() {
   NET.status = 'connecting'; NET.err = ''; refreshOnline();
   let ws; try { ws = new WebSocket('ws://' + (SET.server || DEFAULT_SERVER)); } catch (e) { NET.status = 'off'; NET.err = "Couldn't reach the server."; return refreshOnline(); }
   NET.ws = ws;
-  ws.onopen = () => { const pr = myProfile(); netSend({ t: 'hello', v: NET_PROTO, name: (pr.name || '').trim() || 'Wizard', look: pr }); };
+  ws.onopen = () => { const pr = myProfile(); netSend({ t: 'hello', v: NET_PROTO, ver: GAME_VERSION, name: (pr.name || '').trim() || 'Wizard', look: pr }); };
   ws.onclose = () => { const was = NET.status; NET.ws = null; NET.status = 'off'; if (!NET.err) NET.err = was === 'online' ? 'Lost connection to the server.' : "Couldn't reach the server - is it running?";
     if (NET.on) { netEndLocal(); app = 'online'; } NET.lobby = null; if (app === 'online' || app === 'lobby' || app === 'title') { app = 'online'; show('online'); } };
   ws.onerror = () => {};
@@ -3761,10 +3996,10 @@ function lobbySprite(cv, look, col) {
 const ONLINE_UI = {
   online() {
     const st = NET.status, pr = myProfile();
-    const list = NET.list.length ? NET.list.map(L => `<div class="lrow"><b>${L.code}</b><span>${L.host}'s lobby · ${L.n} player${L.n > 1 ? 's' : ''}${L.bots ? ' + ' + L.bots + ' bot' + (L.bots > 1 ? 's' : '') : ''} · ${L.game === 'arsenal' ? 'Arsenal' : 'Classic'}</span><button class="btn small" data-act="njoin" data-v="${L.code}">Join</button></div>`).join('') : '<div class="hint">No open lobbies right now. Create one and send your friends the code.</div>';
+    const list = NET.list.length ? NET.list.map(L => `<div class="lrow"><b>${L.code}</b><span>${L.host}'s lobby · ${L.n} player${L.n > 1 ? 's' : ''}${L.bots ? ' + ' + L.bots + ' bot' + (L.bots > 1 ? 's' : '') : ''} · ${L.game === 'arsenal' ? 'Arsenal' : 'Classic'}</span><button class="btn small" data-act="njoin" data-v="${L.code}">Join</button></div>`).join('') : '<div class="hint keep">No open lobbies</div>';
     $('online').innerHTML = `<h2>Online</h2>
       <div class="sub" style="margin-bottom:.6em">${st === 'online' ? `Connected <span style="color:#7dff5a">●</span> as <b style="color:${pr.col || '#ffd27a'}">${(pr.name || 'Wizard').replace(/</g, '')}</b> · ping ${NET.rtt || '…'} ms` : st === 'connecting' ? 'Connecting to the server…' : '<span style="color:#ff9a6a">Not connected</span>'}</div>
-      ${NET.err ? `<div class="hint" style="color:#ff9a6a">${NET.err}</div>` : ''}
+      ${NET.err ? `<div class="hint keep" style="color:#ff9a6a">${NET.err}</div>` : ''}
       ${st === 'online' ? `<div><button class="btn" data-act="ncreate">Create lobby</button></div>
         <div class="seg" style="margin:.6em 0;align-items:center;gap:.4em"><input class="nm" id="joinIn" maxlength="4" placeholder="CODE" style="width:6em;text-transform:uppercase;text-align:center" value="${NET.joinCode}"><button class="btn small" data-act="njoincode">Join with code</button></div>
         <h3>Open lobbies</h3><div class="llist">${list}</div>` : `<button class="btn" data-act="nconnect">${st === 'connecting' ? 'Connecting…' : 'Connect'}</button>`}
@@ -3773,7 +4008,7 @@ const ONLINE_UI = {
     const ji = $('joinIn'); if (ji) { ji.addEventListener('input', () => { NET.joinCode = ji.value.toUpperCase(); }); ji.addEventListener('keydown', e => { if (e.code === 'Enter') act('njoincode'); }); }
   },
   lobby() {
-    const L = NET.lobby; if (!L) { $('lobby').innerHTML = '<h2>Lobby</h2><div class="hint">Joining…</div>'; return; }
+    const L = NET.lobby; if (!L) { $('lobby').innerHTML = '<h2>Lobby</h2><div class="hint keep">Joining…</div>'; return; }
     const meSlot = L.slots.findIndex(s => s.kind === 'human' && s.cid === NET.id), me = L.slots[meSlot], on = L.slots.filter(s => s.kind !== 'empty');
     const teams = [...new Set(on.map(s => s.col))], desc = teams.length === on.length ? (on.length === 2 ? '1 v 1' : 'Free-for-all') : teams.map(c => on.filter(s => s.col === c).length).join(' v ');
     const waiting = L.slots.filter(s => s.kind === 'human' && !s.ready).map(s => s.name);
@@ -3786,7 +4021,7 @@ const ONLINE_UI = {
           <div class="lst">${s.kind === 'bot' ? `Bot (${L.opts.bot}) <button class="btn small" data-act="ndelbot" data-v="${i}">Remove</button>` : s.ready ? '<b style="color:#7dff5a">READY</b>' : 'not ready'}${s.kind === 'human' && s.ping ? ` <span class="hint">· ${s.ping} ms</span>` : ''}</div></div>`;
     const opt = (k, vals, names) => vals.map((v, j) => `<button class="btn small ${L.opts[k] === v ? 'sel' : ''}" data-act="nopt" data-v="${k}:${v}">${names[j]}</button>`).join('');
     $('lobby').innerHTML = `<h2>Lobby <span style="color:#ffd27a;letter-spacing:4px">${L.code}</span></h2>
-      <div class="hint" style="margin:-.2em 0 .6em">Send friends the code <b style="color:#ffd27a">${L.code}</b>. Same colour = same team · <b style="color:#ffe9b8">${desc}</b></div>
+      <div class="hint keep" style="margin:-.2em 0 .6em"><b style="color:#ffe9b8">${desc}</b></div>
       <div class="lslots">${L.slots.map(card).join('')}</div>
       <div class="lopts">
         <div><h3>Mode</h3><div class="seg">${opt('game', ['classic', 'arsenal'], ['Classic', 'Arsenal'])}</div></div>
@@ -3795,8 +4030,8 @@ const ONLINE_UI = {
         <div><h3>Spell picks</h3><div class="seg">${opt('picks', ['loser', 'both'], ['Losers pick', 'Everyone'])}</div></div>
         <div><h3>Bots</h3><div class="seg">${opt('bot', ['easy', 'normal', 'hard'], ['Easy', 'Normal', 'Hard'])}</div></div>
       </div>
-      <div class="hint" style="min-height:1.3em;color:${L.countdown ? '#7dff5a' : '#ffd27a'}">${status}</div>
-      ${NET.err ? `<div class="hint" style="color:#ff9a6a">${NET.err}</div>` : ''}
+      <div class="hint keep" style="min-height:1.3em;color:${L.countdown ? '#7dff5a' : '#ffd27a'}">${status}</div>
+      ${NET.err ? `<div class="hint keep" style="color:#ff9a6a">${NET.err}</div>` : ''}
       <div style="margin-top:.4em">${me ? `<button class="btn ${me.ready ? 'sel' : ''}" data-act="nready">${me.ready ? 'Ready!' : 'Ready up'}</button>` : ''}<button class="btn small" data-act="nleave">Leave lobby</button></div>
       <div class="hint">Anyone can change the options or add bots. The match starts when every player is ready.</div>`;
     document.querySelectorAll('#lobby canvas.lsp').forEach(cv => { const s = L.slots[+cv.dataset.i]; lobbySprite(cv, s.kind === 'bot' ? { shape: 'hex', hat: 'hood', eyes: 'visor' } : s.look, s.col); });
@@ -3808,7 +4043,7 @@ const $ = id => document.getElementById(id);
 const PANELS = ['title', 'setup', 'pick', 'end', 'library', 'settings', 'maps', 'online', 'lobby', 'help', 'pause', 'custom', 'controls', 'wpick', 'wand', 'shop'];
 let focusIdx = 0;
 // shown under the title logo; bump with each published update (MAKE-UPDATE uses the same number)
-const GAME_VERSION = '1.2.0';
+const GAME_VERSION = '1.3.1';
 function drawMapPreviews() {
   document.querySelectorAll('#maps canvas[data-m]').forEach(cv => {
     const m = MAPS[+cv.dataset.m], c = cv.getContext('2d'), k = cv.width / W; c.imageSmoothingEnabled = false;
@@ -3943,7 +4178,6 @@ const UI = {
     const n = pads().length;
     $('title').innerHTML = `<h1><span class="a">RETRO</span> <span class="b">SHOT</span></h1>
       <div class="gver">Version ${GAME_VERSION.replace(/\.0$/, '')}</div>
-      <div class="sub">Shoot. Block. Lose a round, pick a card. First to ${SET.points} points wins.</div>
       <h3 style="margin-top:0">Game mode</h3>
       <div class="seg">${[['classic', 'Classic'], ['arsenal', 'Arsenal'], ['dungeon', 'Dungeon Run']].map(([k, n]) => `<button class="btn small ${SET.game === k ? 'sel' : ''}" style="min-width:9em" data-act="game" data-v="${k}">${n}</button>`).join('')}</div>
       <div class="hint" style="margin:.3em 0 .9em">${SET.game === 'dungeon' ? '5 floors · earn coins for everything you do · shop with the merchant between floors' : SET.game === 'arsenal' ? 'Pick an elemental wand: fire, laser, bomb, spark, bubble or acid · upgrades made for it' : 'Same Apprentice Wand for everyone · build it up spell by spell'}</div>
@@ -3969,7 +4203,7 @@ const UI = {
         <span class="d">${detail(x, ctr[i] || {})}</span></div>`).join('');
     $('setup').innerHTML = `<h2>${setupMode === 'bot' ? 'Play vs Bot' : 'Local Versus'}</h2>
       <h3>Wizards</h3><div class="lineup">${rows}</div>
-      <div class="hint" style="margin:.3em 0 0">Same colour = same team · all different = free-for-all &nbsp;→&nbsp; <b style="color:#ffe9b8">${teamsDesc(L)}</b></div>
+      <div class="hint keep" style="margin:.3em 0 0"><b style="color:#ffe9b8">${teamsDesc(L)}</b></div>
       <h3>Game mode</h3><div class="seg">${[['classic', 'Classic'], ['arsenal', 'Arsenal'], ['dungeon', 'Dungeon Run']].map(([k, n]) => `<button class="btn small ${SET.game === k ? 'sel' : ''}" data-act="game" data-v="${k}">${n}</button>`).join('')}</div>
       <div class="hint" style="margin-top:.4em;max-width:34em">${SET.game === 'dungeon' ? 'Pick a starting wand, then fight through 5 floors (best of 3 rounds each). There are no card picks: you earn coins for damage, kills, wards, warded bolts, bolt clashes, trick shots, smashed terrain and more, and spend them with a mysterious merchant after every floor. Most floors won takes the run.' : SET.game === 'arsenal' ? 'Each player picks one of ' + WEAPON_LIST.length + ' elemental wands (fire, laser, bomb, spark, bubble, acid) and keeps it. Between rounds you get 3 cards for your element (new spells or attunements that change how it behaves), plus a spell upgrade and a wand upgrade.' : 'Everyone starts with the same Apprentice Wand and adds spells to it between rounds.'}</div>
       ${anyBot ? `<h3>Bot difficulty</h3><div class="seg">${['easy', 'normal', 'hard'].map(d => `<button class="btn small ${SET.bot === d ? 'sel' : ''}" data-act="bot" data-v="${d}">${d}</button>`).join('')}</div>` : ''}
@@ -3977,7 +4211,7 @@ const UI = {
       <h3>Match length</h3><div class="seg">${[3, 5, 7].map(d => `<button class="btn small ${SET.points === d ? 'sel' : ''}" data-act="points" data-v="${d}">First to ${d}</button>`).join('')}</div>
       <div class="seg" style="margin-top:.3em">${[1, 2].map(d => `<button class="btn small ${SET.rounds === d ? 'sel' : ''}" data-act="rounds" data-v="${d}">${d} round${d > 1 ? 's' : ''} per point</button>`).join('')}</div>`}
       <div style="height:1em"></div>
-      ${prob ? `<div class="hint" style="color:#ff9a6a;margin-bottom:.5em">${prob}</div>` : ''}
+      ${prob ? `<div class="hint keep" style="color:#ff9a6a;margin-bottom:.5em">${prob}</div>` : ''}
       <button class="btn" data-act="start" ${prob ? 'disabled' : ''}>Start</button>
       <button class="btn small" data-act="go" data-v="title">Back</button>`;
   },
@@ -4029,7 +4263,7 @@ const UI = {
       ${sec('Wand upgrades', TYPE_COL.wandup, WANDUP_LIST)}
       ${sec('Perks (Dungeon Run merchant)', TYPE_COL.utility, PERK_LIST)}
       ${WEAPON_LIST.map(w => sec(WEAPONS[w].name + ' cards (Arsenal & Dungeon Run)', EL_COL[w], EL_CARDS[w])).join('')}
-      <h3 style="color:#ffd23d">Starting wands</h3><div class="hint" style="max-width:44em;text-align:left">${Object.keys(WAND_T).map(k => `<b>${WAND_T[k].name}</b>: ${WEAPONS[k] ? WEAPONS[k].desc : WAND_T[k].spells.map(s => SPELLS[s].name).join(', ')}`).join('<br>')}</div>
+      <h3 style="color:#ffd23d">Starting wands</h3><div class="hint keep" style="max-width:44em;text-align:left">${Object.keys(WAND_T).map(k => `<b>${WAND_T[k].name}</b>: ${WEAPONS[k] ? WEAPONS[k].desc : WAND_T[k].spells.map(s => SPELLS[s].name).join(', ')}`).join('<br>')}</div>
       <div style="height:1em"></div><button class="btn" data-act="go" data-v="title">Back</button>`;
   },
   maps() {
@@ -4049,45 +4283,16 @@ const UI = {
     const si = $('srvIn'); if (si) si.addEventListener('change', () => { SET.server = si.value.trim() || DEFAULT_SERVER; saveSet(); if (NET.ws) NET.ws.close(); });
   },
   help() {
+    const T = HELP.tab, P = HELP_PAGES[T] || HELP_PAGES.basics;
     $('help').innerHTML = `<h2>How to Play</h2>
-      <div class="keys"><b>Keyboard & mouse</b><span></span>
-        <span>Move</span><b>${bindText('left')} · ${bindText('right')}</b><span>Jump · wall jump</span><b>${bindText('jump')}</b><span>Aim</span><b>Mouse</b><span>Shoot</span><b>${bindText('shoot')}</b><span>Block</span><b>${bindText('block')}</b><span>Pause</span><b>${bindText('pause')}</b>
-        <b style="margin-top:.6em">Controller</b><span></span>
-        <span>Move</span><b>Left stick / D-pad</b><span>Jump</span><b>${padText('jump')}</b><span>Aim</span><b>Right stick${SET.aimLeft ? ' (or left)' : ''}</b><span>Shoot</span><b>${padText('shoot')}</b><span>Block</span><b>${padText('block')}</b><span>Pause</span><b>${padText('pause')}</b></div>
-      <button class="btn small" data-act="ctl" data-v="help" style="margin-top:.8em">Change controls</button>
-      <h3>Rules</h3>
-      <div class="help" style="max-width:36em;text-align:left;line-height:1.45;color:#cfcbd8">
-        • Each round ends when someone dies. The <b>loser picks a card</b>, which helps them catch up (or set <b>Card picks: Both players</b> in the match setup). Cards stack for the rest of the match.<br>
-        • Win ${SET.rounds} round${SET.rounds > 1 ? 's' : ''} to score a point. First to ${SET.points} points wins.<br>
-        • <b>Block</b> (4s cooldown) stops bullets and explosions, and saves you from the deadly red edges of the arena. Burning, poison and other damage over time go through blocks.<br>
-        • Touching the edge of the screen bounces you back and hurts, unless you block.<br>
-        • Your own bouncing bullets and explosions can hurt you.<br>
-        • After 40 seconds it's <b>overtime</b>: lava drips from the ceiling, burns and melts through everything except the base floor, and slowly pools up from the bottom.<br>
-        • Glowing chevrons are jump pads. Crates can be pushed and shot around; some platforms move.</div>
-      <h3>Wands</h3>
-      <div class="help" style="max-width:36em;text-align:left;line-height:1.45;color:#cfcbd8">
-        • Wands have <b>4–5 slots</b> (Classic starts everyone on 4 slots and a single Spark Bolt; <b>Wand Extension</b> adds a slot, up to 8). While you hold cast, <b>every projectile fires on its own recharge timer</b> (the pips under you fill up as each one recharges). Stronger spells recharge slower.<br>
-        • Almost everything can be blasted apart; only the ground at the very bottom is permanent. Big main floors take far more damage to break than thin ledges.<br>
-        • In Arsenal and Dungeon Run every wizard's health grows <b>10% each round</b>, so stronger spells don't end matches instantly.<br>
-        • A <b>projectile</b> fires a bolt. A <b>modifier</b> boosts the projectile to its right and makes it recharge a little slower (put it just before the bolt you want to boost).<br>
-        • After each round you pick one card: a <b>projectile or modifier</b> (put it in any slot, replacing what's there), a <b>spell upgrade</b> (Empower Spell +1 level, Twin Cast one more copy, Efficient recharges 40% faster, for one slot you choose), or a <b>wand upgrade</b> (faster recharge, faster bolts, Echo, more slots).</div>
-      <h3>Dungeon Run</h3>
-      <div class="help" style="max-width:36em;text-align:left;line-height:1.45;color:#cfcbd8">
-        • Five floors, best of three rounds on each. No picks between rounds: you earn <b>coins</b> instead.<br>
-        • ${COIN_RULES.map(([k, v]) => '<b>' + k + '</b>: ' + v).join(' · ')}.<br>
-        • After every floor each wizard visits the <b>merchant</b> to buy spells, wand upgrades, perks or a mystery flask. Unspent coins carry over.<br>
-        • Whoever wins the most floors wins the run.</div>
-      <h3>Modes</h3>
-      <div class="help" style="max-width:36em;text-align:left;line-height:1.45;color:#cfcbd8">
-        • <b>Classic:</b> everyone starts with the same 3-shot gun. The loser picks 1 of 5 cards from the full pool.<br>
-        • <b>Arsenal:</b> each player picks an elemental wand: ${WEAPON_LIST.map(w => WEAPONS[w].name).join(', ')}. You keep it all match. Each round the loser gets 3 cards for their element plus a spell upgrade and a wand upgrade. <b>Attunements</b> upgrade every spell of your element; <b>Unique</b> ones can only be taken once.<br>
-        • <b>Bolt clashes:</b> enemy bolts that meet trade blows. Each has strength equal to its damage (explosives a bit more). The weaker one is destroyed and the stronger flies on, weakened by that much, so a 10-damage missile takes five 2-damage sparks to stop. Evenly matched bolts cancel out.<br>
-        • <b>Elements:</b> fire sets wizards, wood and crates alight and spreads. Lasers are instant beams that can reflect, split or cut. Bombs blow the level apart. Sparks split and call lightning. Bubbles drift, trap and swallow bolts. Acid pools on surfaces and slowly eats through anything breakable, giving off flammable gas that fire can ignite. Water bubbles put fire out.</div>
-      <div style="height:1em"></div><button class="btn" data-act="go" data-v="title">Back</button>`;
+      <div class="guide"><div class="gnav">${Object.entries(HELP_PAGES).map(([k, p]) => `<button class="btn small ${k === T ? 'sel' : ''}" data-act="htab" data-v="${k}">${p.name}</button>`).join('')}</div>
+        <div class="gpage"><h3 style="margin-top:0;color:#ffd27a">${P.name}</h3>${P.html()}</div></div>
+      <div style="margin-top:.6em"><button class="btn" data-act="go" data-v="title">Back</button></div>`;
   },
+
   pause() {
     $('pause').innerHTML = `<h2>Paused</h2>
-      <div class="decks">${M.players.map(q => `<div><h3 style="color:${q.color}">${q.nick}${wtag(q)}</h3><div class="minis">${q.cards.length ? q.cards.map(id => `<span class="mini r${CARDS[id].rar}" title="${CARDS[id].desc}">${CARDS[id].name}</span>`).join('') : '<span class="hint">No cards</span>'}</div></div>`).join('')}</div>
+      <div class="decks">${M.players.map(q => `<div><h3 style="color:${q.color}">${q.nick}${wtag(q)}</h3><div class="minis">${q.cards.length ? q.cards.map(id => `<span class="mini r${CARDS[id].rar}" title="${CARDS[id].desc}">${CARDS[id].name}</span>`).join('') : '<span class="hint keep">No cards</span>'}</div></div>`).join('')}</div>
       <div style="height:1.2em"></div>
       <button class="btn" data-act="resume">Resume</button><button class="btn" data-act="ctl" data-v="pause">Controls</button><button class="btn" data-act="quit">Quit to Menu</button>`;
   }
@@ -4113,7 +4318,7 @@ function renderPick() {
     <div class="hint" style="margin:-.2em 0 .6em">${SET.picks === 'both' ? 'Everyone picks a card after every round (losers first).' : (M.players.length > 2 ? 'Every wizard on a losing team picks a card, to help them catch up.' : 'The loser of each round picks a card, to help them catch up.') + ' You can change this in the match setup.'}</div>
     <div class="score">${scoreLine()}</div>
     <div class="cards deal" style="--e:${((performance.now() - PK.t0) / 1000).toFixed(3)}s">${CHEST_SVG}${PK.cards.map((id, i) => `<div class="cslot" style="--dx:${((PK.cards.length - 1) / 2 - i).toFixed(1)};--i:${i};--rot:${((i * 37) % 5 - 2) * 14}deg">${cardHTML(id, `data-act="card" data-v="${i}"`).replace('class="card', `class="card${i === PK.sel && !p.ctrl.bot ? ' focus' : ''}${PK.chosen && i === PK.sel ? ' chosen' : ''}${p.ctrl.bot && i === PK.sel && PK.botSel ? ' focus' : ''}`)}</div>`).join('')}</div>
-    ${M.game === 'classic' || M.game === 'arsenal' ? `<div style="margin:.9em 0 0">${p.ctrl.bot ? `<span class="hint">${M.rerolls[PK.pi]} re-roll${M.rerolls[PK.pi] === 1 ? '' : 's'} left</span>` : `<button class="btn small" data-act="pkreroll"${canReroll() ? '' : ' disabled style="opacity:.4"'}>Re-roll (${M.rerolls[PK.pi]} left)</button>`}</div>` : ''}
+    ${M.game === 'classic' || M.game === 'arsenal' ? `<div style="margin:.9em 0 0">${p.ctrl.bot ? `<span class="hint keep">${M.rerolls[PK.pi]} re-roll${M.rerolls[PK.pi] === 1 ? '' : 's'} left</span>` : `<button class="btn small" data-act="pkreroll"${canReroll() ? '' : ' disabled style="opacity:.4"'}>Re-roll (${M.rerolls[PK.pi]} left)</button>`}</div>` : ''}
     ${M.game === 'arsenal' ? `<div class="hint" style="margin:1.4em 0 0">3 <b style="color:#ffd23d">${WEAPONS[p.weapon].name}</b> upgrades + 2 general cards</div>` : ''}
     <div class="decks">${[p, ...others].map(q => `<div><h3 style="color:${q.color}">${poss(q)} cards${wtag(q)}</h3><div class="minis">${q.wand ? q.wand.spells.map(id => id ? `<span class="mini" style="border-color:${TYPE_COL[SPELLS[id].kind]};color:${TYPE_COL[SPELLS[id].kind]}">${SPELLS[id].name}</span>` : '<span class="mini" style="opacity:.4">empty</span>').join('') : ''}${q.cards.filter(id => !CARDS[id].spell && !CARDS[id].wandup).map(id => `<span class="mini r${CARDS[id].rar}">${CARDS[id].name}</span>`).join('')}</div></div>`).join('')}</div>
     <div class="hint">${p.ctrl.bot ? '' : 'Click a card · or ← → and Enter · or stick and A' + (M.game === 'classic' || M.game === 'arsenal' ? ' · R or Y to re-roll' : '')}</div>`;
@@ -4128,7 +4333,7 @@ function renderWPick() {
       return `<div class="wcard${i === WP.sel && (!bot || WP.botSel) ? ' focus' : ''}${WP.lock && i === WP.sel ? ' chosen' : ''}" data-act="weapon" data-v="${i}">
         <canvas class="wcv" data-w="${w}" width="320" height="170"></canvas><div class="n">${W_.name}</div><div class="d">${W_.desc}</div>
         <div class="bars">${W_.bars.map((v, k) => `<div><span>${labels[k]}</span>${[1, 2, 3, 4, 5].map(n => `<i class="${n <= v ? 'on' : ''}"></i>`).join('')}</div>`).join('')}</div></div>`; }).join('')}</div>
-    ${prevs.length ? `<div class="hint">${prevs.map(o => `<span style="color:${o.color}">${o.nick}</span> picked <b style="color:#ffd23d">${WEAPONS[o.weapon].name}</b>`).join(' · ')}</div>` : ''}
+    ${prevs.length ? `<div class="hint keep">${prevs.map(o => `<span style="color:${o.color}">${o.nick}</span> picked <b style="color:#ffd23d">${WEAPONS[o.weapon].name}</b>`).join(' · ')}</div>` : ''}
     <div class="hint">${bot ? '' : 'Click a weapon · or ← → and Enter · or stick and A'}</div>`;
   wpPrevT = 0;
   // hovering a wand with the mouse selects it (and starts its firing-range demo) without rebuilding the screen
@@ -4235,7 +4440,7 @@ function renderWand() {
   $('wand').innerHTML = `<div class="pickhead" style="color:${p.color}">${p.nick}'s wand</div>
     <div class="sub" style="margin:.1em 0 .6em">${w.name || 'Wand'} &middot; ${wandStatLine(w)}</div>
     ${WE.pending ? `<div style="margin:.2em 0 .5em">${newTile(WE.pending)}</div>` : WE.up ? `<div style="margin:.2em 0 .5em">${newTile(WE.up)}</div>` : ''}
-    <div class="hint" style="color:#ffd27a;margin:.2em 0 .5em">${head}</div>
+    <div class="hint keep" style="color:#ffd27a;margin:.2em 0 .5em">${head}</div>
     <div class="wslots">${w.spells.map((id, i) => spellTile(w, i, `data-act="wslot" data-v="${i}"${ok(i) ? '' : ' disabled style="opacity:.35"'}${WE.sel === i ? ' style="outline:3px solid #ffd27a"' : ''}`)).join('')}</div>
     <div class="hint" style="max-width:44em">While you hold cast, every <b>projectile</b> fires on its own recharge timer, boosted by any <b>modifiers</b> just to its left (which slow its recharge a little).</div>
     <div style="margin-top:.8em">${(WE.arr || (!WE.pending && !WE.up)) && WE.sel >= 0 && w.spells[WE.sel] ? '<button class="btn small" data-act="wdiscard">Discard selected</button>' : ''}${WE.pending || WE.up ? `<button class="btn small" data-act="warr">${WE.arr ? 'Back to ' + (WE.pending ? 'placing' : 'upgrading') : 'Rearrange first'}</button> <button class="btn small" data-act="wdropnew">Skip it</button>` : '<button class="btn" data-act="wdone">Done</button>'}</div>`;
@@ -4424,14 +4629,14 @@ function shopItemHTML(it, i, coins) {
 function renderShop() {
   if (!SHOP || !SHOP.p) return;
   const p = SHOP.p, R = M.run, coins = R.coins[p.id], E = R.earned[p.id];
-  const earned = Object.keys(E).filter(k => E[k] > 0).sort((a, b) => E[b] - E[a]).map(k => `<span class="mini" style="color:#ffd23d;border-color:#6b5420">${k} +${E[k]}</span>`).join('') || '<span class="hint">nothing this floor</span>';
+  const earned = Object.keys(E).filter(k => E[k] > 0).sort((a, b) => E[b] - E[a]).map(k => `<span class="mini" style="color:#ffd23d;border-color:#6b5420">${k} +${E[k]}</span>`).join('') || '<span class="hint keep">nothing this floor</span>';
   $('shop').innerHTML = `<div class="shophead">
       <img class="merchant" src="${merchantImg()}" alt="">
       <div class="speech"><div class="who">The Merchant</div><div class="say ${SHOP.mood}">"${SHOP.line}"</div></div>
-      <div class="purse" style="border-color:${p.color}"><div style="color:${p.color}">${p.nick === 'You' ? 'Your' : p.nick + "'s"} purse</div><b>${coins}¢</b><div class="hint" style="margin:0">Floor ${R.floor} of ${R.floors} cleared${R.lastWin === p.id ? ' (you won it)' : ''}</div></div>
+      <div class="purse" style="border-color:${p.color}"><div style="color:${p.color}">${p.nick === 'You' ? 'Your' : p.nick + "'s"} purse</div><b>${coins}¢</b><div class="hint keep" style="margin:0">Floor ${R.floor} of ${R.floors} cleared${R.lastWin === p.id ? ' (you won it)' : ''}</div></div>
     </div>
     <div class="minis" style="justify-content:center;margin:.2em 0 .5em">${earned}</div>
-    ${SHOP.notes.length ? `<div class="hint" style="margin:0 0 .5em">${SHOP.notes.join(' ')}</div>` : ''}
+    ${SHOP.notes.length ? `<div class="hint keep" style="margin:0 0 .5em">${SHOP.notes.join(' ')}</div>` : ''}
     <div class="cards shopcards">${SHOP.items.map((it, i) => shopItemHTML(it, i, coins)).join('')}</div>
     <div class="minis" style="justify-content:center;margin:.6em 0">${p.wand.spells.map(id => id ? `<span class="mini" style="border-color:${TYPE_COL[SPELLS[id].kind]};color:${TYPE_COL[SPELLS[id].kind]}">${SPELLS[id].name}</span>` : '<span class="mini" style="opacity:.4">empty</span>').join('')}</div>
     <div><button class="btn small" data-act="reroll">New stock (${SHOP.reroll}¢)</button><button class="btn small" data-act="shopwand">Arrange wand</button><button class="btn" data-act="leave">${R.floor + 1 <= R.floors ? 'Descend to floor ' + (R.floor + 1) : 'Leave'}</button></div>
@@ -4470,6 +4675,7 @@ function act(a, v, el) {
     case 'points': SET.points = +v; saveSet(); return show('setup');
     case 'rounds': SET.rounds = +v; saveSet(); return show('setup');
     case 'toggle': SET[v] = !SET[v]; saveSet(); return show('settings');
+    case 'htab': HELP.tab = v; { const f = focusIdx; show('help'); focusIdx = f; markFocus(); } return;
     case 'nopen': app = 'online'; show('online'); if (NET.status === 'off') { NET.err = ''; netConnect(); } else netSend({ t: 'list' }); return;
     case 'nconnect': NET.err = ''; return netConnect();
     case 'nback': if (NET.lobby) netSend({ t: 'leave' }); NET.lobby = null; app = 'title'; return show('title');
@@ -4504,10 +4710,20 @@ function act(a, v, el) {
   }
 }
 document.addEventListener('click', e => { const b = e.target.closest('[data-act]'); if (!b || b.disabled) return; act(b.dataset.act, b.dataset.v, b); });
+// B on a controller / Esc on the keyboard: back out of whatever menu is open
+function goBack() {
+  if ($('controls').classList.contains('on')) return act('ctlback');
+  const on = document.querySelector('.panel.on'), id = on && on.id;
+  if (app === 'match') return NET.on ? setPause(!NET.overlay) : setPause(!paused);
+  if (id === 'lobby') return act('nleave');
+  if (id === 'online') return act('nback');
+  if (['settings', 'help', 'maps', 'custom', 'setup', 'library'].includes(id)) { sfx(300, .05, 'square', .02, -80); return act('go', 'title'); }
+}
 function setPause(on) { if (app !== 'match') return; if (NET.on) { NET.overlay = on; show(on ? 'pause' : null); wrap.classList.toggle('play', !on); return; } paused = on; show(on ? 'pause' : null); wrap.classList.toggle('play', !on); }
 function uiKey(e) {
   if ($('controls').classList.contains('on') && e.code === 'Escape') return act('ctlback');
-  if (app === 'match' && (e.code === 'Escape' || SET.keys.pause.includes(e.code))) return setPause(!paused);
+  if (app === 'match' && (e.code === 'Escape' || SET.keys.pause.includes(e.code))) return NET.on ? setPause(!NET.overlay) : setPause(!paused);
+  if (e.code === 'Escape' && !(document.activeElement && document.activeElement.tagName === 'INPUT' && document.activeElement.value)) return goBack();
   if (app === 'wpick' && WP && !WP.lock && !M.players[WP.turn].ctrl.bot) {
     const n = WEAPON_LIST.length;
     if (e.code === 'ArrowLeft' || e.code === 'KeyA') { WP.sel = (WP.sel + n - 1) % n; renderWPick(); sfx(500, .04, 'square', .02); }
@@ -4529,11 +4745,14 @@ function pollPads() {
   navT -= 1 / 60;
   for (const gp of ps) {
     const s = padState(gp), pr = PAD.prev[gp.index] || {};
-    // menus move exactly one step per D-pad press or stick push (no auto-repeat while held)
+    // menus move one step per D-pad press or stick push; holding it scrolls after a short pause, like most games
     PAD.press[gp.index] = s.btn.map((v, k) => v && !(pr.btn && pr.btn[k]));
     const vDir = (s.down || s.ly > .5) ? 1 : (s.up || s.ly < -.5) ? -1 : 0, hDir = (s.right || s.lx > .5) ? 1 : (s.left || s.lx < -.5) ? -1 : 0;
-    const was = PAD.dir[gp.index] || { v: 0, h: 0 };
-    PAD.vEdge[gp.index] = vDir !== was.v ? vDir : 0; PAD.hEdge[gp.index] = hDir !== was.h ? hDir : 0; PAD.dir[gp.index] = { v: vDir, h: hDir };
+    const was = PAD.dir[gp.index] || { v: 0, h: 0 }, rp = PAD.rep[gp.index] || (PAD.rep[gp.index] = { v: 0, h: 0 });
+    let vE = vDir !== was.v ? vDir : 0, hE = hDir !== was.h ? hDir : 0;
+    if (vDir && vDir === was.v) { rp.v += 1 / 60; if (rp.v > .4) { rp.v -= .07; vE = vDir; } } else rp.v = 0;
+    if (hDir && hDir === was.h) { rp.h += 1 / 60; if (rp.h > .4) { rp.h -= .07; hE = hDir; } } else rp.h = 0;
+    PAD.vEdge[gp.index] = vE; PAD.hEdge[gp.index] = hE; PAD.dir[gp.index] = { v: vDir, h: hDir };
     if (s.btn.some(v => v) || Math.abs(s.lx) > .5) { if (!usingPad) { usingPad = true; markFocus(); } audio(); }
     if (DEMO.on) { if (s.btn.some((v, k) => v && !(pr.btn && pr.btn[k]))) { PAD.prev[gp.index] = s; exitDemo(); return; } PAD.prev[gp.index] = s; continue; }
     if (REB && REB.kind === 'pad') {
@@ -4549,7 +4768,7 @@ function pollPads() {
       const dir = PAD.vEdge[gp.index] || PAD.hEdge[gp.index];
       if (dir) { const it = navItems(); if (it.length) { focusIdx = (focusIdx + dir + it.length) % it.length; markFocus(); it[focusIdx].scrollIntoView({ block: 'nearest' }); sfx(500, .03, 'square', .015); } }
       if (PAD.press[gp.index][0]) { const it = navItems(); PAD.press[gp.index] = []; if (it[focusIdx]) it[focusIdx].click(); } // consumed: the next screen can't see this press
-      if (s.bb && !pr.bb) { if (ctlOn) act('ctlback'); else if (app === 'menu') act('go', 'title'); else if (paused) setPause(false); }
+      if (s.bb && !pr.bb) goBack();
     }
     PAD.prev[gp.index] = s;
   }
