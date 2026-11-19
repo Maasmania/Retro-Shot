@@ -1,13 +1,13 @@
 {
-  "version": "1.3.1",
-  "notes": "Full How to Play guide, B/Esc backs out of menus",
+  "version": "1.4.0",
+  "notes": "Merchant table, armor for Dungeon Run, ROUND START banner",
   "minShell": "0.10.0",
   "released": "2026-11-20",
   "files": [
     {
       "path": "index.html",
-      "sha256": "0744315987a3153ab3b2810ddfac7d99a5a57d25c373433e5a6162a5eca1203d",
-      "bytes": 435746
+      "sha256": "58bc1cc3a6333d6f8f13a288ca16d8d498fb442119ba35c31fc14e083d25afd6",
+      "bytes": 461090
     }
   ]
 }
