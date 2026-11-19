@@ -37,6 +37,7 @@ h3{font-family:Orbitron,system-ui,sans-serif;font-size:.75em;margin:1em 0 .4em;c
 .pad.p1{border-color:var(--p1);box-shadow:0 0 12px rgba(255,154,46,.35)}.pad.p2{border-color:var(--p2);box-shadow:0 0 12px rgba(54,224,255,.35)}
 .pad .d{color:var(--dim);font-size:.95em}
 .cards{display:flex;gap:1em;justify-content:center;flex-wrap:wrap}
+.gver{font-family:'Press Start 2P',monospace;font-size:.62em;color:#d9a441;letter-spacing:2px;margin:-.9em 0 .9em;text-shadow:2px 2px 0 #000;opacity:.85}
 .mapgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:.45em;max-width:min(58em,90vw);margin:0 auto}
 .mtile{display:flex;flex-direction:column;align-items:center;padding:.35em .35em .4em;background:#1a120c;border:2px solid #4a3b2c;color:#8a7a68;cursor:pointer;font:inherit;box-shadow:3px 3px 0 #000;opacity:.6}
 .mtile.on{border-color:#d9a441;color:#ffe9b8;opacity:1}
@@ -3502,6 +3503,8 @@ requestAnimationFrame(loop);
 const $ = id => document.getElementById(id);
 const PANELS = ['title', 'setup', 'pick', 'end', 'library', 'settings', 'maps', 'help', 'pause', 'custom', 'controls', 'wpick', 'wand', 'shop'];
 let focusIdx = 0;
+// shown under the title logo; bump with each published update (MAKE-UPDATE uses the same number)
+const GAME_VERSION = '1.0.0';
 function drawMapPreviews() {
   document.querySelectorAll('#maps canvas[data-m]').forEach(cv => {
     const m = MAPS[+cv.dataset.m], c = cv.getContext('2d'), k = cv.width / W; c.imageSmoothingEnabled = false;
@@ -3634,6 +3637,7 @@ const UI = {
   title() {
     const n = pads().length;
     $('title').innerHTML = `<h1><span class="a">RETRO</span> <span class="b">SHOT</span></h1>
+      <div class="gver">Version ${GAME_VERSION.replace(/\.0$/, '')}</div>
       <div class="sub">Shoot. Block. Lose a round, pick a card. First to ${SET.points} points wins.</div>
       <h3 style="margin-top:0">Game mode</h3>
       <div class="seg">${[['classic', 'Classic'], ['arsenal', 'Arsenal'], ['dungeon', 'Dungeon Run']].map(([k, n]) => `<button class="btn small ${SET.game === k ? 'sel' : ''}" style="min-width:9em" data-act="game" data-v="${k}">${n}</button>`).join('')}</div>
@@ -3647,7 +3651,7 @@ const UI = {
       <button class="btn" data-act="go" data-v="maps">Maps (${MAPS.filter(mapOn).length}/${MAPS.length})</button>
       <button class="btn" data-act="go" data-v="settings">Settings</button>
       <button class="btn" data-act="go" data-v="help">How to Play</button>
-      <button class="btn" disabled>Online — coming next</button>${window.desktop ? '<button class="btn" data-act="quitapp">Quit game</button>' : ''}${window.desktop && window.desktop.version ? `<div class="hint" style="position:fixed;right:.9em;bottom:.5em;opacity:.6">v${window.desktop.version}</div>` : ''}
+      <button class="btn" disabled>Online — coming next</button>${window.desktop ? '<button class="btn" data-act="quitapp">Quit game</button>' : ''}
       <div class="hint">${n ? n + ' controller' + (n > 1 ? 's' : '') + ' connected' : 'No controller detected — press a button on your controller to connect it'}</div>`;
   },
   setup() {
