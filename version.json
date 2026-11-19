@@ -1,0 +1,13 @@
+{
+  "version": "0.10.0",
+  "notes": "First release",
+  "minShell": "0.10.0",
+  "released": "2026-11-19",
+  "files": [
+    {
+      "path": "index.html",
+      "sha256": "eb5c0209754cefd31ec9c2142afdcc8dfe58f009fe6a1313767f46be1a164a25",
+      "bytes": 376362
+    }
+  ]
+}
