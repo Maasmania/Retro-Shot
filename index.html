@@ -251,6 +251,9 @@ h3{font-size:.55em;color:#c9a874;text-shadow:.15em .15em 0 #000;letter-spacing:.
 .good.poor .gtag{background:#8a7a68;color:#4a2018}
 .good.sold{opacity:.3;cursor:default}.good.sold .gob{animation:none}.good.sold .gtag{background:#4a3b2c;color:#c9b088}
 .good.focus .gname,.good:hover .gname{color:#ffd27a}
+img.px{image-rendering:pixelated;display:block}.good .gob img.pxgood{width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 .25em 0 rgba(0,0,0,.45))}
+.card .ic img.pxicon{width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 0 4px rgba(255,210,120,.35))}
+.good.armor .gob img.aart{width:100%;height:auto;filter:drop-shadow(0 .25em 0 rgba(0,0,0,.4))}
 .good.wide{width:8.6em}.good.wide .gob{width:7.4em;height:auto;margin-bottom:.2em}
 .gscroll{background:#e8d6a8;border:3px solid #7a5a30;border-left:9px solid #c8a878;border-right:9px solid #c8a878;padding:3px;box-shadow:0 .3em 0 rgba(0,0,0,.5);line-height:0}
 .gscroll canvas{border:2px solid #3a2612}
@@ -635,194 +638,192 @@ Object.assign(WEAPONS.grenade, { name: 'Hex Orb Staff', desc: 'Lobbed hex orbs b
 const TYPE_LABEL = { bullet: 'Spell', block: 'Ward', utility: 'Charm', passive: 'Blessing' };
 
 const TYPE_COL = { bullet: '#ff9a2e', block: '#3ff6ff', utility: '#ff3df2', passive: '#7dffa8', weapon: '#ffd23d' };
-// ---------- hand-drawn art: wand upgrades, Twin Cast, armor lying on the merchant's side table ----------
-function twigWandArt(col, big) { // a stick with a twig taped on, haphazardly
-  return `<g transform="translate(50 50) scale(1.14) translate(-50 -50) rotate(-38 50 50)">
-    <path d="M14 53 Q34 50 52 51 Q70 52 88 49" stroke="#3a2412" stroke-width="${big ? 10 : 9}" stroke-linecap="round" fill="none"/>
-    <path d="M14 53 Q34 50 52 51 Q70 52 88 49" stroke="#8a5a2e" stroke-width="${big ? 7 : 6}" stroke-linecap="round" fill="none"/>
-    <path d="M18 51 Q40 48.5 60 49.5" stroke="#b07a44" stroke-width="1.8" fill="none" stroke-linecap="round"/>
-    <ellipse cx="33" cy="51.6" rx="2.2" ry="1.4" fill="#4a2e16"/><ellipse cx="70" cy="51" rx="1.8" ry="1.2" fill="#4a2e16"/>
-    <path d="M24 58 Q40 61 56 57.5 Q66 55.5 76 59" stroke="#3a2412" stroke-width="5" stroke-linecap="round" fill="none"/>
-    <path d="M24 58 Q40 61 56 57.5 Q66 55.5 76 59" stroke="#a6743e" stroke-width="3" stroke-linecap="round" fill="none"/>
-    <path d="M46 59 l-4 7 M63 56.5 l3 -7 M76 59 l5 3" stroke="#a6743e" stroke-width="2" stroke-linecap="round"/>
-    <path d="M66 49.5 l4 -3.5 M71 48.3 l2.6 -1" stroke="#5a8a3a" stroke-width="2" stroke-linecap="round"/>
-    <rect x="34" y="44.5" width="7" height="19" rx="1" fill="#e4ded0" stroke="#9a9488" stroke-width=".8" transform="rotate(14 37.5 54)"/>
-    <rect x="35" y="46" width="2" height="16" fill="#fff" opacity=".5" transform="rotate(14 37.5 54)"/>
-    <rect x="55" y="45" width="6" height="17" rx="1" fill="#d8d2c2" stroke="#9a9488" stroke-width=".8" transform="rotate(-22 58 53.5)"/>
-    <rect x="58.5" y="47" width="9" height="4.5" fill="#e4ded0" stroke="#9a9488" stroke-width=".6" transform="rotate(38 63 49)"/>
-    <path d="M34 63 l-2 3 M61 61 l2.5 2.5" stroke="#d8d2c2" stroke-width="1.6"/>
-    <path d="M92 49 l3 -7 3 7 7 3 -7 3 -3 7 -3 -7 -7 -3z" fill="${col}"/></g>`;
+// ---------- pixel art (Noita-style): drawn on a tiny grid, auto-outlined, cached as images ----------
+const PXC = {};
+function pxSprite(key, w, h, paint) {
+  if (PXC[key]) return PXC[key];
+  const g = Array.from({ length: h }, () => Array(w).fill(null));
+  const inb = (x, y) => x >= 0 && y >= 0 && x < w && y < h;
+  const P = {
+    px: (x, y, c) => { x = Math.round(x); y = Math.round(y); if (inb(x, y) && c) g[y][x] = c; },
+    get: (x, y) => inb(x, y) ? g[y][x] : null,
+    rect: (x, y, ww, hh, c) => { for (let j = 0; j < hh; j++) for (let i = 0; i < ww; i++) P.px(x + i, y + j, typeof c === 'function' ? c(x + i, y + j) : c); },
+    ell: (cx, cy, rx, ry, c) => { for (let y = Math.floor(cy - ry); y <= cy + ry; y++) for (let x = Math.floor(cx - rx); x <= cx + rx; x++) { const d = ((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2; if (d <= 1) P.px(x, y, typeof c === 'function' ? c(x, y, d) : c); } },
+    line: (x0, y0, x1, y1, c, t = 1) => { const n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0)) * 2 || 1; for (let i = 0; i <= n; i++) { const x = x0 + (x1 - x0) * i / n, y = y0 + (y1 - y0) * i / n; for (let a = 0; a < t; a++) for (let b = 0; b < t; b++) P.px(x + a - (t >> 1), y + b - (t >> 1), typeof c === 'function' ? c(x, y, i / n) : c); } },
+    recolor: (fn) => { for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (g[y][x]) { const c = fn(x, y, g[y][x]); if (c) g[y][x] = c; } },
+    clear: (x, y) => { if (inb(x, y)) g[y][x] = null; }
+  };
+  paint(P, w, h);
+  // dark outline around every shape, like Noita's sprites
+  const out = g.map(r => r.slice());
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (!g[y][x] && [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([a, b]) => inb(x + a, y + b) && g[y + b][x + a] && g[y + b][x + a] !== 'skip')) out[y][x] = '#120a0e';
+  const cv = document.createElement('canvas'); cv.width = w; cv.height = h; const ctx = cv.getContext('2d');
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (out[y][x] && out[y][x] !== 'skip') { ctx.fillStyle = out[y][x]; ctx.fillRect(x, y, 1, 1); }
+  return PXC[key] = cv.toDataURL();
 }
-function twinCastArt(col) { // an energy bolt being snipped in half
-  return `<defs><radialGradient id="tcg" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#fff"/><stop offset=".45" stop-color="${col}"/><stop offset="1" stop-color="${col}" stop-opacity="0"/></radialGradient></defs>
-    <ellipse cx="30" cy="60" rx="21" ry="12" fill="url(#tcg)" opacity=".9"/><ellipse cx="72" cy="63" rx="21" ry="12" fill="url(#tcg)" opacity=".9"/>
-    <path d="M14 60 Q30 50 44 59 Q30 70 14 60z" fill="${col}"/><path d="M58 62 Q72 53 88 63 Q72 73 58 62z" fill="${col}"/>
-    <ellipse cx="31" cy="59.6" rx="7" ry="2.6" fill="#fff" opacity=".85"/><ellipse cx="71" cy="62.6" rx="7" ry="2.6" fill="#fff" opacity=".85"/>
-    <path d="M6 60 h6 M90 63 h7" stroke="${col}" stroke-width="2.5" stroke-linecap="round" opacity=".6"/>
-    <path d="M47 55 l3 -4 M53 69 l-2 4 M48 66 l-4 3 M54 56 l4 -2" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/>
-    <path d="M51 40 L45 82 L49 82 Z" fill="#cfd6e2" stroke="#5a6070" stroke-width="1"/><path d="M51 40 L58 82 L54.5 82 Z" fill="#e8edf4" stroke="#5a6070" stroke-width="1"/>
-    <path d="M47.5 78 L48.6 50" stroke="#fff" stroke-width=".8" opacity=".7"/>
-    <path d="M51 40 L40 26 M51 40 L62 26" stroke="#c0392b" stroke-width="4" stroke-linecap="round"/>
-    <ellipse cx="36" cy="20" rx="8" ry="6.5" fill="none" stroke="#e74c3c" stroke-width="4.5"/><ellipse cx="66" cy="20" rx="8" ry="6.5" fill="none" stroke="#e74c3c" stroke-width="4.5"/>
-    <ellipse cx="34" cy="18" rx="3" ry="1.4" fill="none" stroke="#ff9a8a" stroke-width="1.2"/><ellipse cx="64" cy="18" rx="3" ry="1.4" fill="none" stroke="#ff9a8a" stroke-width="1.2"/>
-    <circle cx="51" cy="40" r="3" fill="#8a909c" stroke="#3a3e48" stroke-width="1"/><circle cx="51" cy="40" r="1" fill="#e8edf4"/>`;
-}
-const SHADOW = (cx = 60, cy = 78, rx = 46) => `<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="5" fill="#000" opacity=".35"/>`;
-const ARMOR_ART = {
-  chainmail: () => `<defs>
-      <pattern id="cmr" width="4.4" height="3.8" patternUnits="userSpaceOnUse"><rect width="4.4" height="3.8" fill="#2a2e36"/><g fill="none" stroke-width=".9"><circle cx="2.2" cy="1.9" r="1.55" stroke="#c4cad4"/><circle cx="0" cy="0" r="1.55" stroke="#8a92a0"/><circle cx="4.4" cy="0" r="1.55" stroke="#8a92a0"/><circle cx="0" cy="3.8" r="1.55" stroke="#8a92a0"/><circle cx="4.4" cy="3.8" r="1.55" stroke="#8a92a0"/></g></pattern>
-      <linearGradient id="cms" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".22"/><stop offset=".45" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".6"/></linearGradient>
-      <radialGradient id="cmh" cx=".42" cy=".28" r=".55"><stop offset="0" stop-color="#fff" stop-opacity=".28"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient></defs>
-    ${SHADOW(60, 78, 52)}
-    <g id="cmbody">
-      <path d="M10 76 C8 66 14 58 22 56 L30 40 C36 34 46 32 52 34 C56 37 66 37 70 34 C78 32 88 34 92 40 L100 54 C108 56 114 64 112 76Z" fill="url(#cmr)"/>
-      <path d="M100 54 C110 54 118 62 118 72 C118 78 114 80 108 80 L104 80 C106 72 104 64 96 60Z" fill="url(#cmr)"/>
-      <path d="M22 56 C12 58 6 66 6 74 C6 79 9 81 14 81 L18 81 C16 74 18 66 26 62Z" fill="url(#cmr)"/>
-    </g>
-    <path d="M10 76 C8 66 14 58 22 56 L30 40 C36 34 46 32 52 34 C56 37 66 37 70 34 C78 32 88 34 92 40 L100 54 C108 56 114 64 112 76Z" fill="url(#cms)"/>
-    <path d="M100 54 C110 54 118 62 118 72 C118 78 114 80 108 80 L104 80 C106 72 104 64 96 60Z" fill="url(#cms)"/><path d="M22 56 C12 58 6 66 6 74 C6 79 9 81 14 81 L18 81 C16 74 18 66 26 62Z" fill="url(#cms)"/>
-    <path d="M10 76 C8 66 14 58 22 56 L30 40 C36 34 46 32 52 34 C56 37 66 37 70 34 C78 32 88 34 92 40 L100 54 C108 56 114 64 112 76Z" fill="url(#cmh)"/>
-    <path d="M52 34 C56 41 66 41 70 34" fill="#0c0e12" stroke="#d6dbe4" stroke-width="1.6" stroke-dasharray="1.6 1"/>
-    <g fill="none" stroke-linecap="round">
-      <path d="M26 60 C40 54 52 60 64 54 C76 48 88 52 98 58" stroke="#06070a" stroke-width="3.2" opacity=".6"/><path d="M28 70 C44 64 62 70 78 64 C88 60 98 63 106 68" stroke="#06070a" stroke-width="3" opacity=".55"/>
-      <path d="M40 44 C46 50 52 48 58 52" stroke="#06070a" stroke-width="2.4" opacity=".5"/><path d="M74 42 C80 46 86 46 90 50" stroke="#06070a" stroke-width="2.2" opacity=".45"/>
-      <path d="M26 57 C40 51 52 57 64 51" stroke="#fff" stroke-width="1.2" opacity=".35"/><path d="M30 67 C46 61 62 67 78 61" stroke="#fff" stroke-width="1" opacity=".3"/>
-      <path d="M22 56 L30 40 M100 54 L92 40" stroke="#06070a" stroke-width="2" opacity=".5"/></g>
-    <path d="M11 76 L111 76" stroke="#d6dbe4" stroke-width="2.4" stroke-dasharray="2.2 1.2"/><path d="M106 80 l12 -2 M8 81 l10 0" stroke="#d6dbe4" stroke-width="2" stroke-dasharray="2.2 1.2"/>
-    <g fill="#06070a"><circle cx="48" cy="58" r="1.5"/><circle cx="80" cy="46" r="1.4"/><circle cx="92" cy="66" r="1.5"/><circle cx="36" cy="66" r="1.3"/></g>
-    <g fill="none" stroke="#c4cad4" stroke-width="1"><circle cx="22" cy="84" r="1.6"/><circle cx="26" cy="84.5" r="1.6"/><circle cx="96" cy="84" r="1.6"/></g>`,
-  rusty_helm: () => `<defs><radialGradient id="rhg" cx=".38" cy=".3" r=".75"><stop offset="0" stop-color="#d4d8e0"/><stop offset=".5" stop-color="#8a909c"/><stop offset="1" stop-color="#3e424c"/></radialGradient>
-      <filter id="rhn"><feTurbulence baseFrequency=".18" numOctaves="2" seed="4"/><feColorMatrix values="0 0 0 0 .55  0 0 0 0 .28  0 0 0 0 .12  0 0 0 2.2 -1.1"/><feComposite in2="SourceGraphic" operator="in"/></filter></defs>
-    ${SHADOW(60, 77, 40)}
-    <path d="M22 70 C20 40 38 18 60 18 C82 18 100 40 98 70 C98 76 22 76 22 70Z" fill="url(#rhg)" stroke="#2a2c32" stroke-width="2"/>
-    <path d="M22 70 C20 40 38 18 60 18 C82 18 100 40 98 70 C98 76 22 76 22 70Z" fill="#fff" filter="url(#rhn)"/>
-    <path d="M60 18 C58 34 58 52 60 74" stroke="#4e525c" stroke-width="5" fill="none"/><path d="M58.5 20 C57 36 57 52 58.5 72" stroke="#c4c9d2" stroke-width="1.2" fill="none"/>
-    <path d="M24 66 C40 72 80 72 96 66 L97 72 C80 79 40 79 23 72Z" fill="#6a5040" stroke="#2a2c32" stroke-width="1.5"/>
-    <path d="M30 50 Q46 46 56 50 L56 55 Q44 52 31 56Z M64 50 Q74 46 90 50 L89 56 Q76 52 64 55Z" fill="#14161a"/>
-    <g fill="#c8ccd4" stroke="#3a3c44" stroke-width=".8"><circle cx="28" cy="69" r="2"/><circle cx="44" cy="72" r="2"/><circle cx="76" cy="72" r="2"/><circle cx="92" cy="69" r="2"/><circle cx="60" cy="22" r="1.8"/></g>
-    <path d="M76 30 q6 2 8 8" stroke="#2a2c32" stroke-width="1.6" fill="none"/><path d="M78 29 q6 2 8 8" stroke="#e0e4ea" stroke-width=".8" fill="none"/>
-    <ellipse cx="44" cy="30" rx="8" ry="5" fill="#fff" opacity=".3" transform="rotate(-30 44 30)"/>
-    <g fill="#8a4a22" opacity=".85"><circle cx="34" cy="62" r="2.5"/><circle cx="83" cy="40" r="2"/><circle cx="70" cy="60" r="1.6"/></g>`,
-  feather_cap: () => `<defs><linearGradient id="fcg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e84a4a"/><stop offset="1" stop-color="#8a1e22"/></linearGradient>
-      <linearGradient id="fcf" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#b8ffd0"/><stop offset=".5" stop-color="#3cc46a"/><stop offset="1" stop-color="#1a6a3a"/></linearGradient></defs>
-    ${SHADOW(60, 77, 44)}
-    <path d="M16 70 C30 64 90 64 104 70 C98 77 22 77 16 70Z" fill="#6a1416" stroke="#3a0a0c" stroke-width="1.5"/>
-    <path d="M28 68 C26 46 42 34 62 34 C82 34 94 48 92 68Z" fill="url(#fcg)" stroke="#4a0e10" stroke-width="1.8"/>
-    <path d="M30 62 C50 58 72 58 90 62 L90 67 C70 63 50 63 29 67Z" fill="#f0c040" stroke="#8a6a10" stroke-width="1"/>
-    <path d="M40 52 C48 44 58 41 70 42" stroke="#ff9a9a" stroke-width="2" fill="none" opacity=".6"/>
-    <path d="M76 62 C80 40 88 22 106 8 C104 26 96 44 82 62Z" fill="url(#fcf)" stroke="#145a2e" stroke-width="1.2"/>
-    <path d="M79 60 C86 42 94 26 104 11" stroke="#e8fff0" stroke-width="1.2" fill="none"/>
-    <g stroke="#145a2e" stroke-width=".8"><path d="M86 40 l6 -2 M90 30 l6 -3 M83 50 l6 -1 M88 36 l-5 -2 M93 26 l-4 -3"/></g>
-    <circle cx="78" cy="62" r="3.4" fill="#f0c040" stroke="#8a6a10" stroke-width="1"/>`,
-  sombrero: () => `<defs><pattern id="swv" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(30)"><rect width="6" height="6" fill="#d9ac58"/><path d="M0 1.5 h6 M0 4.5 h6" stroke="#b8893a" stroke-width="1.2"/><path d="M1.5 0 v1.5 M4.5 1.5 v3 M1.5 4.5 v1.5" stroke="#f0cc80" stroke-width="1"/></pattern>
-      <radialGradient id="sws" cx=".5" cy=".35" r=".7"><stop offset="0" stop-color="#fff" stop-opacity=".25"/><stop offset="1" stop-color="#000" stop-opacity=".35"/></radialGradient></defs>
-    ${SHADOW(60, 78, 56)}
-    <ellipse cx="60" cy="66" rx="56" ry="13" fill="url(#swv)" stroke="#7a5420" stroke-width="2"/><ellipse cx="60" cy="66" rx="56" ry="13" fill="url(#sws)"/>
-    <ellipse cx="60" cy="66" rx="50" ry="10.5" fill="none" stroke="#b8893a" stroke-width="1.4" stroke-dasharray="3 2"/>
-    <path d="M6 64 C4 58 8 56 12 58 M114 64 C116 58 112 56 108 58" stroke="#7a5420" stroke-width="2.2" fill="none"/>
-    <path d="M40 64 C40 40 46 22 60 20 C74 22 80 40 80 64 C70 68 50 68 40 64Z" fill="url(#swv)" stroke="#7a5420" stroke-width="2"/><path d="M40 64 C40 40 46 22 60 20 C74 22 80 40 80 64 C70 68 50 68 40 64Z" fill="url(#sws)"/>
-    <path d="M41 56 C52 60 68 60 79 56 L80 63 C68 67 52 67 40 63Z" fill="#c0302c" stroke="#5a1414" stroke-width="1"/>
-    <g fill="#2a9a5a"><path d="M46 60 l3 -3 3 3 -3 3z"/><path d="M58 61 l3 -3 3 3 -3 3z"/><path d="M70 60 l3 -3 3 3 -3 3z"/></g><g fill="#f0d040"><circle cx="52.5" cy="61" r="1.4"/><circle cx="64.5" cy="61" r="1.4"/></g>
-    <g fill="#f8f0d0"><circle cx="20" cy="74" r="2.2"/><circle cx="34" cy="78" r="2.2"/><circle cx="86" cy="78" r="2.2"/><circle cx="100" cy="74" r="2.2"/></g>`,
-  cardboard: () => `<defs><linearGradient id="cbg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#d8a868"/><stop offset="1" stop-color="#a87840"/></linearGradient></defs>
-    ${SHADOW(60, 77, 46)}
-    <path d="M22 74 L18 30 L40 22 C50 30 70 30 80 22 L102 30 L98 74 Z" fill="url(#cbg)" stroke="#6a4820" stroke-width="2"/>
-    <path d="M40 22 C50 30 70 30 80 22 L76 34 C66 40 54 40 44 34Z" fill="#8a5c28"/>
-    <path d="M24 40 L96 40 M24 56 L96 56" stroke="#b88850" stroke-width="1" stroke-dasharray="1 2"/>
-    <rect x="30" y="44" width="60" height="9" fill="#c8c4b8" opacity=".85" transform="rotate(-4 60 48)"/><rect x="40" y="62" width="9" height="16" fill="#c8c4b8" opacity=".85" transform="rotate(10 44 70)"/>
-    <path d="M52 64 l8 -8 8 8 M60 56 v14" stroke="#4a3a20" stroke-width="2.2" fill="none"/><text x="72" y="72" font-family="Press Start 2P,monospace" font-size="5" fill="#4a3a20">THIS</text><text x="72" y="78" font-family="Press Start 2P,monospace" font-size="5" fill="#4a3a20">SIDE UP</text>
-    <path d="M18 30 C10 26 8 20 12 16 M102 30 C110 26 112 20 108 16" stroke="#e8e0c8" stroke-width="2" fill="none"/>
-    <path d="M30 28 l3 6 M88 70 l4 -3" stroke="#6a4820" stroke-width="1"/>`,
-  pauldrons: () => `<defs><linearGradient id="pdg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c8ccd6"/><stop offset="1" stop-color="#4a4e58"/></linearGradient></defs>
-    ${SHADOW(60, 78, 52)}
-    ${[[30, 0], [88, 1]].map(([x, m]) => `<g transform="translate(${x} 0) scale(${m ? -1 : 1} 1)">
-      <path d="M-22 70 C-26 50 -12 36 6 36 C20 38 26 52 22 70Z" fill="#6a4020" stroke="#2a1608" stroke-width="1.5"/>
-      <path d="M-24 60 C-24 44 -10 32 6 32 C18 34 24 44 22 60 C10 54 -12 54 -24 60Z" fill="url(#pdg)" stroke="#2a2c32" stroke-width="1.8"/>
-      <path d="M-20 52 C-10 46 6 46 18 52" stroke="#2a2c32" stroke-width="1.4" fill="none"/><path d="M-16 44 C-6 38 6 38 14 44" stroke="#2a2c32" stroke-width="1.2" fill="none"/>
-      <path d="M-14 38 L-18 16 L-8 35Z M0 33 L2 8 L8 34Z M12 38 L22 20 L18 42Z" fill="#e8ecf2" stroke="#3a3e48" stroke-width="1"/>
-      <path d="M-12 36 L-17 18 M1.5 32 L2.5 11" stroke="#fff" stroke-width=".8"/>
-      <rect x="-6" y="60" width="18" height="5" fill="#3a2410"/><rect x="2" y="59" width="5" height="7" fill="none" stroke="#c9a040" stroke-width="1.2"/>
-      <ellipse cx="-8" cy="40" rx="6" ry="2.5" fill="#fff" opacity=".35"/></g>`).join('')}`,
-  breastplate: () => `<defs><linearGradient id="bpg" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#5a606c"/><stop offset=".3" stop-color="#e8ecf2"/><stop offset=".5" stop-color="#a8aebb"/><stop offset=".75" stop-color="#d8dce4"/><stop offset="1" stop-color="#4a4e58"/></linearGradient></defs>
-    ${SHADOW(60, 78, 44)}
-    <path d="M26 30 C34 24 44 22 50 28 C56 32 64 32 70 28 C76 22 86 24 94 30 L98 48 C96 62 88 74 60 78 C32 74 24 62 22 48Z" fill="url(#bpg)" stroke="#2a2c32" stroke-width="2"/>
-    <path d="M60 30 C59 46 59 62 60 77" stroke="#5a606c" stroke-width="1.8" fill="none"/><path d="M58.6 32 C58 48 58 60 58.6 74" stroke="#fff" stroke-width="1" fill="none"/>
-    <path d="M26 30 C34 24 44 22 50 28 C56 32 64 32 70 28 C76 22 86 24 94 30" stroke="#c9a040" stroke-width="3.2" fill="none"/>
-    <path d="M30 66 C44 72 76 72 90 66" stroke="#c9a040" stroke-width="2.6" fill="none"/>
-    <g fill="#f0d070" stroke="#7a5a10" stroke-width=".8"><circle cx="30" cy="34" r="2"/><circle cx="90" cy="34" r="2"/><circle cx="34" cy="64" r="1.8"/><circle cx="86" cy="64" r="1.8"/></g>
-    <path d="M36 40 C40 52 42 60 44 66" stroke="#fff" stroke-width="3" opacity=".45" fill="none"/>
-    <path d="M60 44 l5 6 -5 6 -5 -6z" fill="#c9a040" stroke="#7a5a10" stroke-width=".8"/>`,
-  jeans: () => `<defs><pattern id="dnm" width="3" height="3" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="3" height="3" fill="#4a6ab0"/><path d="M0 1.5 h3" stroke="#6a8ad0" stroke-width="1"/></pattern>
-      <linearGradient id="dns" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".18"/><stop offset="1" stop-color="#000" stop-opacity=".35"/></linearGradient></defs>
-    ${SHADOW(62, 78, 54)}
-    <path d="M12 28 L22 28 L50 30 C70 32 92 36 110 40 L110 49 C92 47 72 46 52 47 L52 51 C72 52 92 53 110 55 L110 64 C92 66 70 70 50 72 L22 74 L12 74Z" fill="url(#dnm)" stroke="#1e2e5a" stroke-width="2" stroke-linejoin="round"/>
-    <path d="M12 28 L22 28 L50 30 C70 32 92 36 110 40 L110 49 C92 47 72 46 52 47 L52 51 C72 52 92 53 110 55 L110 64 C92 66 70 70 50 72 L22 74 L12 74Z" fill="url(#dns)"/>
-    <path d="M12 28 L22 28 L22 74 L12 74Z" fill="#3a5698" stroke="#1e2e5a" stroke-width="1.6"/><path d="M17 30 v42" stroke="#e8b040" stroke-width=".9" stroke-dasharray="2 1.4"/>
-    <g fill="#3a3020" stroke="#1e2e5a" stroke-width=".7"><rect x="10" y="36" width="14" height="3.5"/><rect x="10" y="62" width="14" height="3.5"/></g>
-    <circle cx="17" cy="51" r="2.8" fill="#d8c070" stroke="#6a5418" stroke-width=".8"/>
-    <path d="M28 34 L44 34 L44 46 L36 49 L28 46Z M28 56 L36 53 L44 56 L44 68 L28 68Z" fill="none" stroke="#e8b040" stroke-width=".9" stroke-dasharray="2 1.4"/>
-    <rect x="30" y="35" width="8" height="3" fill="#a86a40" stroke="#5a3418" stroke-width=".5"/>
-    <path d="M22 51 C34 51 44 49 52 49" stroke="#1e2e5a" stroke-width="1.6" fill="none"/>
-    <path d="M54 33 C74 36 92 39 110 42 M54 69 C74 66 92 63 110 61" stroke="#e8b040" stroke-width=".9" fill="none" stroke-dasharray="2 1.4"/>
-    <path d="M66 40 l4 3 M82 43 l3 2 M70 62 l4 -2 M88 60 l3 -2" stroke="#1e2e5a" stroke-width="1.2" opacity=".7"/>
-    <path d="M104 39 L112 40.5 L112 50 L104 48.5Z M104 55 L112 54.5 L112 64.5 L104 65Z" fill="#7a9ad8" stroke="#1e2e5a" stroke-width="1.2"/>`,
-  greaves: () => `<defs><linearGradient id="grg" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#4a4e58"/><stop offset=".4" stop-color="#dfe3ea"/><stop offset="1" stop-color="#5a5e68"/></linearGradient></defs>
-    ${SHADOW(60, 78, 50)}
-    ${[[34, -8], [82, 6]].map(([x, r]) => `<g transform="rotate(${r} ${x} 52)">
-      <path d="M${x - 13} 24 C${x - 15} 44 ${x - 13} 62 ${x - 10} 76 L${x + 10} 76 C${x + 13} 62 ${x + 15} 44 ${x + 13} 24 C${x + 6} 20 ${x - 6} 20 ${x - 13} 24Z" fill="url(#grg)" stroke="#2a2c32" stroke-width="1.8"/>
-      <path d="M${x} 22 C${x - 1} 40 ${x - 1} 58 ${x} 76" stroke="#3a3e48" stroke-width="1.4" fill="none"/>
-      <path d="M${x - 10} 42 h20 M${x - 10} 60 h20" stroke="#5a3a1a" stroke-width="3.5"/><rect x="${x + 5}" y="${39.5}" width="4" height="5" fill="none" stroke="#c9a040" stroke-width="1"/><rect x="${x + 5}" y="57.5" width="4" height="5" fill="none" stroke="#c9a040" stroke-width="1"/>
-      <ellipse cx="${x - 5}" cy="32" rx="2.5" ry="7" fill="#fff" opacity=".4"/></g>`).join('')}`,
-  boots: () => `<defs><linearGradient id="btg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b860d0"/><stop offset="1" stop-color="#5a2470"/></linearGradient></defs>
-    ${SHADOW(60, 79, 52)}
-    ${[[18, 0], [62, 1]].map(([x]) => `<g transform="translate(${x} 0)">
-      <path d="M8 22 L30 22 L30 60 C36 60 44 62 46 70 L46 76 L4 76 L4 68 C6 60 8 50 8 22Z" fill="url(#btg)" stroke="#2a0e36" stroke-width="1.8"/>
-      <path d="M6 22 L32 22 L31 30 L7 30Z" fill="#7a2e90" stroke="#2a0e36" stroke-width="1.2"/>
-      <path d="M4 72 L46 72 L46 77 L4 77Z" fill="#2a1a10"/><path d="M4 77 L10 77 L10 82 L4 82Z" fill="#2a1a10"/>
-      <rect x="12" y="44" width="14" height="5" fill="#2a0e36"/><rect x="16" y="42.5" width="7" height="8" fill="none" stroke="#f0c040" stroke-width="1.8"/>
-      <path d="M12 28 C12 40 12 52 10 64" stroke="#e8a8ff" stroke-width="2" opacity=".55" fill="none"/>
-      <path d="M38 66 l4 -2" stroke="#e8a8ff" stroke-width="1.4" opacity=".6"/></g>`).join('')}
-    <g fill="#fff"><path d="M54 14 l1.5 4 4 1.5 -4 1.5 -1.5 4 -1.5 -4 -4 -1.5 4 -1.5z"/><path d="M104 30 l1 3 3 1 -3 1 -1 3 -1 -3 -3 -1 3 -1z"/></g>`,
-  springs: () => `<defs><linearGradient id="spg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6ad890"/><stop offset="1" stop-color="#1e7a44"/></linearGradient></defs>
-    ${SHADOW(60, 80, 50)}
-    ${[[20, 0], [64, 1]].map(([x]) => `<g transform="translate(${x} 0)">
-      <path d="M8 16 L28 16 L28 48 C34 48 42 50 42 58 L42 62 L4 62 L4 56 C6 48 8 40 8 16Z" fill="url(#spg)" stroke="#0e3a20" stroke-width="1.8"/>
-      <path d="M6 16 L30 16 L29 23 L7 23Z" fill="#167040" stroke="#0e3a20" stroke-width="1.2"/>
-      <rect x="3" y="60" width="40" height="5" rx="1" fill="#3a3a44"/>
-      <path d="M12 66 C4 66 4 70 12 70 C20 70 20 74 12 74 C4 74 4 78 12 78 M32 66 C24 66 24 70 32 70 C40 70 40 74 32 74 C24 74 24 78 32 78" stroke="#c8ccd6" stroke-width="2.2" fill="none"/>
-      <rect x="4" y="77" width="16" height="3" fill="#3a3a44"/><rect x="24" y="77" width="16" height="3" fill="#3a3a44"/>
-      <path d="M12 22 C12 32 12 40 10 50" stroke="#c0ffd8" stroke-width="2" opacity=".55" fill="none"/></g>`).join('')}`,
-  sabatons: () => `<defs><linearGradient id="sbg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e0e4ea"/><stop offset="1" stop-color="#4e525c"/></linearGradient></defs>
-    ${SHADOW(60, 79, 52)}
-    ${[[14, 0], [62, 1]].map(([x]) => `<g transform="translate(${x} 0)">
-      <path d="M6 30 L26 30 L28 54 C38 56 46 60 46 70 L46 76 L4 76 L4 66 C4 54 6 44 6 30Z" fill="url(#sbg)" stroke="#2a2c32" stroke-width="1.8"/>
-      <path d="M28 56 C30 62 30 70 28 76 M34 58 C37 64 37 70 35 76 M40 61 C43 66 43 72 41 76" stroke="#3a3e48" stroke-width="1.5" fill="none"/>
-      <path d="M6 42 h21 M6 52 h22" stroke="#3a3e48" stroke-width="1.5"/>
-      <g fill="#c8ccd4" stroke="#3a3c44" stroke-width=".6"><circle cx="10" cy="36" r="1.5"/><circle cx="22" cy="36" r="1.5"/><circle cx="10" cy="47" r="1.4"/><circle cx="22" cy="47" r="1.4"/></g>
-      <path d="M10 32 C10 44 10 56 8 70" stroke="#fff" stroke-width="2" opacity=".45" fill="none"/></g>`).join('')}`,
-  potlid: () => `<defs><radialGradient id="plg" cx=".4" cy=".35" r=".7"><stop offset="0" stop-color="#e8ecf0"/><stop offset=".6" stop-color="#9aa0aa"/><stop offset="1" stop-color="#4a4e56"/></radialGradient></defs>
-    ${SHADOW(60, 78, 46)}
-    <ellipse cx="60" cy="62" rx="46" ry="15" fill="#3a3e46"/><path d="M14 60 C16 40 104 40 106 60 C104 74 16 74 14 60Z" fill="url(#plg)" stroke="#2a2c32" stroke-width="2"/>
-    <ellipse cx="60" cy="60" rx="38" ry="10" fill="none" stroke="#6a707a" stroke-width="1.2"/>
-    <path d="M50 46 C50 38 70 38 70 46" fill="#2a2420" stroke="#14100e" stroke-width="3.5"/><ellipse cx="60" cy="47" rx="10" ry="3" fill="#2a2420"/>
-    <path d="M28 54 C40 48 54 47 64 48" stroke="#fff" stroke-width="2.4" opacity=".5" fill="none"/>
-    <path d="M78 62 q4 -3 9 -1" stroke="#2a2c32" stroke-width="1.4" fill="none"/><ellipse cx="88" cy="66" rx="8" ry="2.6" fill="#1a1a1a" opacity=".45"/>`,
-  heater: () => `<defs><linearGradient id="hsg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e04040"/><stop offset="1" stop-color="#7a1418"/></linearGradient>
-      <linearGradient id="hsr" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#8a909c"/><stop offset=".5" stop-color="#e8ecf2"/><stop offset="1" stop-color="#6a707c"/></linearGradient></defs>
-    ${SHADOW(60, 80, 34)}
-    <path d="M28 10 L92 10 L92 34 C92 56 78 70 60 80 C42 70 28 56 28 34Z" fill="url(#hsr)" stroke="#2a2c32" stroke-width="2"/>
-    <path d="M33 15 L87 15 L87 34 C87 53 75 65 60 74 C45 65 33 53 33 34Z" fill="url(#hsg)" stroke="#4a0c0e" stroke-width="1"/>
-    <path d="M55 15 h10 v59 c-3 -1.6 -7 -1.6 -10 0z M33 32 h54 v9 h-54z" fill="#f0c040" stroke="#7a5a10" stroke-width=".8"/>
-    <circle cx="60" cy="36.5" r="6" fill="#f0d070" stroke="#7a5a10" stroke-width="1.2"/><circle cx="58.5" cy="35" r="2" fill="#fff" opacity=".6"/>
-    <path d="M38 20 C38 40 42 52 50 62" stroke="#fff" stroke-width="2.4" opacity=".3" fill="none"/>
-    <path d="M78 22 l6 6 M82 50 q-4 4 -2 9" stroke="#3a0608" stroke-width="1.2" fill="none"/>
-    <g fill="#d8dce4" stroke="#3a3c44" stroke-width=".6"><circle cx="31" cy="13" r="1.6"/><circle cx="89" cy="13" r="1.6"/></g>`
+const pxImg = (src, cls = '') => `<img class="px ${cls}" src="${src}" alt="">`;
+const chk = (x, y) => (x + y) & 1;
+// palettes
+const STEEL = ['#f2f5fa', '#c4cad6', '#8c94a4', '#5a6272', '#363c4a'], RUST = ['#c0703a', '#8a4422', '#5a2a14'], WOOD = ['#c88a50', '#9a6434', '#6a4020', '#43280f'];
+const steelBy = (t) => STEEL[Math.max(0, Math.min(4, Math.round(t * 4)))];
+// shaded fill: light from the top-left
+const lit = (x, y, x0, y0, ww, hh) => ((x - x0) / ww * .45 + (y - y0) / hh * .75);
+
+const PX_ART = {
+  twig: (P) => { // a crooked stick with a twig taped to its side, haphazardly
+    P.line(1, 17, 14, 4, WOOD[1], 2); P.line(1, 16, 13, 4, WOOD[0]); P.line(2, 18, 15, 5, WOOD[2]); P.px(14, 3, WOOD[1]); P.px(15, 2, WOOD[1]);
+    P.px(6, 12, WOOD[3]); P.px(10, 8, WOOD[3]);
+    P.line(6, 19, 17, 9, '#a8783e'); P.line(7, 19, 17, 10, '#7a5226'); P.line(17, 9, 19, 9, '#a8783e'); P.line(12, 14, 13, 17, '#a8783e');
+    P.px(18, 8, '#6ab84a'); P.px(19, 7, '#4a9030'); P.px(18, 7, '#9ae87a');
+    const tape = (x, y) => { P.line(x, y, x + 4, y + 4, '#ece6d6'); P.line(x + 1, y, x + 5, y + 4, '#c8c2b2'); };
+    tape(3, 13); tape(9, 8); P.px(14, 12, '#ece6d6');
+    P.px(16, 1, '#fff8c0'); P.px(17, 0, '#ffe070'); P.px(15, 0, '#ffb030'); P.px(17, 2, '#ffb030'); P.px(18, 1, '#ffd040');
+  },
+  twin: (P) => { // an energy bolt snipped in half by scissors
+    const bolt = (cx, cy) => P.ell(cx, cy, 4.2, 2.6, (x, y, d) => d < .25 ? '#f2fdff' : d < .6 ? '#8fe4ff' : '#2a86d8');
+    bolt(4.5, 14); bolt(15.5, 15); P.px(0, 14, '#2a86d8'); P.px(19, 15, '#2a86d8');
+    P.px(9, 12, '#bff4ff'); P.px(11, 18, '#bff4ff'); P.px(8, 17, '#8fe4ff'); P.px(12, 11, '#8fe4ff');
+    P.line(10, 7, 8, 19, (x, y, t) => t > .9 ? '#8c94a4' : '#dfe4ec'); P.line(10, 7, 12, 19, (x, y, t) => t > .9 ? '#8c94a4' : '#f4f7fb');
+    P.line(10, 7, 6, 4, '#c0302c'); P.line(10, 7, 14, 4, '#c0302c');
+    for (const [cx] of [[5], [15]]) { P.ell(cx, 2.5, 2.6, 2.2, '#e04848'); P.clear(cx, 2); P.clear(cx, 3); P.px(cx - 1, 1, '#ff8a8a'); }
+    P.px(10, 7, '#5a6272'); P.px(10, 6, '#f2f5fa');
+  },
+  potion: (P, w, h, col) => { // spell upgrade
+    P.rect(6, 1, 4, 3, WOOD[1]); P.px(6, 1, WOOD[0]); P.rect(6, 4, 4, 3, '#2a2236'); P.ell(8, 12.5, 6.5, 6, (x, y) => y > 10 ? col : '#2a2236');
+    P.recolor((x, y, c) => c === col && y > 15 ? shade(col, .65) : c === col && x < 5 ? shade(col, 1.25) : null);
+    P.px(4, 9, '#e8f4ff'); P.px(4, 10, '#b8d4e8'); P.px(5, 8, '#e8f4ff'); P.px(9, 13, '#fff'); P.px(11, 15, shade(col, 1.4)); P.px(7, 16, shade(col, 1.4));
+  },
+  amulet: (P, w, h, col) => { // perk
+    for (let i = 0; i <= 10; i++) { const a = Math.PI * (i / 10); P.px(8 - Math.cos(a) * 6, 1 + Math.sin(a) * 5, i & 1 ? '#a8802a' : '#f0c850'); }
+    P.ell(8, 11.5, 5.5, 5.5, (x, y, d) => d > .55 ? (x + y < 19 ? '#f8dc80' : '#b88a2a') : null); P.ell(8, 11.5, 3.2, 3.2, (x, y, d) => d < .3 ? shade(col, 1.5) : x + y < 19 ? shade(col, 1.15) : shade(col, .7)); P.px(7, 10, '#fff');
+  },
+  mystery: (P) => {
+    P.rect(7, 0, 4, 3, WOOD[1]); P.rect(7, 3, 4, 3, '#3a2a40'); P.ell(9, 12.5, 7.5, 7, (x, y) => y > 9 ? (chk(x, y) ? '#5a2a5a' : '#6a3070') : '#2a1e30');
+    P.px(6, 13, '#ff5ca8'); P.px(7, 13, '#ff5ca8'); P.px(11, 11, '#7dff5a'); P.px(10, 16, '#5cb8ff'); P.px(12, 15, '#ff5ca8'); P.px(4, 8, '#d8d0e8'); P.px(5, 7, '#d8d0e8');
+    P.rect(8, 9, 2, 1, '#ffb0d8'); P.px(10, 10, '#ffb0d8'); P.px(9, 11, '#ffb0d8'); P.px(9, 13, '#ffb0d8');
+  },
+  // ---------------- armor, lying on the side table ----------------
+  chainmail: (P) => { // a mail shirt piled up, rings and all
+    const ring = (x, y) => { const t = lit(x, y, 2, 4, 30, 18), k = (x % 2 === 0) !== (y % 2 === 0); return t < .25 ? (k ? STEEL[0] : STEEL[1]) : t < .55 ? (k ? STEEL[1] : STEEL[2]) : t < .85 ? (k ? STEEL[2] : STEEL[3]) : (k ? STEEL[3] : STEEL[4]); };
+    P.ell(16, 13, 13.5, 7, ring); P.ell(16, 8, 9, 4, ring); P.ell(5, 16, 4.5, 4, ring); P.ell(28, 16.5, 4.5, 3.6, ring); P.rect(2, 16, 28, 4, ring);
+    P.ell(16, 6.5, 3, 1.2, '#0c0a10'); P.px(13, 6, STEEL[1]); P.px(19, 6, STEEL[1]);
+    for (const [x0, y0, x1, y1] of [[6, 12, 14, 10], [14, 10, 24, 13], [8, 17, 18, 15], [18, 15, 27, 17], [11, 7, 13, 10]]) P.line(x0, y0, x1, y1, STEEL[4]);
+    for (let x = 2; x < 31; x++) P.px(x, 20, x & 1 ? STEEL[1] : STEEL[3]);
+    for (const [x, y] of [[12, 13], [21, 9], [24, 15]]) P.px(x, y, '#0c0a10');
+    P.px(1, 21, STEEL[1]); P.px(3, 21, STEEL[2]); P.px(30, 21, STEEL[1]);
+  },
+  rusty_helm: (P) => {
+    P.ell(15, 14, 11, 11, (x, y) => y > 17 ? null : steelBy(lit(x, y, 4, 3, 22, 15)));
+    P.recolor((x, y, c) => (x * 7 + y * 13) % 11 === 0 ? RUST[0] : (x * 5 + y * 3) % 17 === 0 ? RUST[1] : null);
+    P.rect(4, 17, 23, 2, (x) => x & 1 ? RUST[1] : '#6a4a3a'); P.rect(5, 19, 21, 1, '#4a3428');
+    P.rect(7, 11, 6, 2, '#0c0a10'); P.rect(18, 11, 6, 2, '#0c0a10'); P.px(13, 12, '#0c0a10'); P.px(17, 12, '#0c0a10');
+    P.line(15, 3, 15, 18, (x, y) => y < 8 ? STEEL[0] : STEEL[2]); P.line(16, 4, 16, 18, STEEL[3]);
+    for (const [x, y] of [[6, 17], [11, 18], [20, 18], [25, 17], [15, 3]]) P.px(x, y, '#f2f5fa');
+    P.px(8, 6, '#ffffff'); P.px(9, 5, '#ffffff'); P.px(10, 5, STEEL[0]); P.px(22, 7, STEEL[4]); P.px(23, 8, STEEL[4]); P.px(21, 6, STEEL[4]);
+  },
+  feather_cap: (P) => {
+    P.rect(2, 17, 25, 2, (x) => x < 10 ? '#a02a2e' : '#6a1418');
+    P.ell(14, 15, 9, 7, (x, y) => y > 16 ? null : lit(x, y, 5, 8, 18, 9) < .45 ? '#f05a5a' : lit(x, y, 5, 8, 18, 9) < .8 ? '#c83a3e' : '#8a2026');
+    P.rect(6, 14, 17, 2, (x) => x < 14 ? '#ffd860' : '#c89a20');
+    P.line(20, 15, 29, 1, (x, y, t) => '#2a8a4a', 2); P.line(21, 14, 30, 1, '#7ae89a'); P.line(19, 15, 28, 2, '#1a6a3a');
+    for (let i = 0; i < 6; i++) { P.px(24 + i * 1.1 - 2, 9 - i * 1.4, '#a8ffc0'); P.px(26 + i, 11 - i * 1.6, '#3aa860'); }
+    P.px(20, 15, '#ffd860'); P.px(21, 16, '#c89a20'); P.px(8, 10, '#ffa0a0'); P.px(9, 9, '#ffa0a0');
+  },
+  sombrero: (P) => {
+    const straw = (x, y) => { const t = lit(x, y, 0, 8, 36, 12); const k = ((x >> 1) + y) % 3 === 0; return t < .35 ? (k ? '#c8984a' : '#f2d080') : t < .7 ? (k ? '#a87a30' : '#e2b860') : (k ? '#7a5420' : '#b88a3a'); };
+    P.ell(18, 15.5, 17.5, 4.5, straw); P.px(0, 13, '#b88a3a'); P.px(35, 13, '#b88a3a');
+    P.ell(18, 9, 6.5, 7, (x, y) => y > 13 ? null : straw(x, y)); P.rect(12, 9, 13, 5, straw);
+    P.rect(12, 11, 13, 2, (x) => x % 4 === 1 ? '#3ac46a' : x % 4 === 3 ? '#ffd040' : '#c8302c');
+    for (const x of [3, 9, 27, 33]) { P.px(x, 19, '#fff4d8'); P.px(x, 20, '#d8c8a0'); }
+    P.px(15, 4, '#fff0b0'); P.px(16, 3, '#fff0b0');
+  },
+  cardboard: (P) => {
+    P.rect(3, 4, 22, 17, (x, y) => lit(x, y, 3, 4, 22, 17) < .5 ? '#dcac6c' : lit(x, y, 3, 4, 22, 17) < .85 ? '#c09050' : '#9a7038');
+    P.rect(10, 4, 8, 3, (x, y) => '#7a5428'); P.clear(11, 4); P.clear(12, 4); P.clear(13, 4); P.clear(14, 4); P.clear(15, 4); P.clear(16, 4);
+    P.rect(5, 10, 18, 3, (x) => x & 1 ? '#d8d2c2' : '#ece6d6'); P.rect(9, 14, 3, 6, (x, y) => y & 1 ? '#d8d2c2' : '#ece6d6');
+    P.line(17, 15, 19, 13, '#5a3a18'); P.line(19, 13, 21, 15, '#5a3a18'); P.line(19, 13, 19, 19, '#5a3a18');
+    P.line(3, 4, 0, 1, '#d8d0b8'); P.line(24, 4, 27, 1, '#d8d0b8'); P.px(6, 6, '#7a5428'); P.px(22, 18, '#7a5428');
+  },
+  pauldrons: (P) => {
+    for (const [cx, m] of [[9, 1], [25, -1]]) {
+      P.rect(cx - 7, 13, 14, 4, (x, y) => (x + y) % 4 ? '#8a5a32' : '#6a4020'); P.rect(cx - 2, 15, 4, 2, '#ffd040'); P.px(cx, 16, '#6a4020');
+      P.ell(cx, 13, 8, 6, (x, y) => y > 13 ? null : steelBy(lit(x, y, cx - 8, 7, 16, 7)));
+      P.line(cx - 7, 11, cx + 7, 11, STEEL[3]); P.line(cx - 6, 9, cx + 6, 9, STEEL[3]);
+      for (const [dx, hgt] of [[-5, 4], [0, 7], [5, 4]]) for (let k = 0; k < hgt; k++) { P.px(cx + dx * m, 7 - k, k > hgt - 3 ? '#ffffff' : STEEL[1]); if (k < hgt - 2) P.px(cx + dx * m + 1, 7 - k, STEEL[2]); }
+      P.px(cx - 4 * m, 8, '#ffffff');
+    }
+  },
+  breastplate: (P) => {
+    for (let y = 3; y < 23; y++) { const half = y < 17 ? 11 : 11 - (y - 16) * 1.6; for (let x = Math.round(14 - half); x <= 14 + half; x++) P.px(x, y, steelBy(Math.abs(x - 9) / 14 + (y - 3) / 40)); }
+    for (let x = 4; x < 25; x++) { if (x > 10 && x < 18) continue; P.px(x, 3, '#ffd860'); }
+    P.line(10, 3, 12, 6, '#ffd860'); P.line(12, 6, 16, 6, '#ffd860'); P.line(16, 6, 18, 3, '#ffd860'); for (let x = 11; x < 18; x++) P.clear(x, 3); P.clear(12, 4); P.clear(13, 4); P.clear(14, 4); P.clear(15, 4); P.clear(16, 4); P.clear(13, 5); P.clear(14, 5); P.clear(15, 5);
+    P.line(14, 7, 14, 22, STEEL[3]); P.line(9, 6, 9, 18, '#ffffff'); P.line(8, 8, 8, 15, STEEL[0]);
+    P.line(5, 18, 23, 18, '#c89a20'); for (const [x, y] of [[5, 4], [23, 4], [6, 17], [22, 17]]) P.px(x, y, '#ffe890');
+    P.px(14, 12, '#ffd860'); P.px(13, 13, '#c89a20'); P.px(15, 13, '#c89a20'); P.px(14, 14, '#ffd860');
+  },
+  jeans: (P) => {
+    const den = (x, y) => { const t = lit(x, y, 0, 2, 34, 14), k = chk(x, y); return t < .35 ? (k ? '#7a9ad8' : '#6a8ad0') : t < .7 ? (k ? '#5a7ac0' : '#4a6ab0') : (k ? '#3a5698' : '#2e467e'); };
+    P.rect(2, 2, 4, 15, (x) => x === 2 ? '#5a7ac0' : '#3a5698'); P.rect(6, 2, 8, 15, den);
+    P.rect(14, 3, 17, 6, den); P.rect(14, 10, 17, 6, den); P.rect(30, 3, 3, 6, '#9ab4e8'); P.rect(30, 10, 3, 6, '#9ab4e8'); P.line(30, 3, 30, 8, '#6a8ad0'); P.line(30, 10, 30, 15, '#6a8ad0');
+    P.clear(14, 9); for (let x = 14; x < 33; x++) P.clear(x, 9);
+    for (let y = 3; y < 17; y += 2) P.px(4, y, '#e8b040'); for (let x = 15; x < 30; x += 2) { P.px(x, 4, '#e8b040'); P.px(x, 14, '#e8b040'); }
+    P.px(4, 9, '#ffd870'); P.rect(2, 4, 4, 1, '#3a2a18'); P.rect(2, 13, 4, 1, '#3a2a18');
+    P.rect(7, 4, 5, 4, (x, y) => (x === 7 || x === 11 || y === 7) ? '#e8b040' : null); P.rect(7, 11, 5, 4, (x, y) => (x === 7 || x === 11 || y === 14) ? '#e8b040' : null);
+    P.rect(8, 3, 3, 1, '#a86a40');
+  },
+  greaves: (P) => {
+    for (const [x0, tilt] of [[3, 0], [17, 1]]) {
+      P.rect(x0, 2 + tilt, 10, 20, (x, y) => steelBy(Math.abs(x - x0 - 3) / 9 + (y - 2) / 50 + (x === x0 || x === x0 + 9 ? .3 : 0)));
+      P.clear(x0, 2 + tilt); P.clear(x0 + 9, 2 + tilt); P.clear(x0, 21 + tilt); P.clear(x0 + 9, 21 + tilt);
+      P.line(x0 + 5, 2 + tilt, x0 + 5, 21 + tilt, STEEL[3]); P.line(x0 + 3, 3 + tilt, x0 + 3, 12 + tilt, '#ffffff');
+      for (const yy of [7, 15]) { P.rect(x0, yy + tilt, 10, 2, (x) => x & 1 ? '#8a5a32' : '#6a4020'); P.rect(x0 + 6, yy + tilt, 2, 2, '#ffd040'); }
+    }
+  },
+  boots: (P) => {
+    for (const x0 of [2, 17]) {
+      P.rect(x0, 2, 7, 14, (x, y) => x - x0 < 2 ? '#c878e0' : x - x0 < 5 ? '#9a48b8' : '#6a2a84'); P.rect(x0, 13, 13, 5, (x, y) => y < 15 ? '#9a48b8' : '#6a2a84');
+      P.rect(x0 - 1, 2, 9, 2, '#7a3494'); P.rect(x0, 18, 13, 2, '#2a1a10'); P.rect(x0, 20, 3, 1, '#2a1a10');
+      P.rect(x0 + 2, 8, 4, 3, (x, y) => (x === x0 + 2 || x === x0 + 5 || y === 8 || y === 10) ? '#ffd040' : '#3a1448'); P.px(x0 + 1, 4, '#f0b0ff'); P.px(x0 + 1, 5, '#f0b0ff'); P.px(x0 + 10, 14, '#d898f0');
+    }
+    P.px(15, 2, '#ffffff'); P.px(14, 3, '#fff8c0'); P.px(16, 3, '#fff8c0'); P.px(15, 4, '#fff8c0');
+  },
+  springs: (P) => {
+    for (const x0 of [2, 17]) {
+      P.rect(x0, 1, 7, 11, (x) => x - x0 < 2 ? '#7ae8a0' : x - x0 < 5 ? '#3cb870' : '#1e7a44'); P.rect(x0, 9, 12, 4, (x, y) => y < 11 ? '#3cb870' : '#1e7a44'); P.rect(x0 - 1, 1, 9, 2, '#228a4c');
+      P.rect(x0, 13, 12, 1, '#3a3a46');
+      for (let y = 14; y < 21; y++) for (const sx of [x0 + 2, x0 + 8]) { const off = (y % 2) ? -1 : 1; P.px(sx + off, y, y % 2 ? STEEL[1] : STEEL[2]); P.px(sx, y, STEEL[0]); }
+      P.rect(x0 + 1, 21, 4, 1, '#3a3a46'); P.rect(x0 + 7, 21, 4, 1, '#3a3a46'); P.px(x0 + 1, 3, '#c8ffd8'); P.px(x0 + 1, 4, '#c8ffd8');
+    }
+  },
+  sabatons: (P) => {
+    for (const x0 of [2, 17]) {
+      P.rect(x0, 3, 7, 13, (x, y) => steelBy((x - x0) / 8 + (y - 3) / 30)); P.rect(x0, 13, 13, 5, (x, y) => steelBy((x - x0) / 14 + .2 + (y - 13) / 10));
+      for (const xx of [x0 + 8, x0 + 10, x0 + 12]) P.line(xx, 13, xx, 17, STEEL[4]); P.line(x0, 8, x0 + 6, 8, STEEL[4]); P.line(x0, 12, x0 + 7, 12, STEEL[4]);
+      P.rect(x0, 18, 13, 1, '#2a2a34'); P.px(x0 + 1, 5, '#ffffff'); P.px(x0 + 1, 6, '#ffffff'); P.px(x0 + 2, 10, '#f2f5fa'); P.px(x0 + 5, 10, '#f2f5fa');
+    }
+  },
+  potlid: (P) => {
+    P.ell(15, 10.5, 14, 4.8, (x, y) => steelBy(lit(x, y, 1, 6, 28, 9) + (((x - 15) / 14) ** 2 + ((y - 10.5) / 4.8) ** 2 > .7 ? .25 : 0)));
+    P.ell(15, 10.5, 10, 3, (x, y, d) => d > .82 ? STEEL[3] : null); P.rect(12, 3, 7, 3, (x, y) => y === 3 ? '#5a4030' : '#3a2818'); P.rect(14, 6, 3, 2, '#2a1a10');
+    P.line(6, 8, 13, 7, '#ffffff'); P.px(22, 11, STEEL[4]); P.px(23, 12, STEEL[4]); P.px(21, 12, '#1a1218');
+  },
+  heater: (P) => {
+    for (let y = 1; y < 25; y++) { const half = y < 12 ? 10 : 10 - (y - 11) * .78; for (let x = Math.round(11 - half); x <= 11 + half; x++) { const edge = x <= 11 - half + 1.2 || x >= 11 + half - 1.2 || y < 3; P.px(x, y, edge ? (x < 11 ? STEEL[1] : STEEL[2]) : lit(x, y, 1, 1, 20, 24) < .45 ? '#e85050' : lit(x, y, 1, 1, 20, 24) < .8 ? '#b82c30' : '#7a1418'); } }
+    for (let y = 3; y < 22; y++) { P.px(10, y, '#ffd040'); P.px(11, y, '#ffd040'); P.px(12, y, '#c89a20'); }
+    for (let x = 3; x < 20; x++) { P.px(x, 9, '#ffd040'); P.px(x, 10, '#c89a20'); }
+    P.ell(11, 9.5, 2.2, 2.2, (x, y, d) => d < .3 ? '#ffffff' : '#ffe080'); P.px(5, 5, '#ff9090'); P.px(5, 6, '#ff9090'); P.px(6, 14, '#ff9090');
+    P.px(2, 2, '#ffffff'); P.px(20, 2, STEEL[3]); P.px(16, 16, '#5a0a0e'); P.px(17, 17, '#5a0a0e');
+  }
 };
-const armorArt = id => `<svg viewBox="0 0 120 86" class="aart">${(ARMOR_ART[id] || (() => ''))()}</svg>`;
+const PX_SIZE = { twig: [20, 20], twin: [20, 20], potion: [16, 20], amulet: [16, 18], mystery: [18, 20], chainmail: [32, 22], rusty_helm: [30, 21], feather_cap: [31, 20], sombrero: [36, 22],
+  cardboard: [28, 22], pauldrons: [34, 18], breastplate: [29, 24], jeans: [34, 18], greaves: [30, 24], boots: [32, 22], springs: [32, 23], sabatons: [32, 20], potlid: [30, 16], heater: [23, 26] };
+function shade(hex, k) { const c = hex3(hex); return '#' + c.map(v => Math.max(0, Math.min(255, Math.round(v * k))).toString(16).padStart(2, '0')).join(''); }
+function pxArt(name, col) { const [w, h] = PX_SIZE[name]; return pxSprite(name + (col || ''), w, h, (P, w2, h2) => PX_ART[name](P, w2, h2, col)); }
+const armorArt = id => pxImg(pxArt(id), 'aart');
 
 function cardIcon(id) {
   const c = CARDS[id], col = c.el ? EL_COL[c.el] : TYPE_COL[c.type];
-  if (c.type === 'wandup' || id === 'u_twin') return `<svg viewBox="0 0 100 100" style="filter:drop-shadow(0 0 6px ${col})"><circle cx="50" cy="50" r="46" fill="#0b0818" stroke="${col}" stroke-width="2.5"/>${c.type === 'wandup' ? twigWandArt(col) : twinCastArt('#7fd8ff')}</svg>`;
+  if (c.type === 'wandup' || id === 'u_twin') return pxImg(pxArt(c.type === 'wandup' ? 'twig' : 'twin'), 'pxicon');
   const g = { bullet: `<circle cx="58" cy="50" r="11" fill="none" stroke="${col}" stroke-width="5"/><path d="M18 50h22" stroke="${col}" stroke-width="5" stroke-linecap="round"/>`,
     block: `<circle cx="50" cy="50" r="22" fill="none" stroke="${col}" stroke-width="6"/><circle cx="50" cy="50" r="8" fill="${col}"/>`,
     utility: `<path d="M55 20L33 54h16l-6 26 25-36H52z" fill="none" stroke="${col}" stroke-width="5" stroke-linejoin="round"/>`,
@@ -1209,6 +1210,12 @@ function castBeam(p, st, off = 0) {
   traceBeam(p, st, mz[0], mz[1], a, st.beamLen || 330, st.bounces | 0, new Set(), 0);
   FX.shot(p, 'bullet'); p.recoil = 1;
 }
+// beams are instant, so they use a hitbox shaped like the wizard sprite (a tall capsule from hat to boots)
+// instead of the small body circle bolts use; the old circle missed anything aimed at the head or legs
+function beamTouches(q, x, y, bw) {
+  const rx = q.r + 3 + bw, top = q.y - q.r - 12 - bw, bot = q.y + q.r + 2 + bw, cy = clamp(y, top + rx, bot - rx);
+  return Math.hypot(q.x - x, cy - y) < rx;
+}
 function traceBeam(p, st, x, y, a, left, bn, hit, depth) {
   const pts = [[x, y]], step = 5, ropes = new Set(); let dx = Math.cos(a), dy = Math.sin(a), prismed = depth > 0, end = 'air';
   while (left > 0) {
@@ -1216,7 +1223,7 @@ function traceBeam(p, st, x, y, a, left, bn, hit, depth) {
     let stop = false;
     for (const q of M.players) {
       if (q.dead || hit.has(q) || allyOf(q, p) || (q.id === p.id && pts.length < 2 && depth === 0)) continue;
-      if (Math.hypot(q.x - nx, q.y - ny) < q.r + 1 + (st.beamW || 1)) {
+      if (beamTouches(q, nx, ny, st.beamW || 1)) {
         hit.add(q);
         if (q.blockT > 0) { ringFx(nx, ny, '#ffffff'); coin(q.id, 2, 'Warded bolts', q.x, q.y - 20); stop = true; end = 'ward'; break; }
         beamHit(p, q, st, dx, dy); stop = true; end = 'wizard'; break;
@@ -4361,7 +4368,7 @@ const $ = id => document.getElementById(id);
 const PANELS = ['title', 'setup', 'pick', 'end', 'library', 'settings', 'maps', 'online', 'lobby', 'help', 'pause', 'custom', 'controls', 'wpick', 'wand', 'shop'];
 let focusIdx = 0;
 // shown under the title logo; bump with each published update (MAKE-UPDATE uses the same number)
-const GAME_VERSION = '1.4.2';
+const GAME_VERSION = '1.4.3';
 function drawMapPreviews() {
   document.querySelectorAll('#maps canvas[data-m]').forEach(cv => {
     const m = MAPS[+cv.dataset.m], c = cv.getContext('2d'), k = cv.width / W; c.imageSmoothingEnabled = false;
@@ -5184,14 +5191,12 @@ function merchantImg() {
 
 // goods on the merchant's table: spells are scrolls, spell upgrades potions, wand upgrades gems, perks amulets
 function goodSVG(id) {
-  if (id === 'mystery') return `<svg viewBox="0 0 100 100"><rect x="42" y="14" width="16" height="9" fill="#8a5a30"/><path d="M44 23h12v12a28 28 0 1 1-12 0z" fill="#2a1a30" stroke="#d8d0c0" stroke-width="3"/><path d="M27 62a23 23 0 0 0 46 0z" fill="#5a2a5a"/><circle cx="42" cy="66" r="5" fill="#ff5ca8"/><circle cx="58" cy="58" r="3" fill="#7dff5a"/><circle cx="52" cy="72" r="2.5" fill="#5cb8ff"/><text x="50" y="58" text-anchor="middle" font-family="Press Start 2P,monospace" font-size="16" fill="#ff5ca8">?</text></svg>`;
+  if (id === 'mystery') return pxImg(pxArt('mystery'), 'pxgood');
   const c = CARDS[id], col = c.el ? EL_COL[c.el] : TYPE_COL[c.type];
-  if (id === 'u_twin') return `<svg viewBox="0 0 100 100">${twinCastArt('#7fd8ff')}</svg>`;
-  if (c.type === 'wandup') return `<svg viewBox="0 0 100 100">${twigWandArt(col, 1)}</svg>`;
-  if (c.type === 'upgrade') return `<svg viewBox="0 0 100 100"><rect x="42" y="10" width="16" height="10" fill="#a07040"/><path d="M41 20h18v16l15 22a20 20 0 0 1-17 28H43a20 20 0 0 1-17-28l15-22z" fill="#1a1426" stroke="#d8d0c0" stroke-width="3"/><path d="M30 60h40l2 4a15 15 0 0 1-13 18H41a15 15 0 0 1-13-18z" fill="${col}"/><rect x="36" y="64" width="5" height="10" fill="#fff" opacity=".45"/></svg>`;
-  if (c.type === 'wandup') return `<svg viewBox="0 0 100 100"><path d="M26 42l14-18h20l14 18-24 38z" fill="${col}" stroke="#fff" stroke-width="2.5"/><path d="M26 42h48M40 24l10 18 10-18M50 42v38" stroke="#000" stroke-opacity=".35" stroke-width="2.5" fill="none"/><path d="M33 40l8-10" stroke="#fff" stroke-width="3" opacity=".7"/></svg>`;
-  if (PERK_LIST.includes(id)) return `<svg viewBox="0 0 100 100"><path d="M28 16q22 34 44 0" fill="none" stroke="#c9a040" stroke-width="3" stroke-dasharray="4 3"/><circle cx="50" cy="58" r="20" fill="#2a1a10" stroke="#e8c060" stroke-width="6"/><circle cx="50" cy="58" r="10" fill="${col}"/><circle cx="46" cy="54" r="3" fill="#fff" opacity=".6"/></svg>`;
-  return `<svg viewBox="0 0 100 100"><rect x="20" y="32" width="60" height="38" fill="#e8d6a8" stroke="#7a5a30" stroke-width="3"/><rect x="12" y="28" width="11" height="46" rx="4" fill="#c8a878" stroke="#7a5a30" stroke-width="3"/><rect x="77" y="28" width="11" height="46" rx="4" fill="#c8a878" stroke="#7a5a30" stroke-width="3"/><path d="M30 42h40M30 50h30M30 58h36" stroke="#a88a5a" stroke-width="3"/><circle cx="64" cy="66" r="10" fill="${col}" stroke="#2a1a10" stroke-width="2.5"/></svg>`;
+  if (id === 'u_twin') return pxImg(pxArt('twin'), 'pxgood');
+  if (c.type === 'wandup') return pxImg(pxArt('twig'), 'pxgood');
+  if (c.type === 'upgrade') return pxImg(pxArt('potion', col), 'pxgood');
+  return pxImg(pxArt('amulet', col), 'pxgood');
 }
 // armor on a wooden mannequin (or the player's own wizard wearing their gear)
 function armorStand(cv, id) {
