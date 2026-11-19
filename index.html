@@ -179,6 +179,14 @@ h3{font-size:.55em;color:#c9a874;text-shadow:.15em .15em 0 #000;letter-spacing:.
 .card .d{font-size:1.1em;color:#b8a688;line-height:1}
 .card .l{font-size:1.05em;border-radius:0}
 .card .l.p{color:#9ee07a;background:#1a2614}.card .l.m{color:#ff8a7a;background:#2a1412}
+.card .kb{align-self:stretch;margin:-.8em -.8em .3em;padding:.5em .55em;display:flex;justify-content:space-between;align-items:center;gap:.4em;font-family:'Press Start 2P',monospace;font-size:.44em;letter-spacing:.05em;color:#140c06;text-align:left}
+.card .kb .rar{position:static;font-size:.85em;color:inherit;opacity:.7;letter-spacing:0;text-align:right}
+.k-proj{background:#ff9a2e}.k-mod{background:#5cb8ff}.k-att{background:#ffd27a}.k-upg{background:#7dffa8}.k-wup{background:#ffd23d}.k-perk{background:#ff7ad8}.k-wpn{background:#d9a441}.k-arm{background:#b8c4dc}
+.card.kc-proj{border-top-color:#ff9a2e}.card.kc-mod{border-top-color:#5cb8ff}
+.card .ic.pv{width:100%;height:auto;margin:.15em 0 .25em;border:2px solid #000;box-shadow:0 0 0 2px #3a2e24;line-height:0}
+.card .ic.pv canvas,.cprev{width:100%;display:block;image-rendering:pixelated}
+.card .note{font-family:'Press Start 2P',monospace;font-size:.4em;line-height:1.5;margin:-.2em 0 .7em;letter-spacing:.03em}.note.n-proj{color:#ffb060}.note.n-mod{color:#7fc4ff}.note.n-att{color:#ffd27a}
+.card .ty:empty{display:none}
 .card .rar{font-size:.38em}
 .r0 .rar{color:#8a8070}.r1 .rar{color:#6fa8e0}.r2 .rar{color:#c07ae8}.r3 .rar{color:#e0a530}
 .card .ic svg{filter:none!important}
@@ -220,15 +228,15 @@ h3{font-size:.55em;color:#c9a874;text-shadow:.15em .15em 0 #000;letter-spacing:.
 @keyframes dtag{from{color:#ffd27a}to{color:#a8875a}}
 .mshop{display:flex;flex-direction:column;align-items:center;width:100%;max-width:74em}
 .mhead{display:flex;align-items:flex-end;justify-content:center;gap:2.4em;width:100%;position:relative;z-index:1}
-.mhead .merchant{width:132px;margin-bottom:-2.6em;animation:mbob 3s ease-in-out infinite}.mhead .purse{align-self:center;padding:.3em .8em}.mhead .purse b{font-size:1.4em!important}
+.mhead .merchant{width:112px;margin-bottom:-2.4em;animation:mbob 3s ease-in-out infinite}.mhead .purse{align-self:center;padding:.2em .7em;font-size:.82em;min-width:0}.mhead .purse b{font-size:1.5em!important}
 .mearn{display:flex;flex-wrap:wrap;gap:.3em;max-width:16em;justify-content:flex-start;align-self:center}
 .mrow{display:flex;align-items:flex-end;gap:1.6em;position:relative;z-index:2}
-.mtable{position:relative;width:50em;margin-bottom:2.4em}
-.mtop{position:relative;display:flex;justify-content:space-around;align-items:flex-end;padding:1.1em 1em .5em;min-height:8.6em;
+.mtable{position:relative;width:50em;margin-bottom:1.6em}
+.mtop{position:relative;display:flex;justify-content:space-around;align-items:flex-end;padding:.9em 1em .4em;min-height:7.6em;
   background:repeating-linear-gradient(90deg,#6e4728 0 7.9em,#4e301a 7.9em 8.1em),#6e4728;border-top:5px solid #a8743e;box-shadow:inset 0 .6em 0 rgba(255,220,160,.08),inset 0 -.4em 0 rgba(0,0,0,.25)}
 .mtop::before{content:'';position:absolute;left:5%;right:5%;top:34%;bottom:12%;background:#3a1f4a;border-top:3px solid #c9a040;border-bottom:3px solid #c9a040;box-shadow:0 .25em 0 rgba(0,0,0,.35)}
 .mfront{height:1.5em;background:linear-gradient(#4a2c16,#33200f);border-top:3px solid #24160a;box-shadow:0 .35em 0 #000}
-.mleg{position:absolute;bottom:-2.4em;width:1.8em;height:2.4em;background:#2a190c;border-left:3px solid #3e2614}.mleg.a{left:2.4em}.mleg.b{right:2.4em}
+.mleg{position:absolute;bottom:-1.6em;width:1.8em;height:1.6em;background:#2a190c;border-left:3px solid #3e2614}.mleg.a{left:2.4em}.mleg.b{right:2.4em}
 .good{position:relative;width:7.4em;display:flex;flex-direction:column;align-items:center;cursor:pointer;z-index:1;padding-top:1.2em}
 .good::after{content:'';position:absolute;bottom:1.25em;left:18%;right:18%;height:.7em;border-radius:50%;background:rgba(0,0,0,.45)}
 .good.r1::after{box-shadow:0 0 14px 3px rgba(92,184,255,.45)}.good.r2::after{box-shadow:0 0 16px 4px rgba(180,108,255,.55)}.good.r3::after{box-shadow:0 0 18px 5px rgba(255,210,61,.65)}
@@ -243,19 +251,30 @@ h3{font-size:.55em;color:#c9a874;text-shadow:.15em .15em 0 #000;letter-spacing:.
 .good.poor .gtag{background:#8a7a68;color:#4a2018}
 .good.sold{opacity:.3;cursor:default}.good.sold .gob{animation:none}.good.sold .gtag{background:#4a3b2c;color:#c9b088}
 .good.focus .gname,.good:hover .gname{color:#ffd27a}
+.good.wide{width:8.6em}.good.wide .gob{width:7.4em;height:auto;margin-bottom:.2em}
+.gscroll{background:#e8d6a8;border:3px solid #7a5a30;border-left:9px solid #c8a878;border-right:9px solid #c8a878;padding:3px;box-shadow:0 .3em 0 rgba(0,0,0,.5);line-height:0}
+.gscroll canvas{border:2px solid #3a2612}
+.gkind{font-family:'Press Start 2P',monospace;font-size:.4em;color:#140c06;padding:.3em .5em;margin-top:.5em;z-index:1;letter-spacing:.04em}
+.good .gkind+.gname{margin-top:.4em}
+.mdrow{display:flex;gap:.8em;align-items:flex-start}.mdrow>canvas{flex:none;width:9em;border:3px solid #2e1c0e;image-rendering:pixelated;background:#140e18}
+.mdrow .mdtx{flex:1;min-width:0}
+.mdetail .kb2{display:inline-block;font-family:'Press Start 2P',monospace;font-size:.42em;padding:.35em .55em;color:#140c06;margin-bottom:.35em}
+.astats{display:grid;grid-template-columns:4.2em 4em auto;gap:0 .5em;align-items:center;margin:.15em 0 0;font-size:.92em;line-height:1}
+.astats b{font-weight:normal;color:#5a4028}.astats i{display:block;height:.55em;background:#c8b48a;border:2px solid #2e1c0e;position:relative}.astats i u{display:block;height:100%;background:#3a4a6a}.astats i u.up{background:#3a8a3a}.astats i u.dn{background:#9a3a20}
+.astats span{white-space:nowrap}.astats .up{color:#2a7a2a}.astats .dn{color:#9a3a20}
 .mstand{display:flex;flex-direction:column;align-items:center;margin-bottom:.2em}
 .mstand .sign{background:#5a3a20;border:3px solid #2a190c;color:#ffd27a;font-family:'Press Start 2P',monospace;font-size:.48em;padding:.45em .8em;box-shadow:0 .25em 0 #000;margin-bottom:.2em}
 .good.armor{width:11em;padding-top:1.2em}.good.armor::after{bottom:2.6em;left:20%;right:20%}
 .good.armor .gob{width:10.5em;height:10.5em}.good.armor canvas{width:100%;height:100%;image-rendering:pixelated}
-.mlow{display:flex;gap:1em;align-items:stretch;justify-content:center;margin-top:.2em}
-.mdetail{width:30em;min-height:6.6em;background:#e6d3a8;color:#2e1c0e;border:4px solid #8a6a40;box-shadow:0 .3em 0 #000,inset 0 0 0 3px #d4bd8c;padding:.55em .9em;text-align:left;font-family:'VT323',monospace;font-size:1.05em}
+.mlow{display:flex;gap:1em;align-items:flex-start;justify-content:center;margin-top:.2em}
+.mdetail{width:31em;min-height:7em;font-size:.88em;background:#e6d3a8;color:#2e1c0e;border:4px solid #8a6a40;box-shadow:0 .3em 0 #000,inset 0 0 0 3px #d4bd8c;padding:.55em .9em;text-align:left;font-family:'VT323',monospace;font-size:1.05em}
 .mdetail h4{margin:0 0 .15em;font-family:'Press Start 2P',monospace;font-size:.62em;line-height:1.5}
 .mdetail .ty{font-family:'Press Start 2P',monospace;font-size:.42em;color:#7a5a30;letter-spacing:.06em;margin-bottom:.35em}
 .mdetail .dd{font-size:1.15em;line-height:1.05;margin-bottom:.3em}
 .mdetail .l{display:inline-block;background:#2e1c0e;padding:.05em .45em;margin:.12em .25em .12em 0;font-size:1.05em}.mdetail .l.p{color:#9cf09c}.mdetail .l.m{color:#ff9a7a}
-.mdetail .rep{font-size:1em;color:#8a3a20;margin-top:.2em}
+.mdetail .rep{font-size:.86em;line-height:1;color:#8a3a20;margin-top:.25em}
 .mgear{display:flex;gap:.6em;align-items:center;background:#120e0a;border:3px solid #4a3b2c;box-shadow:0 .3em 0 #000;padding:.4em .7em;min-width:19em}
-.mgear canvas{width:4.6em;image-rendering:pixelated}
+.mgear canvas{width:4.6em;height:auto;align-self:center;image-rendering:pixelated}
 .mgl{display:flex;flex-direction:column;gap:0;text-align:left;font-family:'VT323',monospace;font-size:.82em;line-height:1;color:#c9b088;flex:1}
 .mgl div{display:flex;align-items:center;gap:.4em}.mgl b{font-weight:normal;color:#7a6a58;width:4.6em;white-space:nowrap}.mgl span{flex:1;color:#eadcc0}
 .mgl i{display:inline-block;width:3.2em;height:.45em;background:#2a2e3a;border:1px solid #000}.mgl i u{display:block;height:100%;background:#b8c4dc}
@@ -626,9 +645,14 @@ function cardIcon(id) {
     weapon: `<circle cx="50" cy="50" r="20" fill="none" stroke="${col}" stroke-width="5"/><path d="M50 18v16M50 66v16M18 50h16M66 50h16" stroke="${col}" stroke-width="5" stroke-linecap="round"/><circle cx="50" cy="50" r="4" fill="${col}"/>` }[c.type];
   return `<svg viewBox="0 0 100 100" style="filter:drop-shadow(0 0 6px ${col})"><circle cx="50" cy="50" r="46" fill="#0b0818" stroke="${col}" stroke-width="2.5"/>${g}</svg>`;
 }
+// what kind of card this is, in big letters
+function cardKind(id) { const c = CARDS[id]; if (!c) return ['perk', 'PERK'];
+  return c.type === 'proj' ? ['proj', 'PROJECTILE'] : c.type === 'mod' ? ['mod', 'MODIFIER'] : c.type === 'att' ? ['att', 'ATTUNEMENT'] : c.type === 'upgrade' ? ['upg', 'SPELL UPGRADE'] : c.type === 'wandup' ? ['wup', 'WAND UPGRADE'] : c.type === 'weapon' ? ['wpn', 'WAND'] : ['perk', 'PERK · ' + (TYPE_LABEL[c.type] || '').toUpperCase()]; }
+const hasPreview = id => { const c = CARDS[id]; return !!c && (c.type === 'proj' || c.type === 'mod' || c.type === 'att'); };
+const pvCanvas = (id, w = 56, h = 22, cls = '') => `<canvas class="cprev ${cls}" width="${w}" height="${h}" data-id="${id}"></canvas>`;
 function cardHTML(id, extra = '') {
-  const c = CARDS[id], wp = c.type === 'weapon';
-  return `<div class="card r${c.rar}${wp ? ' wpn' : ''}" ${extra}><span class="rar">${['Common', 'Uncommon', 'Rare', 'Legendary'][c.rar]}${c.uniq ? ' · Unique' : ''}</span><div class="ty">${wp ? WEAPONS[c.weapon].name : (c.el ? EL_NAME[c.el] + ' ' : '') + TYPE_LABEL[c.type]}</div><div class="ic">${cardIcon(id)}</div><div class="n">${c.name}</div><div class="d">${c.desc}</div>${c.lines.map(l => `<div class="l ${l[0] === '+' ? 'p' : 'm'}">${l[1]}</div>`).join('')}</div>`;
+  const c = CARDS[id], wp = c.type === 'weapon', [kk, kl] = cardKind(id), pv = hasPreview(id);
+  return `<div class="card r${c.rar}${wp ? ' wpn' : ''} kc-${kk}" ${extra}><div class="kb k-${kk}"><span>${kl}</span><span class="rar">${['Common', 'Uncommon', 'Rare', 'Legendary'][c.rar]}${c.uniq ? ' · Unique' : ''}</span></div><div class="ty">${wp ? WEAPONS[c.weapon].name : c.el ? EL_NAME[c.el] + ' element' : ''}</div>${pv ? `<div class="ic pv">${pvCanvas(id)}</div>` : `<div class="ic">${cardIcon(id)}</div>`}<div class="n">${c.name}</div>${pv && PV_NOTE[c.type] ? `<div class="note n-${kk}">${PV_NOTE[c.type]}</div>` : ''}<div class="d">${c.desc}</div>${c.lines.map(l => `<div class="l ${l[0] === '+' ? 'p' : 'm'}">${l[1]}</div>`).join('')}</div>`;
 }
 
 /* ============================ WANDS ============================
@@ -3813,12 +3837,12 @@ function loop(now) {
   else if (app === 'pick') { pickTick(frame); if (M) { M.parts.forEach(q => { q.t -= frame; }); } }
   else if (app === 'wpick') wpTick(frame);
   else acc = 0;
-  draw(); drawCustPreview(frame); drawWPickPreview(frame);
+  draw(); drawCustPreview(frame); drawWPickPreview(frame); drawCardPreviews(frame);
   requestAnimationFrame(loop);
 }
 requestAnimationFrame(loop);
 setTimeout(() => { // visuals and sound never touch the shared gameplay random
-  draw = realRand(draw); drawHelpDemos = realRand(drawHelpDemos); drawCustPreview = realRand(drawCustPreview); drawWPickPreview = realRand(drawWPickPreview); sfx = realRand(sfx); noise = realRand(noise); rumble = realRand(rumble); puffs = realRand(puffs);
+  draw = realRand(draw); drawHelpDemos = realRand(drawHelpDemos); drawCustPreview = realRand(drawCustPreview); drawWPickPreview = realRand(drawWPickPreview); drawCardPreviews = realRand(drawCardPreviews); sfx = realRand(sfx); noise = realRand(noise); rumble = realRand(rumble); puffs = realRand(puffs);
   RX.tick = realRand(RX.tick); show = realRand(show);
   for (const k of Object.keys(FX)) if (typeof FX[k] === 'function') FX[k] = realRand(FX[k]);
 }, 0);
@@ -4145,7 +4169,7 @@ const $ = id => document.getElementById(id);
 const PANELS = ['title', 'setup', 'pick', 'end', 'library', 'settings', 'maps', 'online', 'lobby', 'help', 'pause', 'custom', 'controls', 'wpick', 'wand', 'shop'];
 let focusIdx = 0;
 // shown under the title logo; bump with each published update (MAKE-UPDATE uses the same number)
-const GAME_VERSION = '1.4.0';
+const GAME_VERSION = '1.4.1';
 function drawMapPreviews() {
   document.querySelectorAll('#maps canvas[data-m]').forEach(cv => {
     const m = MAPS[+cv.dataset.m], c = cv.getContext('2d'), k = cv.width / W; c.imageSmoothingEnabled = false;
@@ -4497,6 +4521,208 @@ function wandDemo(S, wd, D, dt, w, h, lk) {
   D.f = F.filter(p => p.t > 0).slice(-160);
   return { cx, cy, aim };
 }
+/* ---------- spell previews: a tiny animated firing range on every spell card ----------
+   Projectiles show exactly what they cast; modifiers show a plain bolt with their effect;
+   attunements show their element's bolt with a golden glint. Visual only (real random). */
+const PV_COL = { spark: [205, 150, 255], arrow: [255, 240, 170], burst: [120, 255, 200], shards: [190, 235, 255], sphere: [150, 120, 255], missile: [255, 170, 90], fireball: [255, 130, 40], bomb: [255, 200, 90], dragon: [255, 120, 30], chainsaw: [230, 235, 255], lance: [215, 190, 255], hexorb: [200, 90, 255], blackhole: [150, 60, 255] };
+const PV_MOD = {
+  dmgplus: { r: 2, col: [255, 150, 150], hit: 'big' }, heavy: { r: 2.6, vx: 20, col: [255, 110, 110], hit: 'big' }, speedup: { vx: 100, streak: 7 },
+  homing: { home: 1, vy0: -26, g: 0 }, pierce: { wall: 1 }, bouncy: { bounce: 4, g: 70, vy0: -22 }, explosive: { boom: 5 }, burning: { hit: 'burn', col: [255, 170, 90] },
+  freeze: { hit: 'ice', col: [170, 230, 255] }, venom: { hit: 'venom', col: [140, 255, 110] }, crit: { hit: 'crit' }, leech: { hit: 'leech', col: [255, 90, 110] },
+  guide: { wave: 1, vx: 30 }, knock: { hit: 'knock' }, firetrail: { trail: 'fire' }, mirror: { mirror: 1 }, electric: { hit: 'stun', col: [170, 220, 255] },
+  bubbletrap: { hit: 'trap' }, acidtrail: { trail: 'acid' }
+};
+const PV_ATT = {
+  f_flash: { vx: 42, g: 10 }, f_napalm: { pool: 1 }, f_blue: { col: [120, 170, 255] }, f_kindle: { hit: 'burn' }, f_wild: { hit: 'burn' }, f_inferno: { hit: 'burn' },
+  l_lens: { wdt: 2 }, l_over: { boom: 6 }, l_disint: { wall: 1 }, l_burn: { hit: 'burn' }, l_mirror: { mirror: 1 }, l_prism: { mirror: 1, prism: 1 },
+  b_cluster: { cluster: 1 }, b_carpet: { n: 3, spread: .3 }, b_short: { fuse: .55 }, b_fire: { hit: 'burn', pool: 1 }, b_shaped: { boom: 8 },
+  s_fork: { split: 2 }, s_arc: { home: 1, vy0: -20 }, s_storm: { n: 3, spread: .14 }, s_static: { bounce: 1, vy0: 4 }, s_thunder: { thunder: 1 },
+  bb_foam: { n: 2, spread: .2 }, bb_seek: { home: 1 }, bb_fizz: { boom: 3 }, bb_water: { hit: 'ice' }, bb_prison: { hit: 'trap' },
+  a_rain: { rain: 1 }, a_fumes: { fumes: 1 }, a_melt: { hit: 'venom' }, a_caustic: { hit: 'venom' }
+};
+const PV_EL_BASE = { fire: 'firebolt', laser: 'laser', bomb: 'minibomb', spark: 'espark', bubble: 'bubble', acid: 'acidball' };
+function pvSpec(id) {
+  const c = CARDS[id]; if (!c) return null;
+  if (c.att) { const v = pvSpec(PV_EL_BASE[c.el]); v.att = 1; return Object.assign(v, PV_ATT[id] || {}); }
+  const s = SPELLS[id]; if (!s) return null;
+  if (s.kind === 'mod') return Object.assign({ k: 'bolt', col: [225, 205, 255], vx: 40, g: 8, n: 1, r: 1, mod: 1 }, PV_MOD[id] || {});
+  const st = s.st, el = s.el, col = PV_COL[id] || (el ? hex3(EL_COL[el]) : [220, 200, 255]);
+  const v = { k: 'bolt', col, n: (st.proj || 0) + 1, spread: st.spread || 0, vx: clamp(st.spd * 40, 12, 80), g: (st.grav || 0) * 34, bounce: st.bounces || 0,
+    boom: st.rad ? clamp(st.rad / 13, 3, 10) : 0, r: st.hitR ? clamp(st.hitR / 5, 1, 3.4) : 1 };
+  if (st.beam) Object.assign(v, { k: st.jag ? 'jag' : 'beam', wdt: st.beamW || 1, col: hex3(st.beamCol || '#ff4d6d') });
+  else if (st.flame) v.k = 'flame';
+  else if (st.grenade) Object.assign(v, { k: st.prox && st.stickyG ? 'mine' : 'bomb', fuse: Math.min(st.fuse, 2), look: st.look || (id === 'hexorb' ? 'hex' : 'bomb') });
+  else if (st.bubble) Object.assign(v, { k: 'bubble', g: st.grav * 40 });
+  else if (st.voids) v.k = 'void';
+  else if (id === 'chainsaw') v.k = 'saw';
+  else if (st.look === 'fire' || id === 'fireball') v.k = 'fire';
+  else if (st.look === 'spark') v.k = 'spark';
+  else if (st.look === 'acid') v.k = 'acid';
+  else if (st.rocket) v.k = 'missile';
+  else if (id === 'arrow' || id === 'lance') v.k = 'arrow';
+  else if (id === 'sphere') v.k = 'orb';
+  if (st.split) v.split = st.split; if (st.rain) v.rain = 1; if (st.burnDps && !st.flame) v.hit = 'burn'; if (st.stunHit && st.beam) v.hit = v.hit || 'stun';
+  if (st.blife && st.blife < .8 && v.k !== 'flame') v.short = st.blife;
+  return v;
+}
+const PV_PROF = () => Object.assign({ shape: 'circle', hat: 'wizard', eyes: 'normal', gun: 'body' }, (SET.prof && SET.prof[0]) || {});
+function spellPreview(S, id, D, dt, w, h) {
+  const v = D.v || (D.v = pvSpec(id)); if (!v) return;
+  const fy = h - 2, tx = w - 5, cx = 5, cy = fy - 4, aim = v.mirror ? -.7 : v.k === 'bomb' || v.k === 'mine' || v.k === 'fire' && v.g > 12 || v.k === 'acid' ? -.45 : v.vy0 < -10 ? -.4 : -.05;
+  const mx = cx + 8, my = cy - 1 + Math.sin(aim) * 3, R = Math.random, ty = fy - 4;
+  // backdrop
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const n = hash2(x >> 1, y >> 1, 7); S.buf[y * w + x] = y >= fy ? (y === fy ? packC(110, 90, 66) : packC(64 + n * 18 | 0, 50 + n * 12 | 0, 38)) : packC(14 + n * 6 | 0, 11 + n * 5 | 0, 18 + n * 7 | 0); }
+  if (v.mirror) for (let x = 14; x < tx - 6; x++) S.A(x, 1, packC(150, 170, 200)), S.A(x, 0, packC(90, 100, 130));
+  if (v.wall) for (let y = fy - 10; y < fy; y++) for (let x = 0; x < 3; x++) { const n = hash2(x, y, 3); S.A((w >> 1) + 2 + x, y, packC(92 + n * 30 | 0, 74 + n * 22 | 0, 56)); }
+  D.t = (D.t || 0) + dt; D.cd = (D.cd ?? .35) - dt; D.hit = Math.max(0, (D.hit || 0) - dt); D.rec = Math.max(0, (D.rec || 0) - dt * 4);
+  const fx = D.fx || (D.fx = {}); for (const k in fx) fx[k] = Math.max(0, fx[k] - dt);
+  const P = D.p || (D.p = []), F = D.f || (D.f = []), B = D.b || (D.b = []);
+  const part = (x, y, vx, vy, g, t, c, o) => F.push(Object.assign({ x, y, vx, vy, g, t, t0: t, c }, o));
+  const puff = (x, y, n, c, sp, life, g = 0) => { for (let k = 0; k < n; k++) { const a = R() * TAU, s = R() * sp; part(x, y, Math.cos(a) * s, Math.sin(a) * s - sp * .3, g, life * (.5 + R() * .5), c); } };
+  const boom = (x, y, r) => { B.push({ x, y, r, t: .4 }); puff(x, y, 10 + r * 2, [255, 190, 80], 10 + r * 3, .5, 16); puff(x, y, 5, [80, 74, 70], 6, .9, -5); };
+  const react = q => { D.hit = .14; const h2 = v.hit;
+    if (h2 === 'burn') fx.burn = 1.4; else if (h2 === 'ice') fx.ice = 1.4; else if (h2 === 'venom') fx.venom = 1.6; else if (h2 === 'stun') fx.stun = .8; else if (h2 === 'trap') fx.trap = 1.3;
+    else if (h2 === 'knock') fx.knock = .6; else if (h2 === 'crit') { fx.crit = .35; puff(tx, ty, 12, [255, 230, 90], 18, .35); }
+    else if (h2 === 'big') puff(tx, ty, 10, v.col, 16, .4);
+    else if (h2 === 'leech') for (let k = 0; k < 5; k++) part(tx, ty, -20 - R() * 10, -8 - R() * 8, 6, 1.2, [255, 60, 80], { home: 1 });
+    if (v.thunder) { D.bolt = .25; }
+    puff(q.x, q.y, 5, v.col, 12, .3); };
+  const spawn = () => { D.rec = 1; const n = v.n || 1;
+    for (let i = 0; i < n; i++) { const a = aim + (n > 1 ? (i / (n - 1) - .5) * (v.spread || .2) * 2 : 0) + (v.k === 'bubble' ? (R() - .5) * .3 : 0);
+      const spd = v.vx || 40, T = (tx - mx) / spd, g = v.g || 0, vy0 = v.vy0 !== undefined ? v.vy0 : v.mirror ? -40 : g > 0 ? -(g * T) / 2 + Math.sin(a - aim) * spd : Math.sin(a) * spd * .4;
+      P.push({ x: mx, y: my, vx: spd * Math.cos(a - aim), vy: vy0, g, b: v.bounce || 0, t: 0, fuse: (v.fuse || 1.2), d: i * (v.k === 'bomb' ? .12 : .05), ph: R() * 9, k: v.k }); } };
+  // casting rhythm
+  if (v.k === 'beam' || v.k === 'jag') { if (D.cd <= 0) { D.beam = .35; D.cd = 1.1; D.rec = 1; D.jag = null; react({ x: tx, y: ty }); if (v.boom) boom(tx, ty, v.boom); } }
+  else if (v.k === 'flame') { const on = (D.t % 1.4) < .8; if (on && (D.ft = (D.ft || 0) - dt) <= 0) { D.ft = .03; D.rec = .6; for (let k = 0; k < 2; k++) { const a = aim + (R() - .5) * .5; part(mx, my, Math.cos(a) * (32 + R() * 10), Math.sin(a) * 30 - 4, -10, .5 + R() * .25, [255, 140 + R() * 80 | 0, 40], { flame: 1, hurt: 1 }); } } }
+  else if (v.k === 'saw') { if (D.cd <= 0) { D.cd = .08; D.rec = .5; } }
+  else if (D.cd <= 0) { spawn(); D.cd = v.k === 'bomb' || v.k === 'mine' ? 2.4 : v.k === 'void' ? 2.8 : v.boom ? 1.4 : v.n > 2 ? 1.1 : .9; }
+  // projectiles
+  for (const q of P) {
+    if (q.d > 0) { q.d -= dt; continue; }
+    q.t += dt; const pre = { x: q.x, y: q.y };
+    if (v.home) q.vy += clamp((ty - q.y) * 9 - q.vy * 1.5, -200, 200) * dt;
+    if (q.k === 'missile') q.vx += 70 * dt;
+    q.vy += q.g * dt; q.x += q.vx * dt; q.y += q.vy * dt;
+    const wy = v.wave ? Math.sin(q.t * 16) * 1.6 : 0, X = q.x, Y = q.y + wy;
+    if (v.mirror && q.y < 2.5) { q.y = 2.5; q.vy = Math.abs(q.vy) * (v.prism ? 1 : 1); puff(q.x, 2, 4, [220, 230, 255], 8, .25); if (v.prism && !q.pr) { q.pr = 1; for (const o of [-14, 14]) P.push(Object.assign({}, q, { vy: q.vy + o, pr: 1, t: 0 })); } }
+    if (v.wall && Math.abs(q.x - ((w >> 1) + 3)) < 2 && R() < .6) part(q.x, q.y, -6 + R() * 12, -6 + R() * 4, 20, .4, [170, 140, 100]);
+    if (v.trail === 'fire' && R() < .7) part(X - 1, Y, 0, -4, -6, .6, [255, 120, 30], { flame: 1 });
+    if (v.trail === 'acid' && R() < .3) part(X, Y, 0, 4, 30, 1.6, [120, 240, 50], { acid: 1 });
+    if (v.att && R() < .4) part(X - 1, Y + (R() - .5) * 2, -3, 0, 0, .35, [255, 220, 110]);
+    if (v.short && q.t > v.short * 1.8) { q.dead = 1; puff(X, Y, 3, v.col, 6, .2); continue; }
+    const atT = X >= tx - 1 - (q.k === 'bubble' ? 1 : 0) && Y > fy - 10 && Y < fy, atF = Y >= fy - 1;
+    if (q.k === 'bomb' || q.k === 'mine') {
+      if (atF) { if (q.k === 'mine') { q.y = fy - 1; q.vx = q.vy = q.g = 0; q.stuck = 1; } else { q.y = fy - 1; q.vy *= -.45; q.vx *= .6; } }
+      if (q.x > tx - 3) { q.x = tx - 3; q.vx *= -.3; }
+      q.fuse -= dt; if (q.k === 'mine' && q.stuck) q.fuse = Math.min(q.fuse, .7);
+      if (q.fuse <= 0) { q.dead = 1; boom(q.x, q.y, v.boom || 4); if (Math.abs(q.x - tx) < (v.boom || 4) + 6) react(q); if (v.cluster) for (let k = 0; k < 3; k++) part(q.x, q.y, -14 + k * 14, -22, 50, .8, [255, 200, 90], { bomblet: 1 }); if (v.pool) for (let k = 0; k < 5; k++) part(q.x - 4 + k * 2, fy - 1, 0, -3, 0, 1.2, [255, 120, 30], { flame: 1 }); }
+    } else if (q.k === 'void') { if (q.x >= tx - 4) { q.vx = 0; q.life = (q.life || 0) + dt; react(q); D.hit = .05; if (q.life > .8) { q.dead = 1; puff(q.x, q.y, 14, [170, 90, 255], 14, .5); } } for (let k = 0; k < 2; k++) { const a = R() * TAU; part(q.x + Math.cos(a) * 6, q.y + Math.sin(a) * 6, -Math.cos(a) * 14, -Math.sin(a) * 14, 0, .35, [150, 80, 255]); } }
+    else if (atT) { q.dead = 1; react(q); if (v.boom) boom(X, Y, v.boom); if (v.split) for (let k = 0; k < v.split; k++) part(X, Y, -10 - R() * 14, -18 + k * 12, 30, .6, v.col, { spark: 1 });
+      if (q.k === 'acid' || v.rain) { for (let k = 0; k < 6; k++) part(X, Y, -12 + R() * 10, -12 - R() * 6, 34, 1.8, [120, 240, 50], { acid: 1 }); if (v.rain) for (let k = 0; k < 8; k++) part(tx - 18 + k * 2.5, 2 + R() * 4, 0, 10, 40, 1.6, [120, 240, 50], { acid: 1, d: R() * .4 }); }
+      if (q.k === 'bubble') puff(X, Y, 7, [140, 210, 255], 12, .35, 6); }
+    else if (atF) { if (q.b > 0) { q.b--; q.y = fy - 1.5; q.vy = -Math.abs(q.vy) * .75 - 6; puff(q.x, fy - 1, 2, v.col, 6, .2); }
+      else { q.dead = 1; puff(X, fy - 1, 4, v.col, 8, .3, 10); if (v.boom) boom(X, fy - 2, v.boom); if (q.k === 'acid') for (let k = 0; k < 5; k++) part(X, fy - 2, -10 + R() * 20, -10 - R() * 6, 34, 1.8, [120, 240, 50], { acid: 1 }); } }
+    else if (q.k === 'bubble' && (q.y < 2 || q.t > 3)) { q.dead = 1; puff(X, Y, 6, [140, 210, 255], 10, .3); }
+    if (q.dead) continue;
+    // draw by look
+    const c = v.col, E = (x, y, k = 1) => S.E(x, y, c[0] * k, c[1] * k, c[2] * k);
+    if (q.k === 'fire') { S.E(X, Y, 255, 210, 90); S.E(X - 1, Y + .5, 255, 120, 30); if (v.r > 1.5) { S.E(X + 1, Y, 255, 160, 40); S.E(X, Y - 1, 255, 150, 40); S.E(X, Y + 1, 255, 110, 30); } if (R() < .6) part(X, Y, -4 + R() * 4, -6, 0, .35, [255, 120, 30], { flame: 1 }); }
+    else if (q.k === 'spark') { S.E(X, Y, 230, 245, 255); E(X - 1, Y, .7); E(X - 2, Y, .3); if (R() < .5) E(X, Y + (R() < .5 ? -1 : 1), .8); }
+    else if (q.k === 'bubble') { const r = Math.max(1.2, v.r * 1.2); for (let k = 0; k < Math.max(8, r * 6); k++) { const a = k * TAU / Math.max(8, r * 6); S.E(X + Math.cos(a) * r, Y + Math.sin(a) * r, 80, 170, 230); } S.E(X - r * .4, Y - r * .4, 220, 245, 255); q.vx *= 1 - dt * .3; Y < 6 && (q.vy = Math.abs(q.vy)); }
+    else if (q.k === 'acid') { S.E(X, Y, 150, 255, 70); S.E(X + 1, Y, 90, 200, 40); if (R() < .3) part(X, Y, 0, 2, 26, .8, [110, 230, 40], { acid: 1 }); }
+    else if (q.k === 'bomb') { const lk = v.look; if (lk === 'dyn') { S.A(X - 1, Y, packC(200, 40, 40)); S.A(X, Y, packC(220, 50, 50)); S.A(X + 1, Y, packC(200, 40, 40)); }
+      else if (lk === 'holy') { for (let yy = -2; yy <= 2; yy++) for (let xx = -2; xx <= 2; xx++) if (xx * xx + yy * yy <= 5) S.A(X + xx, Y + yy, packC(230, 200, 110)); S.A(X, Y - 1, packC(255, 255, 240)); S.A(X, Y, packC(255, 255, 240)); S.A(X - 1, Y, packC(255, 255, 240)); S.A(X + 1, Y, packC(255, 255, 240)); }
+      else if (lk === 'hex') { for (let yy = -1; yy <= 1; yy++) for (let xx = -1; xx <= 1; xx++) S.A(X + xx, Y + yy, packC(110, 40, 150)); S.E(X, Y, 200, 90, 255); }
+      else { S.A(X, Y, packC(46, 44, 56)); S.A(X + 1, Y, packC(46, 44, 56)); S.A(X, Y - 1, packC(70, 68, 84)); S.A(X + 1, Y - 1, packC(46, 44, 56)); }
+      S.E(X + 1, Y - 2, 255, (q.fuse * 9 | 0) & 1 ? 230 : 90, 60); }
+    else if (q.k === 'mine') { S.A(X - 1, Y, packC(70, 70, 80)); S.A(X, Y, packC(90, 90, 100)); S.A(X + 1, Y, packC(70, 70, 80)); S.E(X, Y - 1, 255, (q.t * 6 | 0) & 1 ? 40 : 200, 40); }
+    else if (q.k === 'void') { for (let yy = -2; yy <= 2; yy++) for (let xx = -2; xx <= 2; xx++) { const d = xx * xx + yy * yy; if (d <= 5) S.A(X + xx, Y + yy, packC(4, 0, 10)); else if (d <= 8) S.E(X + xx, Y + yy, 120, 50, 220); } }
+    else if (q.k === 'missile') { E(X, Y); E(X - 1, Y, .6); S.E(X + 1, Y, 255, 240, 200); if (R() < .7) part(X - 2, Y, -6, (R() - .5) * 4, -4, .5, [110, 100, 100]); }
+    else if (q.k === 'arrow') { for (let k = 0; k < 5; k++) E(X - k, Y, 1 - k * .18); }
+    else if (q.k === 'orb') { for (let yy = -2; yy <= 2; yy++) for (let xx = -2; xx <= 2; xx++) { const d = xx * xx + yy * yy; if (d <= 5) E(X + xx, Y + yy, d <= 1 ? 1.1 : .55); } }
+    else { const r = v.r || 1; if (r >= 2) for (let yy = -1; yy <= 1; yy++) for (let xx = -1; xx <= 1; xx++) E(X + xx, Y + yy, xx || yy ? .55 : 1.1); else E(X, Y, 1.1);
+      for (let k = 1; k <= (v.streak || 2); k++) E(X - k * (q.vx > 0 ? 1 : -1), Y - (q.vy * k / Math.max(30, Math.abs(q.vx))), .55 / k * (v.streak ? 1.6 : 1)); }
+  }
+  D.p = P.filter(q => !q.dead && q.x < w + 3 && q.y < h + 3 && q.x > -3);
+  // beams
+  if (D.beam > 0) { D.beam -= dt; const k = Math.min(1, D.beam / .18), c = v.col, ww = v.wdt || 1;
+    if (v.k === 'jag') { if (!D.jag || R() < .3) { D.jag = []; let y = my; for (let x = mx; x <= tx; x++) { y += (R() - .5) * 2.2; y = clamp(y, 2, fy - 2); y += (ty - y) * (x - mx) / (tx - mx + 1) * .2; D.jag.push(y); } }
+      D.jag.forEach((y, i) => { S.E(mx + i, y, 230 * k, 240 * k, 255 * k); S.E(mx + i, y + 1, c[0] * .4 * k, c[1] * .4 * k, c[2] * .5 * k); }); }
+    else if (v.mirror) { const midx = (mx + tx) / 2; for (let x = mx; x <= tx; x++) { const y = x < midx ? my + (2 - my) * (x - mx) / (midx - mx) : 2 + (ty - 2) * (x - midx) / (tx - midx); for (let o = 0; o < ww; o++) { S.E(x, y + o, c[0] * k, c[1] * k, c[2] * k); S.E(x, y + o, 120 * k, 120 * k, 120 * k); } } }
+    else for (let x = mx; x <= tx; x++) { const y = Math.round(my); for (let o = -(ww >> 1); o <= ww >> 1; o++) { S.E(x, y + o, c[0] * k, c[1] * k, c[2] * k); if (!o) S.E(x, y, 140 * k, 140 * k, 140 * k); } }
+  }
+  if (v.k === 'saw') { const a0 = D.t * 18; for (let k = 0; k < 6; k++) { const a = a0 + k * TAU / 6; S.E(mx + 2 + Math.cos(a) * 2, my + Math.sin(a) * 2, 230, 235, 255); } if (R() < .5) part(mx + 4, my, 6 + R() * 10, -6 - R() * 6, 30, .3, [255, 220, 150]); }
+  if (D.bolt > 0) { D.bolt -= dt; let x = tx; for (let y = 0; y < ty; y++) { x += (R() - .5) * 2; S.E(x, y, 220, 235, 255); } }
+  // explosions
+  for (const b of B) { b.t -= dt; const r = (1 - b.t / .4) * b.r; if (b.t > .28) for (let yy = -2; yy <= 2; yy++) for (let xx = -2; xx <= 2; xx++) if (xx * xx + yy * yy <= 4) S.E(b.x + xx, b.y + yy, 255, 230, 160); for (let k = 0; k < 18; k++) { const a = k * TAU / 18; S.E(b.x + Math.cos(a) * r, b.y + Math.sin(a) * r, 255 * b.t * 2.5, 170 * b.t * 2.5, 60 * b.t * 2.5); } }
+  D.b = B.filter(b => b.t > 0);
+  // particles
+  for (const p of F) { if (p.d > 0) { p.d -= dt; continue; } if (p.home) { p.vx += (cx - p.x) * 6 * dt; p.vy += (cy - p.y) * 6 * dt; if (Math.abs(p.x - cx) < 2 && Math.abs(p.y - cy) < 3) p.t = 0; }
+    p.vy += p.g * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.t -= dt;
+    if (p.flame && p.hurt && p.x >= tx - 1 && p.y > fy - 10) { p.t = 0; D.hit = .06; fx.burn = 1; }
+    if (p.bomblet && p.y >= fy - 1) { p.t = 0; boom(p.x, fy - 2, 3); }
+    if (p.y >= fy - 1 && p.g > 0) { p.y = fy - 1; p.vx = 0; p.vy = 0; if (p.acid) { p.g = 0; p.puddle = 1; } }
+    const k = Math.min(1, p.t / p.t0 * 2), c = p.c;
+    if (p.flame) S.E(p.x, p.y - (R() < .5 ? 1 : 0), c[0] * k, c[1] * k * (.6 + R() * .4), c[2] * k);
+    else if (p.puddle) { S.A(p.x, p.y + 1, packC(60, 110, 30)); S.E(p.x, p.y, c[0] * k * .6, c[1] * k * .6, c[2] * k * .6); if (v.fumes && R() < .02) part(p.x, p.y - 1, 0, -5, 0, .8, [150, 180, 90]); }
+    else S.E(p.x, p.y, c[0] * k, c[1] * k, c[2] * k); }
+  D.f = F.filter(p => p.t > 0).slice(-180);
+  // target dummy (reacts to hits and effects)
+  const kx = fx.knock > 0 ? Math.round(Math.sin((.6 - fx.knock) / .6 * Math.PI) * 3) : 0, dx = tx + kx;
+  const hc = D.hit > 0 || fx.crit > 0 ? packC(255, 255, 255) : null, ice = fx.ice > 0, ven = fx.venom > 0;
+  for (let y = fy - 8; y < fy; y++) { S.A(dx, y, hc || (ice ? packC(150, 200, 240) : ven ? packC(130, 170, 70) : packC(170, 130, 70))); S.A(dx + 1, y, hc || (ice ? packC(110, 160, 220) : ven ? packC(100, 140, 50) : packC(140, 104, 56))); }
+  for (let x = -1; x <= 2; x++) S.A(dx + x, fy - 6, hc || packC(150, 112, 60)); S.A(dx, fy - 5, hc || packC(200, 50, 40)); S.A(dx + 1, fy - 5, hc || packC(200, 50, 40));
+  if (fx.burn > 0 && R() < .7) part(dx + R() * 2, fy - 3 - R() * 5, 0, -8, -4, .4, [255, 130 + R() * 80 | 0, 30], { flame: 1 });
+  if (ice && R() < .2) part(dx + R() * 3 - 1, fy - 8, 0, 3, 0, .5, [200, 240, 255]);
+  if (ven && R() < .25) part(dx + R() * 2, fy - 6, 0, 4, 20, .5, [130, 255, 80]);
+  if (fx.stun > 0) for (let k = 0; k < 3; k++) S.E(dx - 1 + R() * 4, fy - 9 + R() * 8, 180, 220, 255);
+  if (fx.trap > 0) { const r = 5; for (let k = 0; k < 18; k++) { const a = k * TAU / 18; S.E(dx + .5 + Math.cos(a) * r, fy - 5 + Math.sin(a) * r - (1.3 - fx.trap), 80, 170, 230); } }
+  // the caster
+  const lk = PV_PROF(), gun = lk.gun === 'body' ? lk.col : lk.gun;
+  drawPChar(S.A, S.E, cx, cy, lookOpts(lk, { aim, t: D.t, recoil: D.rec, gunCol: gun }));
+}
+// a short "how it's used" note under modifier / projectile previews
+const PV_NOTE = { proj: 'casts a bolt', mod: 'boosts the projectile to its right', att: 'upgrades every spell of this element' };
+let PV_LIST = [];
+function drawCardPreviews(dt) {
+  const panel = document.querySelector('.panel.on'); if (!panel) return;
+  const cvs = panel.querySelectorAll('canvas.cprev'); if (!cvs.length) return;
+  const vh = innerHeight; let n = 0;
+  for (const cv of cvs) {
+    const r = cv.getBoundingClientRect(); if (r.bottom < 0 || r.top > vh || !r.width) continue; if (++n > 40) break;
+    const id = cv.dataset.id, D = cv._D && cv._D.id === id ? cv._D : (cv._D = { id });
+    const S = cv._S || (cv._S = spriteBuf(cv.width, cv.height));
+    spellPreview(S, id, D, Math.min(dt, .05), cv.width, cv.height); cv.getContext('2d').putImageData(S.img, 0, 0);
+  }
+  for (const cv of panel.querySelectorAll('canvas.arprev')) { const id = cv.dataset.armor, D = cv._D && cv._D.id === id ? cv._D : (cv._D = { id }), S = cv._S || (cv._S = spriteBuf(cv.width, cv.height));
+    armorPreview(S, id, D, Math.min(dt, .05), cv.width, cv.height); cv.getContext('2d').putImageData(S.img, 0, 0); }
+}
+
+// armor detail: your wizard wearing the piece, with bolts showing what it does
+function armorPreview(S, id, D, dt, w, h) {
+  const p = SHOP && SHOP.p; if (!p) return; const a = ARMOR[id], R = Math.random;
+  const fy = h - 2, cx = w >> 1, cy = fy - 4;
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const n = hash2(x >> 1, y >> 1, 11); S.buf[y * w + x] = y >= fy ? (y === fy ? packC(110, 90, 66) : packC(64 + n * 18 | 0, 50 + n * 12 | 0, 38)) : packC(16 + n * 6 | 0, 12 + n * 5 | 0, 20 + n * 7 | 0); }
+  D.t = (D.t || 0) + dt; D.cd = (D.cd ?? .6) - dt; D.fl = Math.max(0, (D.fl || 0) - dt);
+  const gear = Object.assign({}, p.gear || {}); gear[a.slot] = { id, dur: gearMax(id) * (D.wear || 1) };
+  const P = D.p || (D.p = []), F = D.f || (D.f = []);
+  const puff = (x, y, n, c, sp) => { for (let k = 0; k < n; k++) { const an = R() * TAU, s = R() * sp; F.push({ x, y, vx: Math.cos(an) * s, vy: Math.sin(an) * s - 4, t: .4, c }); } };
+  if (D.cd <= 0) { D.cd = 1.3;
+    if (a.umb) P.push({ x: cx + (R() - .5) * 8, y: 0, vx: 0, vy: 40, top: 1 });
+    else P.push({ x: w + 1, y: cy - 1 + (R() - .5) * 2, vx: -48, vy: 0 }); }
+  for (const q of P) { q.x += q.vx * dt; q.y += q.vy * dt;
+    if (q.top && q.y >= cy - 7) { q.dead = 1; puff(q.x, q.y, 6, [230, 196, 110], 14); D.wear = Math.max(.25, (D.wear || 1) - .12); }
+    else if (!q.top && a.front && q.x <= cx + 5) { q.dead = 1; puff(q.x, q.y, 6, [230, 230, 220], 14); D.fl = .1; }
+    else if (!q.top && q.x <= cx + 3) { q.dead = 1; puff(q.x, q.y, a.ar >= 20 ? 7 : 3, [200, 205, 220], 12); if (a.ar < 20) puff(q.x, q.y, 3, [255, 80, 80], 10); D.fl = a.ar >= 20 ? 0 : .08; }
+    if (!q.dead) { S.E(q.x, q.y, 255, 120, 160); S.E(q.x + (q.top ? 0 : 1), q.y - (q.top ? 1 : 0), 140, 50, 80); } }
+  D.p = P.filter(q => !q.dead);
+  if ((D.wear || 1) < .3) D.wear = 1;
+  for (const f of F) { f.x += f.vx * dt; f.y += f.vy * dt; f.vy += 30 * dt; f.t -= dt; const k = Math.max(0, f.t * 2.5); S.E(f.x, f.y, f.c[0] * k, f.c[1] * k, f.c[2] * k); }
+  D.f = F.filter(f => f.t > 0);
+  const lk = lookOf(p), walk = a.spd && a.spd !== 1 ? Math.sin(D.t * 6 * (a.spd || 1)) : 0;
+  drawPChar(S.A, S.E, cx, cy, lookOpts(lk, { gear, col: p.color, gunCol: lk.gun === 'body' ? p.color : lk.gun, aim: -.15, t: D.t, flash: D.fl > 0, anim: { feet: walk > 0 ? [-3, 1] : [-2, 2], bob: walk > .7 ? -1 : 0 } }));
+}
+
 function drawWPickPreview(dt) {
   if (!WP || !M || app !== 'wpick') return;
   wpPrevT += dt;
@@ -4802,17 +5028,30 @@ function armorLines(id) {
 }
 function shopDetail(el) {
   const box = $('mdetail'); if (!box || !SHOP || !SHOP.p) return;
+  const key = el ? el.dataset.act + ':' + (el.dataset.v || '') : 'first'; if (box._k === key) return; box._k = key;
   const p = SHOP.p, chip = l => `<span class="l ${l[0] === '+' ? 'p' : 'm'}">${l[1]}</span>`;
   let h;
   if (el && el.dataset.act === 'buyarmor') {
-    const id = SHOP.armor.id, a = ARMOR[id], cur = p.gear && p.gear[a.slot];
-    h = `<h4 style="color:#3a4a6a">${a.n} · ${SHOP.armor.sold ? 'sold' : a.price + '¢'}</h4><div class="ty">ARMOR · ${SLOT_NAME[a.slot].toUpperCase()}</div><div class="dd">${a.d}</div>${armorLines(id).map(chip).join('')}
-      <div class="rep">${SHOP.armor.sold ? 'You are wearing it now.' : cur ? 'Replaces your ' + ARMOR[cur.id].n + ' (' + Math.ceil(cur.dur) + '/' + gearMax(cur.id) + ').' : 'Kept between rounds while you survive. Lost if you fall.'}</div>`;
+    const id = SHOP.armor.id, a = ARMOR[id], cur = p.gear && p.gear[a.slot], sold = SHOP.armor.sold;
+    const sp0 = clamp(gearMul(p, 'spd'), .55, 1.45), jp0 = clamp(gearMul(p, 'jmp'), .8, 1.3), g2 = Object.assign({}, p.gear || {}); g2[a.slot] = { id, dur: 1 };
+    const sp1 = clamp(gearMul({ gear: g2 }, 'spd'), .55, 1.45), jp1 = clamp(gearMul({ gear: g2 }, 'jmp'), .8, 1.3);
+    const wt = (a.spd || 1) < .9 ? 'HEAVY' : (a.spd || 1) < 1 ? 'MEDIUM' : 'LIGHT', cls = (x, y) => y > x + .001 ? 'up' : y < x - .001 ? 'dn' : '';
+    const bar = (fr, c = '') => `<i><u class="${c}" style="width:${Math.round(clamp(fr, 0, 1) * 100)}%"></u></i>`;
+    const prot = a.umb ? ['Brim', bar(a.umb / 90), a.umb + ' from above'] : a.front ? ['Shield', bar(a.ar / 80), a.ar + ' from the front'] : ['Armor', bar(a.ar / 80), a.ar + (a.ar ? ' (soaks ' + a.ar * 2 + ' dmg)' : '')];
+    const rows = [prot, ['Speed', bar((sp1 - .55) / .9, cls(sp0, sp1)), `<span class="${cls(sp0, sp1)}">${pct(sp0)} → ${pct(sp1)}</span>`], ['Jump', bar((jp1 - .8) / .5, cls(jp0, jp1)), `<span class="${cls(jp0, jp1)}">${pct(jp0)} → ${pct(jp1)}</span>`]];
+    if (a.thorns) rows.push(['Thorns', bar(a.thorns / 10), a.thorns + ' dmg back per hit']);
+    const how = a.umb ? 'Catches falling bolts and lava, tearing as it does.' : a.front ? 'Stops bolts from the side you face, not from behind.' : a.ar ? 'Halves every hit until used up, then breaks.' : '';
+    h = `<div class="mdrow"><canvas class="arprev" width="34" height="26" data-armor="${id}"></canvas><div class="mdtx">
+      <div class="kb2 k-arm">ARMOR · ${SLOT_NAME[a.slot].toUpperCase()} · ${wt}</div><h4 style="color:#3a4a6a">${a.n} · ${sold ? 'sold' : a.price + '¢'}</h4>
+      <div class="dd">${a.d}</div><div class="astats">${rows.map(r => `<b>${r[0]}</b>${r[1]}<span>${r[2]}</span>`).join('')}</div>
+      <div class="rep"><span style="color:#4a3a28">${how}</span> ${sold ? 'Wearing it now.' : cur ? 'Replaces your ' + ARMOR[cur.id].n + ' (' + Math.ceil(cur.dur) + '/' + gearMax(cur.id) + ').' : 'Empty slot.'} Kept until you fall.</div></div></div>`;
   } else {
     const it = SHOP.items[el ? +el.dataset.v : 0]; if (!it) return;
     if (it.mystery && !it.sold) h = `<h4 style="color:#8a2a6a">Murky Flask · ${it.price}¢</h4><div class="ty">MYSTERY · RARE OR BETTER</div><div class="dd">Something swims inside: a spell, wand upgrade or perk. You only find out once it's yours.</div>`;
     else { const id = it.got || it.id, c = CARDS[id], wp = c.type === 'weapon', RC = ['#5a4a3a', '#2a5a9a', '#6a2a9a', '#9a6a00'][c.rar];
-      h = `<h4 style="color:${RC}">${c.name} · ${it.sold ? 'sold' : it.price + '¢'}</h4><div class="ty">${['COMMON', 'UNCOMMON', 'RARE', 'LEGENDARY'][c.rar]} · ${(wp ? WEAPONS[c.weapon].name : (c.el ? EL_NAME[c.el] + ' ' : '') + TYPE_LABEL[c.type]).toUpperCase()}${c.uniq ? ' · UNIQUE' : ''}</div><div class="dd">${c.desc}</div>${c.lines.map(chip).join('')}`; }
+      const [kk, kl] = cardKind(id), pv = hasPreview(id);
+      const tx = `<div class="kb2 k-${kk}">${kl}</div><h4 style="color:${RC}">${c.name} · ${it.sold ? 'sold' : it.price + '¢'}</h4><div class="ty">${['COMMON', 'UNCOMMON', 'RARE', 'LEGENDARY'][c.rar]}${c.el ? ' · ' + EL_NAME[c.el].toUpperCase() : ''}${c.uniq ? ' · UNIQUE' : ''}${pv && PV_NOTE[c.type] ? ' · ' + PV_NOTE[c.type].toUpperCase() : ''}</div><div class="dd">${c.desc}</div>${c.lines.map(chip).join('')}`;
+      h = pv ? `<div class="mdrow">${pvCanvas(id, 56, 26)}<div class="mdtx">${tx}</div></div>` : tx; }
   }
   box.innerHTML = h; magicDom(box);
 }
@@ -4823,8 +5062,9 @@ function shopItemHTML(it, i, coins) {
   return h.slice(0, k) + tag + '</div>';
 }
 function goodHTML(it, i, coins) {
-  const can = coins >= it.price, id = it.sold && it.got ? it.got : it.id, rar = it.mystery && !it.sold ? 2 : CARDS[id] ? CARDS[id].rar : 0;
-  return `<div class="good r${rar}${it.sold ? ' sold' : can ? '' : ' poor'}" data-act="buy" data-v="${i}"${it.sold ? ' disabled' : ''}><div class="gtag">${it.sold ? 'SOLD' : it.price + '¢'}</div><div class="gob">${goodSVG(it.sold && it.got ? it.got : it.id)}</div><div class="gname">${it.mystery && !it.sold ? 'Murky Flask' : CARDS[id].name}</div></div>`;
+  const can = coins >= it.price, id = it.sold && it.got ? it.got : it.id, rar = it.mystery && !it.sold ? 2 : CARDS[id] ? CARDS[id].rar : 0, myst = it.mystery && !it.sold;
+  const [kk, kl] = myst ? ['perk', 'MYSTERY'] : cardKind(id), ob = !myst && hasPreview(id) ? `<div class="gscroll">${pvCanvas(id, 44, 22)}</div>` : goodSVG(myst ? 'mystery' : id);
+  return `<div class="good r${rar}${it.sold ? ' sold' : can ? '' : ' poor'}${!myst && hasPreview(id) ? ' wide' : ''}" data-act="buy" data-v="${i}"${it.sold ? ' disabled' : ''}><div class="gtag">${it.sold ? 'SOLD' : it.price + '¢'}</div><div class="gob">${ob}</div><div class="gkind k-${kk}">${kl.replace('PERK · ', '')}</div><div class="gname">${myst ? 'Murky Flask' : CARDS[id].name}</div></div>`;
 }
 function renderShop() {
   if (!SHOP || !SHOP.p) return;
@@ -4857,7 +5097,7 @@ function renderTable() {
     <div class="mrow">
       <div class="mtable"><div class="mtop">${SHOP.items.map((it, i) => goodHTML(it, i, coins)).join('')}</div><div class="mfront"></div><div class="mleg a"></div><div class="mleg b"></div></div>
       <div class="mstand"><div class="sign">ARMOR</div>
-        <div class="good armor${A.sold ? ' sold' : coins >= a.price ? '' : ' poor'}" data-act="buyarmor"${A.sold ? ' disabled' : ''}><div class="gtag">${A.sold ? 'SOLD' : a.price + '¢'}</div><div class="gob"><canvas class="astand" width="21" height="21"></canvas></div><div class="gname">${a.n}</div></div>
+        <div class="good armor${A.sold ? ' sold' : coins >= a.price ? '' : ' poor'}" data-act="buyarmor"${A.sold ? ' disabled' : ''}><div class="gtag">${A.sold ? 'SOLD' : a.price + '¢'}</div><div class="gob"><canvas class="astand" width="21" height="21"></canvas></div><div class="gkind k-arm">${SLOT_NAME[a.slot].toUpperCase()} · ${a.umb ? 'BRIM ' + a.umb : a.front ? 'SHIELD ' + a.ar : a.ar + ' ARMOR'}</div><div class="gname">${a.n}</div></div>
       </div>
     </div>
     ${SHOP.notes.length ? `<div class="hint keep" style="margin:.1em 0 .3em">${SHOP.notes.join(' ')}</div>` : ''}
