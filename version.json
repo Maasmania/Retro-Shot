@@ -1,13 +1,13 @@
 {
-  "version": "1.4.1",
-  "notes": "Spell cards show their projectile, type bands, detailed armor in the shop",
+  "version": "1.4.2",
+  "notes": "Taped-twig wand upgrades, scissors Twin Cast, detailed armor art with in-game preview",
   "minShell": "0.10.0",
   "released": "2026-11-20",
   "files": [
     {
       "path": "index.html",
-      "sha256": "04878cb9a1f2dc354865cf0f38da05b77f9d7e01047c71ae2d7f8286254ec6ea",
-      "bytes": 489007
+      "sha256": "b2aa4456ff45e1d16b7b7a4069e6f0dc48a3ee4ca270fa5ddc65ca8094d0c704",
+      "bytes": 514344
     }
   ]
 }
