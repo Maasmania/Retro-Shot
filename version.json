@@ -1,13 +1,13 @@
 {
-  "version": "1.4.2",
-  "notes": "Taped-twig wand upgrades, scissors Twin Cast, detailed armor art with in-game preview",
+  "version": "1.4.3",
+  "notes": "Pixel-art merchant goods and armor, fairer laser hitbox",
   "minShell": "0.10.0",
   "released": "2026-11-20",
   "files": [
     {
       "path": "index.html",
-      "sha256": "b2aa4456ff45e1d16b7b7a4069e6f0dc48a3ee4ca270fa5ddc65ca8094d0c704",
-      "bytes": 514344
+      "sha256": "7f4f1972e076899d81b4291a1974991deb62c0ec5c432bfa8e9bc6d8f2e93820",
+      "bytes": 505333
     }
   ]
 }
