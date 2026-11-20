@@ -1,13 +1,13 @@
 {
-  "version": "1.4.3",
-  "notes": "Pixel-art merchant goods and armor, fairer laser hitbox",
+  "version": "1.4.4",
+  "notes": "",
   "minShell": "0.10.0",
   "released": "2026-11-20",
   "files": [
     {
       "path": "index.html",
-      "sha256": "7f4f1972e076899d81b4291a1974991deb62c0ec5c432bfa8e9bc6d8f2e93820",
-      "bytes": 505333
+      "sha256": "9708c7fbf27c8609247cc516941f7a6d0b81c9f2eaccb24ff884d35216aa2baa",
+      "bytes": 510131
     }
   ]
 }
