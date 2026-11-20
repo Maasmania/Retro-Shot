@@ -282,7 +282,14 @@ img.px{image-rendering:pixelated;display:block}.good .gob img.pxgood{width:100%;
 .mdetail .dd{font-size:1.15em;line-height:1.05;margin-bottom:.3em}
 .mdetail .l{display:inline-block;background:#2e1c0e;padding:.05em .45em;margin:.12em .25em .12em 0;font-size:1.05em}.mdetail .l.p{color:#9cf09c}.mdetail .l.m{color:#ff9a7a}
 .mdetail .rep{font-size:.86em;line-height:1;color:#8a3a20;margin-top:.25em}
-.mgear{display:flex;gap:.6em;align-items:center;background:#120e0a;border:3px solid #4a3b2c;box-shadow:0 .3em 0 #000;padding:.4em .7em;min-width:19em}
+.mgear{display:flex;gap:.5em;align-items:stretch;background:#120e0a;border:3px solid #4a3b2c;box-shadow:0 .3em 0 #000;padding:.35em .45em}
+.mgp{border:2px solid;padding:.25em .4em;display:flex;flex-direction:column;gap:.15em;width:13em;opacity:.8}.mgp.act{opacity:1;box-shadow:0 0 0 2px #ffd27a}
+.mgh{display:flex;justify-content:space-between;font-family:'Press Start 2P',monospace;font-size:.4em;color:#c9b088}
+.mgr{display:flex;gap:.4em;align-items:center}.mgp .mgl{font-size:.78em}.mgp .mgl b{width:3.2em}
+.mgw{display:flex;flex-wrap:wrap;gap:0 .45em;font-family:'VT323',monospace;font-size:.78em;line-height:1}
+.mlog{font-family:'VT323',monospace;font-size:1.05em;color:#c9b088;margin:.15em 0 .3em;max-width:62em;line-height:1.05}
+.mbtns{margin-top:.5em;min-height:2.6em}
+#shop.botturn .good{pointer-events:none}.good.botpick .gob{transform:translateY(-.5em) scale(1.12);animation:none}.good.botpick{filter:drop-shadow(0 0 8px #ffd27a)}.good.botpick .gname{color:#ffd27a}
 .mgear canvas{width:4.6em;height:auto;align-self:center;image-rendering:pixelated}
 .mgl{display:flex;flex-direction:column;gap:0;text-align:left;font-family:'VT323',monospace;font-size:.82em;line-height:1;color:#c9b088;flex:1}
 .mgl div{display:flex;align-items:center;gap:.4em}.mgl b{font-weight:normal;color:#7a6a58;width:4.6em;white-space:nowrap}.mgl span{flex:1;color:#eadcc0}
@@ -1634,7 +1641,7 @@ function damageRock(k, dmg, x, y, rad) {
     g.hp[i] -= dmg * f; g.dmgd = true;
     if (g.hp[i] <= 0) { g.alive[i] = 0; died++; FX.crumbleCell(g, c, r); }
   }
-  if (died) { if (!M.dirty.includes(g)) M.dirty.push(g); if (CUR_OWNER >= 0) { const tc = M.terrCoin || (M.terrCoin = [0, 0, 0, 0]), add = Math.min(died / 12, 12 - tc[CUR_OWNER]); if (add > 0) { tc[CUR_OWNER] += add; coin(CUR_OWNER, add, 'Terrain smashed'); } } M.shake = Math.max(M.shake, Math.min(5, died * .4)); }
+  if (died) { if (!M.dirty.includes(g)) M.dirty.push(g); if (CUR_OWNER >= 0) { coin(CUR_OWNER, died / 12, 'Terrain smashed'); } M.shake = Math.max(M.shake, Math.min(5, died * .4)); }
 }
 function hurtBlock(k, dmg, soft, x, y, rad) {
   if (k.dead || dmg <= 0) return;
@@ -2158,7 +2165,7 @@ function startRound() {
       bloom: 0, spin: 0, fresh: true, prevShoot: false, trigBuf: 0, tipN: 0, shred: 0, shredT: 0, snipeT: 0, snipeBy: -1 });
     applyWand(p);
   });
-  M.phase = 'count'; M.t = 2.4; M.ts = 1; M.playT = 0; M.ot = 0; M.lavaLv = 0; M.lava = []; M.lavaAcc = 0; M.terrCoin = [0, 0, 0, 0];
+  M.coinCap = {}; M.phase = 'count'; M.t = 2.4; M.ts = 1; M.playT = 0; M.ot = 0; M.lavaLv = 0; M.lava = []; M.lavaAcc = 0; M.terrCoin = [0, 0, 0, 0];
 }
 function inputFor(p) {
   if (p.ctrl.net) return netInputFor(p);
@@ -2674,7 +2681,7 @@ function hitPlayer(q, b) {
     sfx(dmg > 50 ? 70 : 110, .12, 'sawtooth', .05, -50, 'thwack');
   }
   FX.hit(q, b, dmg);
-  if (b.bounced > 0 && !b.frag) coin(b.owner, 3, 'Trick shots', q.x, q.y - 40);
+  if (b.bounced > 0 && !b.frag && !(st && st.bubble)) coin(b.owner, 3, 'Trick shots', q.x, q.y - 40);
   impact(b, q);
 }
 function applyBurn(q, src, dps, t) {
@@ -4092,7 +4099,7 @@ const HELP_PAGES = {
     ${gp('Every map has its own cave: mines, fungal caverns, frozen halls, jungle, desert ruins and old vaults. Turn maps on or off in <b>Maps</b> on the title screen.')}` },
   dungeon: { name: 'Dungeon Run', html: () => `${gp('A 1v1 run through <b>five floors</b>, best of three rounds on each. There are no card picks between rounds: you earn <b>coins</b> for everything you do.')}
     <div class="gcoins">${COIN_RULES.map(([k, v]) => `<div><b>${k}</b><span>${v}</span></div>`).join('')}</div>
-    ${gp('After every floor each wizard visits the <b>merchant</b>. His table holds spell scrolls, upgrade potions, wand gems, perk amulets and a murky mystery flask; hover or move onto an item to read it. Coins you don\'t spend carry over. Whoever wins the most floors wins the run.')}
+    ${gp('After every floor each wizard visits the <b>merchant</b>. His table holds spell scrolls, upgrade potions, wand gems, perk amulets and a murky mystery flask; hover or move onto an item to read it. You and your opponent shop at the same time, taking turns: one purchase per turn, starting with whoever lost the floor (restocking and arranging your wand don\'t use your turn). You can see each other\'s purse, armor, wand and everything bought. Press Done shopping when you\'re finished; the other wizard keeps going until they are too. Coins you don\'t spend carry over. Whoever wins the most floors wins the run.')}
     ${gp('Beside the table hangs one random piece of <b>armor</b>. You have five slots (head, body, legs, feet and off-hand), and a new piece replaces the one in its slot. Armor <b>soaks half of every hit</b> until it is used up, then it breaks. You keep it from round to round, but <b>lose all of it when you fall</b>. The grey bar under your health shows what is left.')}
     <div class="gcoins">${ARMOR_LIST.map(id => `<div><b>${ARMOR[id].n}</b><span>${ARMOR[id].price}¢ · ${armorLines(id).map(l => l[1]).join(', ')}</span></div>`).join('')}</div>
     ${gp('Heavy pieces slow you down, light ones speed you up: mix them into a tank, a sprinter or something in between. <b>Shields</b> stop bolts from the side you face. The <b>Huge Sombrero</b> gives no armor, but its brim catches bolts and lava coming from above until it is shredded.')}` },
@@ -4368,7 +4375,7 @@ const $ = id => document.getElementById(id);
 const PANELS = ['title', 'setup', 'pick', 'end', 'library', 'settings', 'maps', 'online', 'lobby', 'help', 'pause', 'custom', 'controls', 'wpick', 'wand', 'shop'];
 let focusIdx = 0;
 // shown under the title logo; bump with each published update (MAKE-UPDATE uses the same number)
-const GAME_VERSION = '1.4.3';
+const GAME_VERSION = '1.4.4';
 function drawMapPreviews() {
   document.querySelectorAll('#maps canvas[data-m]').forEach(cv => {
     const m = MAPS[+cv.dataset.m], c = cv.getContext('2d'), k = cv.width / W; c.imageSmoothingEnabled = false;
@@ -4999,17 +5006,20 @@ function wandAct(a, v, net) {
 const FLOOR_NAMES = ['The Upper Mines', 'Fungal Hollow', 'Frozen Vault', 'Sunken Library', 'The Furnace'];
 const COIN_RULES = [
   ['Damage', '1 coin per 10 damage dealt'], ['Kills', '12 per kill'], ['Rounds won', '10 per round won'], ['Flawless', '10 for winning a round untouched'],
-  ['Close calls', '8 for winning a round below 20% health'], ['Wards', '1 per ward cast'], ['Warded bolts', '2 per enemy bolt your ward stops'],
-  ['Bolt clashes', '2 when your bolt destroys an enemy bolt'], ['Trick shots', '3 per hit with a bolt that bounced first'], ['Crits', '1 per critical hit'],
-  ['Terrain smashed', 'for chewing up terrain (up to 12 a round)'], ['Ropes cut', '3 per rope cut'], ['Delving', '5 to everyone each round'], ['Underdog', '20 for the wizard who lost the floor']
+  ['Close calls', '8 for winning a round below 20% health'], ['Wards', '1 per ward cast'], ['Warded bolts', '2 per enemy bolt your ward stops (up to 10 a round)'],
+  ['Bolt clashes', '2 when your bolt destroys an enemy bolt (up to 8 a round)'], ['Trick shots', '3 per hit with a bolt that bounced first, bubbles excluded (up to 9 a round)'], ['Crits', '1 per critical hit'],
+  ['Terrain smashed', 'for chewing up terrain (up to 6 a round)'], ['Ropes cut', '3 per rope cut'], ['Delving', '5 to everyone each round'], ['Underdog', '20 for the wizard who lost the floor']
 ];
 const RUN_PRICE = [20, 35, 60, 100];
 let CUR_OWNER = -1;   // whose bolt / blast is touching the world right now (for terrain coins)
 
 function newRun() { return { floor: 1, floors: 5, rw: [0, 0], fw: [0, 0], coins: [0, 0], frac: [0, 0], earned: [{}, {}], total: [{}, {}], spent: [0, 0], log: [] }; }
 function inRun() { return M && M.game === 'dungeon' && M.run; }
+// side income is capped per round, so wands that naturally bounce, clash or blast terrain can't snowball
+const COIN_CAP = { 'Trick shots': 9, 'Bolt clashes': 8, 'Warded bolts': 10, 'Terrain smashed': 6 };
 function coin(pid, n, why, x, y) {
   const R = inRun(); if (!R || pid !== 0 && pid !== 1 || n <= 0) return;
+  if (COIN_CAP[why]) { const cc = M.coinCap || (M.coinCap = {}), k = pid + why, used = cc[k] || 0; n = Math.min(n, COIN_CAP[why] - used); if (n <= 0) return; cc[k] = used + n; }
   R.frac[pid] += n; const whole = Math.floor(R.frac[pid] + 1e-6); if (whole <= 0) return;
   R.frac[pid] -= whole; R.coins[pid] += whole;
   R.earned[pid][why] = (R.earned[pid][why] || 0) + whole; R.total[pid][why] = (R.total[pid][why] || 0) + whole;
@@ -5074,10 +5084,61 @@ const inBrim = (q, x, y) => Math.abs(x - q.x) < 26 && y < q.y - 11 && y > q.y - 
 
 /* ---------- the merchant ---------- */
 let SHOP = null;
+// The merchant is turn based: both wizards shop at the same time, one purchase per turn (loser first),
+// and each sees the other's purse, gear, wand and purchases. Restocking and arranging don't use the turn.
 function openMerchant(loser) {
-  SHOP = { order: [loser, 1 - loser], idx: 0, notes: [] };
+  SHOP = { order: [loser, 1 - loser], turn: 0, st: {}, log: [], notes: [], tk: 0 };
+  for (const pid of SHOP.order) { const p = M.players[pid], pool = ARMOR_LIST.filter(id => !(p.gear && p.gear[ARMOR[id].slot] && p.gear[ARMOR[id].slot].id === id));
+    SHOP.st[pid] = { items: shopStock(p), armor: { id: pick(pool), sold: false }, reroll: 10, done: false }; }
   sfx(220, .5, 'triangle', .04, -60); setTimeout(() => sfx(330, .5, 'triangle', .035, -80), 180);
-  nextShopper();
+  app = 'shop'; wrap.classList.remove('play'); setTurn(0);
+}
+function setTurn(t) {
+  SHOP.turn = t; const pid = SHOP.order[t], st = SHOP.st[pid];
+  SHOP.p = M.players[pid]; SHOP.items = st.items; SHOP.armor = st.armor; SHOP.reroll = st.reroll; SHOP.tk++;
+  show('shop'); if (SHOP.p.ctrl.bot) botTurn();
+}
+function saveTurn() { const st = SHOP.st[SHOP.p.id]; st.items = SHOP.items; st.armor = SHOP.armor; st.reroll = SHOP.reroll; }
+function endTurn(done) {
+  if (!SHOP) return; saveTurn(); const me = SHOP.st[SHOP.p.id]; if (done) me.done = true;
+  const other = 1 - SHOP.turn, o = SHOP.st[SHOP.order[other]];
+  if (!o.done) { sfx(440, .08, 'triangle', .025, 120); return setTurn(other); }
+  if (!me.done) return setTurn(SHOP.turn);
+  SHOP = null; M.run.floor++; app = 'match'; show(null); wrap.classList.add('play'); startRound();
+}
+const shopLog = (p, txt) => SHOP.log.push({ pid: p.id, txt });
+const shopLocked = () => !SHOP || !SHOP.p || SHOP.p.ctrl.bot;
+function botPickItem(p) {
+  const R = M.run, full = !p.wand.spells.includes(null); let best = -1, bs = .5;
+  SHOP.items.forEach((it, i) => {
+    if (it.sold || it.price > R.coins[p.id]) return;
+    const c = it.mystery ? null : CARDS[it.id];
+    let sc = it.mystery ? 2.6 : c.rar * 1.4 + 1 + Math.random() * 1.5;
+    if (c && c.spell) sc += full ? -1.6 : 1.4;
+    if (c && c.upgrade) sc += full ? 2 : .5; if (it.id === 'w_ext') sc += full ? 3 : 1;
+    if (sc > bs) { bs = sc; best = i; }
+  });
+  return best;
+}
+// the bot takes its turn where you can see it: it looks over its table, highlights what it wants, then buys it
+function botTurn() {
+  const p = SHOP.p, R = M.run, st = SHOP.st[p.id], tk = SHOP.tk, A = SHOP.armor;
+  if (st.armorRoll === undefined) st.armorRoll = Math.random() < .65;
+  const act = A && !A.sold && st.armorRoll && R.coins[p.id] >= ARMOR[A.id].price ? { armor: 1 } : (i => i >= 0 ? { i } : null)(botPickItem(p));
+  const instant = M.players.every(q => q.ctrl.bot); // nobody watching (bot-only runs): no pauses
+  const later = (ms, fn) => instant ? fn() : setTimeout(fn, ms);
+  later(900, () => {
+    if (!SHOP || SHOP.tk !== tk || app !== 'shop') return;
+    const el = !instant && act && document.querySelector(act.armor ? '#shop .good.armor' : `#shop .good[data-v="${act.i}"]`);
+    if (el) { el.classList.add('botpick'); shopDetail(el); }
+    later(800, () => {
+      if (!SHOP || SHOP.tk !== tk || app !== 'shop') return;
+      if (!act) { shopLog(p, 'done shopping'); return endTurn(true); }
+      if (act.armor) { const a = ARMOR[A.id]; R.coins[p.id] -= a.price; R.spent[p.id] += a.price; A.sold = true; giveGear(p, A.id); shopLog(p, a.n + ' (' + a.price + '¢)'); sfx(520, .08, 'square', .03, -200); }
+      else { const it = SHOP.items[act.i]; R.coins[p.id] -= it.price; R.spent[p.id] += it.price; it.sold = true; const id = it.mystery ? mysteryCard(p) : it.id; it.got = id; grantCard(p, id); shopLog(p, (it.mystery ? 'Murky Flask → ' : '') + CARDS[id].name + ' (' + it.price + '¢)'); sfx(990, .08, 'square', .03, 400); }
+      endTurn();
+    });
+  });
 }
 function shopRar(floor) { const r = Math.random(), up = (floor - 1) * .05; return r < .5 - up ? 0 : r < .82 - up * .6 ? 1 : r < .96 - up * .3 ? 2 : 3; }
 function shopPick(pool, p, out) {
@@ -5094,15 +5155,6 @@ function shopStock(p) {
   items.push({ id: 'mystery', price: 45, sold: false, mystery: true });
   return items;
 }
-function nextShopper() {
-  if (!M) return;
-  if (SHOP.idx >= 2) { SHOP = null; M.run.floor++; app = 'match'; show(null); wrap.classList.add('play'); startRound(); return; }
-  const p = M.players[SHOP.order[SHOP.idx]];
-  SHOP.p = p; SHOP.items = shopStock(p); SHOP.reroll = 10; SHOP.bought = [];
-  { const pool = ARMOR_LIST.filter(id => !(p.gear && p.gear[ARMOR[id].slot] && p.gear[ARMOR[id].slot].id === id)); SHOP.armor = { id: pick(pool), sold: false }; }
-  if (p.ctrl.bot) { botShop(p); SHOP.notes.push(`${p.nick} bought ${SHOP.bought.length ? SHOP.bought.join(', ') : 'nothing'}.`); SHOP.idx++; return nextShopper(); }
-  app = 'shop'; wrap.classList.remove('play'); show('shop');
-}
 function mysteryCard(p) {
   // a Rare-or-better spell, wand upgrade or perk, sight unseen
   const EP = p.wand && p.wand.el ? EL_CARDS[p.wand.el] : SPELL_LIST, pools = [EP, EP, EP, PERK_LIST], pool = pick(pools);
@@ -5110,50 +5162,35 @@ function mysteryCard(p) {
   return pick(pool);
 }
 function shopBuy(i) {
+  if (shopLocked()) return;
   const it = SHOP.items[i], p = SHOP.p, R = M.run; if (!it || it.sold) return;
   if (R.coins[p.id] < it.price) { sfx(140, .15, 'square', .04, -40); return refreshShop(); }
   R.coins[p.id] -= it.price; R.spent[p.id] += it.price; it.sold = true;
   const id = it.mystery ? mysteryCard(p) : it.id; it.got = id;
   sfx(990, .08, 'square', .035, 400); setTimeout(() => sfx(1480, .12, 'square', .03, 300), 70);
+  shopLog(p, (it.mystery ? 'Murky Flask → ' : '') + CARDS[id].name + ' (' + it.price + '¢)');
   const res = grantCard(p, id);
-  if (res === 'edit') return openWandEditor(p, id, () => { app = 'shop'; show('shop'); });
-  refreshShop();
+  if (res === 'edit') return openWandEditor(p, id, () => { app = 'shop'; endTurn(); });
+  endTurn();
 }
 function shopReroll() {
+  if (shopLocked()) return;
   const p = SHOP.p, R = M.run;
   if (R.coins[p.id] < SHOP.reroll) { sfx(140, .15, 'square', .04, -40); return refreshShop(); }
   R.coins[p.id] -= SHOP.reroll; R.spent[p.id] += SHOP.reroll; SHOP.reroll += 5;
-  SHOP.items = shopStock(p); sfx(600, .1, 'triangle', .03, -200);
+  SHOP.items = shopStock(p); saveTurn(); sfx(600, .1, 'triangle', .03, -200);
   refreshShop();
 }
 function shopBuyArmor() {
+  if (shopLocked()) return;
   const A = SHOP && SHOP.armor, p = SHOP.p, R = M.run; if (!A || A.sold) return;
   const a = ARMOR[A.id]; if (R.coins[p.id] < a.price) { sfx(140, .15, 'square', .04, -40); return refreshShop(); }
   R.coins[p.id] -= a.price; R.spent[p.id] += a.price; A.sold = true; giveGear(p, A.id);
   sfx(520, .08, 'square', .035, -200); setTimeout(() => sfx(1250, .1, 'square', .03, -600), 60);
-  refreshShop();
+  shopLog(p, a.n + ' (' + a.price + '¢)'); endTurn();
 }
-function shopLeave() { if (!SHOP) return; SHOP.idx++; sfx(330, .2, 'triangle', .03, -120); nextShopper(); }
+function shopLeave() { if (shopLocked()) return; shopLog(SHOP.p, 'done shopping'); sfx(330, .2, 'triangle', .03, -120); endTurn(true); }
 function refreshShop() { const f = focusIdx; renderShop(); magicDom($('shop')); focusIdx = Math.min(f, navItems().length - 1); markFocus(); }
-function botShop(p) {
-  const R = M.run;
-  const A = SHOP.armor; if (A && !A.sold && R.coins[p.id] >= ARMOR[A.id].price && Math.random() < .65) { R.coins[p.id] -= ARMOR[A.id].price; R.spent[p.id] += ARMOR[A.id].price; A.sold = true; giveGear(p, A.id); SHOP.bought.push(ARMOR[A.id].n); }
-  for (let n = 0; n < 8; n++) {
-    const full = !p.wand.spells.includes(null);
-    let best = -1, bs = .5;
-    SHOP.items.forEach((it, i) => {
-      if (it.sold || it.price > R.coins[p.id]) return;
-      const c = it.mystery ? null : CARDS[it.id];
-      let sc = it.mystery ? 2.6 : c.rar * 1.4 + 1 + Math.random() * 1.5;
-      if (c && c.spell) sc += full ? -1.6 : 1.4;
-      if (c && c.upgrade) sc += full ? 2 : .5; if (it.id === 'w_ext') sc += full ? 3 : 1;
-      if (sc > bs) { bs = sc; best = i; }
-    });
-    if (best < 0) break;
-    const it = SHOP.items[best]; R.coins[p.id] -= it.price; R.spent[p.id] += it.price; it.sold = true;
-    const id = it.mystery ? mysteryCard(p) : it.id; grantCard(p, id); SHOP.bought.push(CARDS[id].name);
-  }
-}
 
 /* merchant portrait: hand-placed pixels, drawn once */
 const MERCHANT_ART = [
@@ -5285,11 +5322,17 @@ function renderShop() {
 function renderTable() {
   const p = SHOP.p, R = M.run, coins = R.coins[p.id], E = R.earned[p.id], A = SHOP.armor, a = ARMOR[A.id];
   const earned = Object.keys(E).filter(k => E[k] > 0).sort((x, y) => E[y] - E[x]).map(k => `<span class="mini" style="color:#ffd23d;border-color:#6b5420">${k} +${E[k]}</span>`).join('') || '<span class="hint keep">nothing this floor</span>';
-  const gl = ['head', 'body', 'legs', 'feet', 'hand'].map(sl => { const g = p.gear && p.gear[sl]; return `<div><b>${SLOT_NAME[sl]}</b><span>${g ? ARMOR[g.id].n : '-'}</span>${g ? `<i><u style="width:${Math.round(100 * clamp(g.dur / gearMax(g.id), 0, 1))}%"></u></i>` : ''}</div>`; }).join('');
-  const sp = clamp(gearMul(p, 'spd'), .55, 1.45), jp = clamp(gearMul(p, 'jmp'), .8, 1.3);
+  const bot = !!p.ctrl.bot, opid = SHOP.order[1 - SHOP.turn], opp = M.players[opid], oDone = SHOP.st[opid].done;
+  // one compact block per wizard: purse, look with armor, armor list, speed/jump, wand
+  const block = (q, act) => { const st = SHOP.st[q.id], sp = clamp(gearMul(q, 'spd'), .55, 1.45), jp = clamp(gearMul(q, 'jmp'), .8, 1.3);
+    const gl = ['head', 'body', 'legs', 'feet', 'hand'].filter(sl => q.gear && q.gear[sl]).map(sl => { const g = q.gear[sl]; return `<div><span>${ARMOR[g.id].n}</span><i><u style="width:${Math.round(100 * clamp(g.dur / gearMax(g.id), 0, 1))}%"></u></i></div>`; }).join('') || '<div><span style="color:#7a6a58">no armor</span></div>';
+    return `<div class="mgp${act ? ' act' : ''}" style="border-color:${q.color}"><div class="mgh"><span style="color:${q.color}">${q.nick}</span><span>${act ? (q.ctrl.bot ? 'SHOPPING…' : 'YOUR TURN') : st.done ? 'DONE' : 'WAITING'}</span></div>
+      <div class="mgr"><canvas class="gwiz" data-pid="${q.id}" width="26" height="24"></canvas><div class="mgl"><div><b>Purse</b><span style="color:#ffd23d">${R.coins[q.id]}¢</span></div>${gl}<div><b>Speed</b><span class="${sp > 1 ? 'sp' : sp < 1 ? 'sl' : ''}">${pct(sp)}</span></div><div><b>Jump</b><span class="${jp > 1 ? 'sp' : jp < 1 ? 'sl' : ''}">${pct(jp)}</span></div></div></div>
+      <div class="mgw">${q.wand.spells.map(id => id ? `<span style="color:${TYPE_COL[SPELLS[id].kind]}">${SPELLS[id].name}</span>` : '<span style="opacity:.35">empty</span>').join('')}</div></div>`; };
+  const log = SHOP.log.length ? SHOP.log.map(e => `<span style="color:${M.players[e.pid].color}">${M.players[e.pid].nick}:</span> ${e.txt}`).join(' · ') : 'Take turns: one purchase each, starting with the wizard who lost the floor.';
   $('shop').innerHTML = `<div class="mshop">
     <div class="mhead">
-      <div class="purse" style="border-color:${p.color}"><div style="color:${p.color}">${p.nick === 'You' ? 'Your' : p.nick + "'s"} purse</div><b>${coins}¢</b><div class="hint keep" style="margin:0">Floor ${R.floor} of ${R.floors} cleared${R.lastWin === p.id ? ' (you won it)' : ''}</div></div>
+      <div class="purse" style="border-color:${p.color}"><div style="color:${p.color}">${bot ? p.nick + ' is shopping…' : (p.nick === 'You' ? 'Your' : p.nick + "'s") + ' turn'}</div><b>${coins}¢</b><div class="hint keep" style="margin:0">Floor ${R.floor} of ${R.floors} cleared${R.lastWin === p.id ? ' (you won it)' : ''}</div></div>
       <img class="merchant" src="${merchantImg()}" alt="">
       <div class="mearn">${earned}</div>
     </div>
@@ -5299,15 +5342,15 @@ function renderTable() {
         <div class="good armor${A.sold ? ' sold' : coins >= a.price ? '' : ' poor'}" data-act="buyarmor"${A.sold ? ' disabled' : ''}><div class="gtag">${A.sold ? 'SOLD' : a.price + '¢'}</div><div class="ingame"><canvas class="arprev" width="34" height="26" data-armor="${A.id}"></canvas><span>IN GAME</span></div><div class="gob">${armorArt(A.id)}</div><div class="stable"></div><div class="gkind k-arm">${SLOT_NAME[a.slot].toUpperCase()} · ${a.umb ? 'BRIM ' + a.umb : a.front ? 'SHIELD ' + a.ar : a.ar + ' ARMOR'}</div><div class="gname">${a.n}</div></div>
       </div>
     </div>
-    ${SHOP.notes.length ? `<div class="hint keep" style="margin:.1em 0 .3em">${SHOP.notes.join(' ')}</div>` : ''}
+    <div class="mlog">${log}</div>
     <div class="mlow">
       <div class="mdetail" id="mdetail"></div>
-      <div class="mgear"><canvas class="gwiz" width="26" height="24"></canvas><div class="mgl">${gl}<div><b>Speed</b><span class="${sp > 1 ? 'sp' : sp < 1 ? 'sl' : ''}">${pct(sp)}</span><b>Jump</b><span class="${jp > 1 ? 'sp' : jp < 1 ? 'sl' : ''}">${pct(jp)}</span></div></div></div>
+      <div class="mgear">${block(p, true)}${block(opp, false)}</div>
     </div>
-    <div class="minis" style="justify-content:center;margin:.5em 0 .3em">${p.wand.spells.map(id => id ? `<span class="mini" style="border-color:${TYPE_COL[SPELLS[id].kind]};color:${TYPE_COL[SPELLS[id].kind]}">${SPELLS[id].name}</span>` : '<span class="mini" style="opacity:.4">empty</span>').join('')}</div>
-    <div><button class="btn small" data-act="reroll">New stock (${SHOP.reroll}¢)</button><button class="btn small" data-act="shopwand">Arrange wand</button><button class="btn" data-act="leave">${R.floor + 1 <= R.floors ? 'Descend to floor ' + (R.floor + 1) : 'Leave'}</button></div>
+    <div class="mbtns">${bot ? `<div class="hint keep" style="color:${p.color}">${p.nick} is looking over the table…</div>` : `<button class="btn small" data-act="reroll">New stock (${SHOP.reroll}¢)</button><button class="btn small" data-act="shopwand">Arrange wand</button>${oDone ? '' : '<button class="btn small" data-act="endturn">End turn</button>'}<button class="btn" data-act="leave">${oDone ? (R.floor + 1 <= R.floors ? 'Descend to floor ' + (R.floor + 1) : 'Leave') : 'Done shopping'}</button>`}</div>
   </div>`;
-  gearWizard($('shop').querySelector('.gwiz'), p);
+  $('shop').classList.toggle('botturn', bot);
+  $('shop').querySelectorAll('.gwiz').forEach(cv => gearWizard(cv, M.players[+cv.dataset.pid]));
   const first = $('shop').querySelector('.good:not(.sold)') || $('shop').querySelector('.good'); shopDetail(first);
 }
 function runSummaryHTML() {
@@ -5333,7 +5376,8 @@ function act(a, v, el) {
     case 'buyarmor': return shopBuyArmor();
     case 'reroll': return shopReroll();
     case 'leave': return shopLeave();
-    case 'shopwand': return SHOP && openWandEditor(SHOP.p, null, () => { app = 'shop'; show('shop'); });
+    case 'endturn': return shopLocked() ? null : endTurn();
+    case 'shopwand': return SHOP && !shopLocked() && openWandEditor(SHOP.p, null, () => { app = 'shop'; show('shop'); });
     case 'game': { SET.game = v; saveSet(); const on = document.querySelector('.panel.on').id, f = focusIdx; show(on); focusIdx = f; markFocus(); return; }
     case 'weapon': if (WP && !M.players[WP.turn].ctrl.bot) chooseWeapon(+v); return;
     case 'go': app = v === 'title' ? 'title' : 'menu'; M = v === 'title' ? null : M; wrap.classList.remove('play'); return show(v);
