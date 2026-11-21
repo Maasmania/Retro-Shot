@@ -316,6 +316,23 @@ img.px{image-rendering:pixelated;display:block}.good .gob img.pxgood{width:100%;
 .wslot.empty{border-style:dashed;color:#6a5a4a}
 .wslot.k-proj{border-color:#ff9a2e}.wslot.k-proj b{color:#ff9a2e}.wslot.k-mod{border-color:#5cb8ff}.wslot.k-mod b{color:#5cb8ff}.wslot.k-multi{border-color:#b46cff}.wslot.k-multi b{color:#b46cff}.wslot.k-trigger{border-color:#ff5ca8}.wslot.k-trigger b{color:#ff5ca8}
 .wslot:hover,.wslot.focus{transform:translateY(-4px);box-shadow:0 .3em 0 #000,0 0 0 3px #ffd27a}
+
+/* Delve: path vote, campfire */
+#rpath,#rcamp{background:rgba(6,4,3,.88)}
+.ract{font-family:'Press Start 2P',monospace;font-size:.5em;color:#c9a874;letter-spacing:.14em}
+#rmap{width:952px;height:289px;max-width:94%;display:block;margin:.2em auto 0;background:#0c0907;border:3px solid #3a2e22;box-shadow:0 .35em 0 #000}
+.rchoices{display:flex;gap:.7em;justify-content:center;flex-wrap:wrap;margin:.1em 0 .5em}
+.btn.rch{min-width:0;width:24em;display:grid;grid-template-columns:auto 1fr;grid-template-rows:auto auto auto;column-gap:.8em;row-gap:.35em;text-align:left;padding:.9em 1em;align-items:center}
+.btn.rch .ric{grid-row:1/3;width:52px;height:44px}
+.btn.rch .rn{font-size:1em}
+.btn.rch .rd{grid-column:1/3;font-family:'VT323',monospace!important;font-size:1.75em;letter-spacing:0;line-height:1;color:#b8a688;text-transform:none}
+.btn.rch .rv{grid-column:1/3;display:flex;gap:.4em;min-height:1.2em}.btn.rch .rv i{width:1.2em;height:1.6em;display:block;border:2px solid #000}
+.btn.rch.hl{border-color:#fff;background:#3a2a10;color:#fff;transform:translateY(-4px)}
+.rheroes{display:flex;gap:1em;justify-content:center;margin:.3em 0}
+.rhero{display:flex;gap:.9em;align-items:center;border:3px solid;padding:.25em .8em;background:#120e0a;font-size:1.15em;color:#d8c8a8}
+.rhero b{font-family:'Press Start 2P',monospace;font-size:.5em}.rhero.dead{opacity:.5}
+#rfire{width:192px;height:128px;display:block;margin:.3em auto 0}
+.rspec{width:40px;height:40px}
 </style>
 </head>
 <body>
@@ -331,6 +348,8 @@ img.px{image-rendering:pixelated;display:block}.good .gob img.pxgood{width:100%;
   <div class="panel" id="online"></div>
   <div class="panel" id="lobby"></div>
   <div class="panel" id="custom"></div>
+  <div class="panel" id="rpath"></div>
+  <div class="panel" id="rcamp"></div>
   <div class="panel" id="help"></div>
   <div class="panel" id="pause"></div>
   <div class="panel" id="controls"></div>
@@ -348,19 +367,20 @@ img.px{image-rendering:pixelated;display:block}.good .gob img.pxgood{width:100%;
    The sim only reads per-player input objects so it can later be driven
    by a network server.
    ===================================================================== */
-const W = 1280, H = 720, TAU = Math.PI * 2, DT = 1 / 60;
+// SW x SH is the screen (and every classic arena); W x H is the current world, which roguelike levels make bigger
+const SW = 1280, SH = 720; let W = SW, H = SH; const TAU = Math.PI * 2, DT = 1 / 60;
 const cv = document.getElementById('cv'), ctx = cv.getContext('2d'), wrap = document.getElementById('wrap');
 const rnd = (a, b) => a + Math.random() * (b - a), clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const pick = a => a[Math.floor(Math.random() * a.length)];
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 let scale = 1;
 function fit() {
-  const s = Math.min(innerWidth / W, innerHeight / H);
-  const w = Math.floor(W * s), h = Math.floor(H * s); scale = s;
+  const s = Math.min(innerWidth / SW, innerHeight / SH);
+  const w = Math.floor(SW * s), h = Math.floor(SH * s); scale = s;
   wrap.style.width = w + 'px'; wrap.style.height = h + 'px'; wrap.style.fontSize = (16 * Math.max(.55, s)) + 'px';
   const dpr = Math.min(2, devicePixelRatio || 1);
   cv.width = Math.floor(w * dpr); cv.height = Math.floor(h * dpr);
-  ctx.setTransform(cv.width / W, 0, 0, cv.height / H, 0, 0);
+  ctx.setTransform(cv.width / SW, 0, 0, cv.height / SH, 0, 0);
 }
 addEventListener('resize', fit); fit();
 
@@ -396,7 +416,7 @@ function fixBindings() {
   if (typeof SET.dz !== 'number') SET.dz = .22;
   if (SET.aimLeft === undefined) SET.aimLeft = true;
   if (SET.rumble === undefined) SET.rumble = true;
-  if (SET.game !== 'arsenal' && SET.game !== 'dungeon') SET.game = 'classic';
+  if (SET.game !== 'arsenal' && SET.game !== 'dungeon' && SET.game !== 'rogue') SET.game = 'classic';
 }
 fixBindings();
 const KEY_NAMES = { Mouse0: 'Left click', Mouse1: 'Middle click', Mouse2: 'Right click', Mouse3: 'Mouse 4', Mouse4: 'Mouse 5', Space: 'Space', ArrowLeft: '←', ArrowRight: '→', ArrowUp: '↑', ArrowDown: '↓', ShiftLeft: 'L-Shift', ShiftRight: 'R-Shift', ControlLeft: 'L-Ctrl', ControlRight: 'R-Ctrl', AltLeft: 'L-Alt', AltRight: 'R-Alt', Escape: 'Esc', Enter: 'Enter', Tab: 'Tab', Backquote: '`', CapsLock: 'Caps', Minus: '-', Equal: '=', BracketLeft: '[', BracketRight: ']', Semicolon: ';', Quote: "'", Comma: ',', Period: '.', Slash: '/', Backslash: '\\' };
@@ -1505,7 +1525,7 @@ function initWorld() {
   // each rect is backed by a grid of small cells, and the solid rects are rebuilt from the surviving cells whenever one is destroyed.
   M.dirty = [];
   M.statics = [];
-  for (const r of m.rects) { const o = Object.assign({}, r); if (r.y + r.h < H - 2) makeRockGrid(o); else M.statics.push(o); }
+  for (const r of m.rects) { const o = Object.assign({}, r); if (r.y + r.h < H - 2 && !r.fixed) makeRockGrid(o); else M.statics.push(o); }
   M.movers = (m.mv || []).map(([x, y, w, h, ax, ay, per, ph]) => ({ x, y, w, h, bx: x, by: y, ax, ay, per, ph, mover: true }));
   M.boxes = (m.box || []).map(([x, y, s]) => ({ x, y, w: s, h: s, vx: 0, vy: 0, box: true, rot: 0, hp: 55, max: 55 }));
   M.pads = (m.pad || m.pads || []).map(([x, y, w]) => ({ x, y, w }));
@@ -1659,7 +1679,7 @@ function breakBlock(k) {
 }
 
 /* ============================ INPUT ============================ */
-const keys = {}, mouse = { x: W / 2, y: H / 2, l: false, r: false, b: [false, false, false, false, false] };
+const keys = {}, mouse = { sx: SW / 2, sy: SH / 2, x: SW / 2, y: SH / 2, l: false, r: false, b: [false, false, false, false, false] };
 // rebinding capture: REB = { kind: 'key' | 'pad', act, slot, t }
 let REB = null, swallowClick = false;
 function assignKey(code) {
@@ -1686,7 +1706,7 @@ addEventListener('keydown', e => {
 }, true);
 addEventListener('keyup', e => { keys[e.code] = false; });
 addEventListener('blur', () => { for (const k in keys) keys[k] = false; mouse.l = mouse.r = false; mouse.b.fill(false); });
-cv.addEventListener('mousemove', e => { const r = cv.getBoundingClientRect(); mouse.x = (e.clientX - r.left) / r.width * W; mouse.y = (e.clientY - r.top) / r.height * H; });
+cv.addEventListener('mousemove', e => { const r = cv.getBoundingClientRect(); mouse.sx = (e.clientX - r.left) / r.width * SW; mouse.sy = (e.clientY - r.top) / r.height * SH; mouseWorld(); });
 document.addEventListener('mousedown', e => {
   if (DEMO.on) { e.preventDefault(); e.stopPropagation(); swallowClick = true; return exitDemo(); }
   if (REB && REB.kind === 'key' && REB.act !== 'pause' && performance.now() - REB.t > 150) { e.preventDefault(); e.stopPropagation(); if (e.button === 0) swallowClick = true; assignKey('Mouse' + e.button); return; }
@@ -2031,6 +2051,8 @@ function lineupCtrls(L) {
 }
 function lineupProblem(L, game) {
   const on = L.filter(s => s.who !== 'off');
+  if (game === 'rogue') { if (on.length > 2) return 'Delve is for 1 or 2 wizards: switch the others off.'; if (L.filter(s => s.who === 'you').length > 1) return 'Only one wizard can use the keyboard and mouse.';
+    const need = L.filter(s => s.who === 'pad').length, have = pads().length; if (need > have) return 'Connect ' + need + ' controller' + (need > 1 ? 's' : '') + ' (' + have + ' found).'; return ''; }
   if (on.length < 2) return 'Switch on at least 2 wizards.';
   if (new Set(on.map(s => s.col)).size < 2) return 'Everyone is on the same team: give someone a different colour.';
   if (L.filter(s => s.who === 'you').length > 1) return 'Only one wizard can use the keyboard and mouse.';
@@ -2056,7 +2078,9 @@ function startMatch(mode) {
   M.game = SET.game; M.rerolls = M.players.map(() => 2); // classic and arsenal: two re-rolls per wizard per match
   if (mode === 'demo') { const nm = WIZARD_NAMES.slice().sort(() => Math.random() - .5); M.players.forEach((q, i) => { q.nick = nm[i]; q.look.name = nm[i]; }); M.game = Math.random() < .5 ? 'arsenal' : 'classic'; }
   if (M.game === 'dungeon') { M.run = newRun(); M.points = [0, 0]; M.rw = [0, 0]; }
-  if (M.game === 'arsenal' || M.game === 'dungeon') return beginWeaponPick();
+  if (M.game === 'rogue') { M.run = newRun(); M.points = [0, 0]; M.rw = [0, 0]; M.rogue = rgNewRun(); M.rogue.first = true; M.heroes = M.players.slice();
+    M.players.forEach(p => { p.team = 'heroes'; p.inv = {}; p.bonusHp = 0; }); rgGenAct(); }
+  if (M.game === 'arsenal' || M.game === 'dungeon' || M.game === 'rogue') return beginWeaponPick();
   startRound();
   app = 'match'; show(null); wrap.classList.add('play');
 }
@@ -2106,7 +2130,7 @@ function chooseWeapon(i, net) {
   setTimeout(() => {
     if (!WP || !M) return;
     if (WP.turn < M.players.length - 1) { WP.turn++; weaponTurn(); }
-    else { WP = null; startRound(); app = 'match'; show(null); wrap.classList.add('play'); }
+    else { WP = null; if (M.rogue) return rgShowPath(); startRound(); app = 'match'; show(null); wrap.classList.add('play'); }
   }, 600);
 }
 function wpTick(dt) {
@@ -2172,7 +2196,7 @@ function inputFor(p) {
   return rawInput(p);
 }
 function rawInput(p) {
-  if (p.ctrl.bot) return readBot(p);
+  if (p.ctrl.bot) return M && M.rogue ? rogueBot(p) : readBot(p);
   let a = p.ctrl.kbm ? readKBM(p) : null;
   const b = p.ctrl.pad !== undefined && p.ctrl.pad !== null ? readPad(p, p.ctrl.pad) : null;
   if (a && b) { const padActive = Math.abs(b.mx) > 0 || b.shoot || b.block || b.jump || p.lastPad; const res = mergeIn(a, b); if (Math.hypot(...[0, 0]) === 0 && (b.shoot || Math.abs(b.mx) > 0)) p.lastPad = true; if (mouse.l || mouse.r || Math.abs(a.mx) > 0) p.lastPad = false; if (p.lastPad) { res.aim = b.aim; res.aimPt = b.aimPt; } return res; }
@@ -2215,7 +2239,7 @@ function updatePlayer(p, inp, dt) {
   if (p.dead) { p.deathT += dt; return; }
   p.aim = inp.aim; p.aimPt = inp.aimPt;
   if (p.recoil > 0) p.recoil = Math.max(0, p.recoil - dt * 7);
-  ['atkT', 'blockCd', 'blockT', 'slowT', 'stunT', 'silenceT', 'tempT', 'bloodT', 'edgeT', 'chargeT', 'sawT', 'flash', 'abyssT', 'snipeT', 'shredT', 'trigBuf', 'crushT'].forEach(k => { if (p[k] > 0) p[k] -= dt; });
+  ['atkT', 'blockCd', 'blockT', 'slowT', 'stunT', 'silenceT', 'tempT', 'bloodT', 'edgeT', 'chargeT', 'sawT', 'flash', 'abyssT', 'snipeT', 'shredT', 'trigBuf', 'crushT', 'invT'].forEach(k => { if (p[k] > 0) p[k] -= dt; });
   if (p.ghostT > 0) { p.ghostT -= dt; if (p.ghostT <= 0 && p.ghost && overlap(p, p.ghost)) p.ghostT = .1; } // stay ghosted until clear of it
   if (p.shredT <= 0) p.shred = 0;
   if (isBurning(p) && Math.random() < .45) M.parts.push({ x: p.x + rnd(-p.r, p.r) * .8, y: p.y + rnd(-p.r, p.r * .5), vx: rnd(-25, 25), vy: rnd(-260, -140), t: rnd(.25, .45), m: .45, col: Math.random() < .5 ? '#ff7a2a' : '#ffd23d', s: rnd(2, 4.5) });
@@ -2301,7 +2325,8 @@ function edgeCheck(p) {
   let hit = false; const lv = M.lavaLv || 0; // overtime: the lava pool rises from the bottom
   if (p.y > H - p.r + 2 - lv) { p.y = H - p.r + 2 - lv; p.vy = -1120; p.vx *= .5; hit = true; }
   if (p.y < -60) { p.y = -60; p.vy = 400; hit = true; }
-  if (p.x < p.r - 4) { p.x = p.r - 4; p.vx = 650; p.vy = Math.min(p.vy, -300); hit = true; }
+  if (M.rogue) { p.x = clamp(p.x, p.r, W - p.r); }
+  else if (p.x < p.r - 4) { p.x = p.r - 4; p.vx = 650; p.vy = Math.min(p.vy, -300); hit = true; }
   if (p.x > W - p.r + 4) { p.x = W - p.r + 4; p.vx = -650; p.vy = Math.min(p.vy, -300); hit = true; }
   if (hit) for (const r of M.solids) if (overlap(p, r)) pushOut(p, r); // never leave the clamp inside a platform
   if (hit && p.edgeT <= 0) {
@@ -2439,7 +2464,7 @@ function knock(q, x, y, force) { if (q.dead) return; const dx = q.x - x, dy = q.
 
 /* ---------- damage ---------- */
 function damage(q, amt, src, o = {}) {
-  if (q.dead || amt <= 0) return;
+  if (q.dead || amt <= 0 || q.invT > 0) return;
   if (src && allyOf(q, src)) return; // no friendly fire
   if (src && src !== q) q.lastBy = src.id;
   const f = q.st.f;
@@ -2460,7 +2485,7 @@ function damage(q, amt, src, o = {}) {
   if (SET.nums && !o.quiet && amt >= 1) M.nums.push({ x: q.x + rnd(-10, 10), y: q.y - 30, v: Math.round(amt - soaked) + (o.crit ? '!' : ''), t: .8, col: o.crit ? '#ffd23d' : soaked ? '#c8ccd8' : src ? src.color : '#ffffff' });
   if (src && src !== q && !o.dot && !o.thorn && q.gear && q.gear.body && ARMOR[q.gear.body.id].thorns) damage(src, ARMOR[q.gear.body.id].thorns, q, { thorn: true });
   if (src && src !== q && !o.self) {
-    coin(src.id, amt / 10, 'Damage'); if (o.crit) coin(src.id, 1, 'Crits');
+    coin(src.id, amt / (M.rogue ? 30 : 10), 'Damage'); if (o.crit) coin(src.id, 1, 'Crits');
     const sf = src.st.f;
     if (o.steal) heal(src, amt * o.steal);
     if (sf.recycler && !o.dot) { src.ammo = src.st.ammo; src.reloadT = 0; if (src.slots) for (const sl of src.slots) sl.t *= .5; }
@@ -2472,10 +2497,12 @@ function damage(q, amt, src, o = {}) {
   if (q.hp <= 0) die(q);
 }
 function die(q) {
+  if (q.mob) return rgMobDie(q);
   if (q.st.f.rebirth && !q.rebirthUsed) { q.rebirthUsed = true; q.hp = q.st.maxHp; q.dots = []; puffs(q.x, q.y, '#ffd23d', 30, 260); ringFx(q.x, q.y, '#ffd23d'); sfx(400, .6, 'triangle', .05, 600); return; }
   q.dead = true; q.deathT = 0; q.hp = 0; FX.die(q); if (q.gear) q.gear = {}; // armor is lost when you fall if (M.phase === 'play') { const k = q.lastBy !== undefined && q.lastBy !== q.id ? q.lastBy : enemyOf(q).id; coin(k, 12, 'Kills', q.x, q.y - 30); }
   puffs(q.x, q.y, q.color, 40, 380); puffs(q.x, q.y, '#ffffff', 15, 260); M.shake = 20; M.ts = .25; M.slowT = .6;
   sfx(90, .6, 'sawtooth', .07, -50); noise(.4, .1);
+  if (M.rogue) M.rgL.graves.push({ pid: q.id, x: q.x, y: q.y, vx: 0, vy: -300 });
 }
 
 /* ---------- bullets ---------- */
@@ -2676,8 +2703,8 @@ function hitPlayer(q, b) {
   if (b.kind === 'flame') puffs(b.x, b.y, b.col, 1, 80);
   else {
     puffs(b.x, b.y, crit ? '#ffd23d' : b.col, crit ? 18 : 12, 240); puffs(b.x, b.y, '#ffffff', 4, 300);
-    M.shake = Math.max(M.shake, Math.min(16, 6 + dmg / 15));
-    if (dmg >= 12) { M.hitstop = Math.max(M.hitstop || 0, Math.min(.085, .025 + dmg / 1000)); M.rings.push({ x: q.x, y: q.y, r: q.r, max: q.r + 26, owner: -1, dmg: 0, hit: [], col: '#ffffff', fx: true }); }
+    M.shake = Math.max(M.shake, q.mob && !q.mob.boss ? Math.min(5, 2 + dmg / 30) : Math.min(16, 6 + dmg / 15));
+    if (dmg >= 12 && !(q.mob && !q.mob.boss)) { M.hitstop = Math.max(M.hitstop || 0, Math.min(.085, .025 + dmg / 1000)); M.rings.push({ x: q.x, y: q.y, r: q.r, max: q.r + 26, owner: -1, dmg: 0, hit: [], col: '#ffffff', fx: true }); }
     sfx(dmg > 50 ? 70 : 110, .12, 'sawtooth', .05, -50, 'thwack');
   }
   FX.hit(q, b, dmg);
@@ -2815,14 +2842,16 @@ function step(dt) {
   if (M.flashes) { for (const f of M.flashes) f.t -= dt; M.flashes = M.flashes.filter(f => f.t > 0); }
   if (M.beams && M.beams.length) { for (const b of M.beams) b.t -= dt; M.beams = M.beams.filter(b => b.t > 0); }
   updateWorld(dt * M.ts);
-  if (M.phase === 'count') { M.t -= dt; if (M.t <= 0) M.phase = 'play'; for (const p of M.players) { p.vy += GRAV * dt; movePlayer(p, 0, p.vy * dt); } return; }
+  if (M.phase === 'count') { M.t -= dt; if (M.t <= 0) M.phase = 'play'; for (const p of M.players) { if (p.mob) continue; p.vy += GRAV * dt; movePlayer(p, 0, p.vy * dt); } if (M.rogue && M.cam) rgCamera(dt); return; }
   if (M.phase === 'play' || M.phase === 'end') {
-    const ins = M.players.map(p => inputFor(p));
-    M.players.forEach((p, i) => updatePlayer(p, M.phase === 'end' && !p.dead ? Object.assign({}, ins[i], { shoot: false, block: false }) : ins[i], sdt));
+    const ins = M.players.map(p => p.mob ? null : inputFor(p)), prev = M.rogue ? M.players.map(p => [p.x, p.y]) : null;
+    M.players.forEach((p, i) => p.mob ? updateMob(p, sdt) : updatePlayer(p, M.phase === 'end' && !p.dead ? Object.assign({}, ins[i], { shoot: false, block: false }) : ins[i], sdt));
     updateBullets(sdt); updateBombs(sdt); updateAcid(sdt); updateBurning(sdt);
     for (const t of M.timers) { t.t -= sdt; if (t.t <= 0 && !t.done) { t.done = true; t.fn(); } } M.timers = M.timers.filter(t => !t.done);
+    if (M.rogue) rogueStep(sdt, prev);
   }
-  if (M.phase === 'play') {
+  if (M.rogue) { if (M.phase === 'play') M.playT += dt; else if (M.phase === 'end') { M.t -= dt; if (M.t <= 0) endRound(); } }
+  else if (M.phase === 'play') {
     M.playT += dt; if (M.playT > 40) { if (!M.ot) { sfx(140, .8, 'sawtooth', .05, 60); } M.ot = M.playT - 40; lavaRain(dt); }
     updateLavaDrops(dt);
     const alive = M.players.filter(p => !p.dead), teamsAlive = [...new Set(alive.map(teamKey))];
@@ -2833,6 +2862,7 @@ function step(dt) {
   }
 }
 function endRound() {
+  if (M.rogue) return rgEndPhase();
   const w = M.winner;
   if (w < 0) { startRound(); return; } // draw — replay
   if (M.game === 'dungeon') return dungeonEndRound(w);
@@ -2888,7 +2918,7 @@ function choose(i, net) {
   const p = M.players[PK.pi], id = PK.cards[i], res = grantCard(p, id);
   sfx(660, .12, 'square', .04, 300);
   setTimeout(() => { PK = null; if (!M) return;
-    const next = () => { if (!M) return; if (M.pickQueue && M.pickQueue.length) return beginPick(M.pickQueue.shift()); app = 'match'; show(null); wrap.classList.add('play'); startRound(); };
+    const next = () => { if (!M) return; if (M.afterPick) { const f = M.afterPick; M.afterPick = null; return f(); } if (M.pickQueue && M.pickQueue.length) return beginPick(M.pickQueue.shift()); app = 'match'; show(null); wrap.classList.add('play'); startRound(); };
     if (res === 'edit') return openWandEditor(p, id, next);
     next(); }, 650);
 }
@@ -2939,20 +2969,43 @@ function ringP(c, x, y, r) { c.beginPath(); c.arc(x, y, Math.max(.5, r), 0, TAU)
    Layers per frame:  BASE (cave background + rock, built per map)  ->  ALB (albedo: + powder + sprites)
                       EM (emissive: fire, sparks, bullets, lava)     ->  light map (ambient + point lights + blurred glow)
    Powder (falling-sand cellular automaton) and free particles are purely visual: the game sim never reads them. */
-const LW = 400, LH = 225, SC = W / LW, NPX = LW * LH;
-const LLW = 200, LLH = 113, NL = LLW * LLH;
-const lowC = document.createElement('canvas'); lowC.width = LW; lowC.height = LH;
-const lowX = lowC.getContext('2d'); const IMG = lowX.createImageData(LW, LH); const OUT = new Uint32Array(IMG.data.buffer);
-const BASE = new Uint32Array(NPX), ALB = new Uint32Array(NPX);
-const EMr = new Float32Array(NPX), EMg = new Float32Array(NPX), EMb = new Float32Array(NPX);
-const ROCK = new Uint8Array(NPX), DYN = new Uint8Array(NPX), BGP = new Uint32Array(NPX);
-// powder grid
-const T = new Uint8Array(NPX), COL = new Uint32Array(NPX), LIFE = new Uint16Array(NPX), STAMP = new Uint16Array(NPX);
+// The world buffers are as big as the level (400x225 for an arena). Only the camera's VIEW is lit, simulated
+// and composited each frame, so a long roguelike level costs about the same as an arena.
+const SC = SW / 400, MAXVW = 800, MAXVH = 450; // the view is at most 2x the screen (zoomed out 200%)
+let LW = 400, LH = 225, NPX = LW * LH;
+let VX0 = 0, VY0 = 0, VX1 = 400, VY1 = 225, VW = 400, VH = 225, LLW = 200, LLH = 113, NL = LLW * LLH;
+const lowC = document.createElement('canvas'); lowC.width = MAXVW; lowC.height = MAXVH;
+const lowX = lowC.getContext('2d'); const IMG = lowX.createImageData(MAXVW, MAXVH); const OUT = new Uint32Array(IMG.data.buffer);
+let BASE, ALB, EMr, EMg, EMb, ROCK, DYN, BGP, T, COL, LIFE, STAMP;
+function setWorld(ww, wh) { // (re)allocate the world-sized pixel buffers when the level size changes
+  W = ww; H = wh; const lw = Math.round(ww / SC), lh = Math.round(wh / SC);
+  if (BASE && lw === LW && lh === LH) return; const had = !!BASE; LW = lw; LH = lh; NPX = LW * LH;
+  BASE = new Uint32Array(NPX); ALB = new Uint32Array(NPX); EMr = new Float32Array(NPX); EMg = new Float32Array(NPX); EMb = new Float32Array(NPX);
+  ROCK = new Uint8Array(NPX); DYN = new Uint8Array(NPX); BGP = new Uint32Array(NPX);
+  T = new Uint8Array(NPX); COL = new Uint32Array(NPX); LIFE = new Uint16Array(NPX); STAMP = new Uint16Array(NPX);
+  if (had) RX.scene = null; // the scene must be rebuilt into the new buffers
+}
+setWorld(SW, SH);
+// the view: the whole world for arenas, the camera's window in roguelike levels
+function setView() {
+  const cam = M && M.cam && RX.scene === 'match' ? M.cam : null;
+  if (!cam) { VX0 = 0; VY0 = 0; VW = Math.min(LW, MAXVW); VH = Math.min(LH, MAXVH); }
+  else { VW = Math.min(LW, Math.round(400 * cam.z)); VH = Math.min(LH, Math.round(VW * 9 / 16));
+    VX0 = clamp(Math.round(cam.x / SC - VW / 2), 0, LW - VW); VY0 = clamp(Math.round(cam.y / SC - VH / 2), 0, LH - VH); }
+  VX1 = VX0 + VW; VY1 = VY0 + VH;
+  const lw = (VW + 1) >> 1, lh = (VH + 1) >> 1; if (lw !== LLW || lh !== LLH) { LLW = lw; LLH = lh; NL = LLW * LLH; vigBuild(); }
+}
+const screenK = () => SW / (VW * SC); // screen px per world unit
+function mouseWorld() { const k = screenK(); mouse.x = VX0 * SC + mouse.sx / k; mouse.y = VY0 * SC + mouse.sy / k; }
 const SAND = 2, LIQ = 3, FIRE = 4, SMOKE = 5, GAS = 6;
 // light
-const Lr = new Float32Array(NL), Lg = new Float32Array(NL), Lb = new Float32Array(NL);
-const Gr = new Float32Array(NL), Gg = new Float32Array(NL), Gb = new Float32Array(NL), GT = new Float32Array(NL), VIG = new Float32Array(NL);
-for (let y = 0; y < LLH; y++) for (let x = 0; x < LLW; x++) { const dx = x / LLW - .5, dy = y / LLH - .5; VIG[y * LLW + x] = clamp(1.1 - (dx * dx * 1.1 + dy * dy * 1.3), .7, 1.1); }
+const NLMAX = (MAXVW / 2 + 1) * (MAXVH / 2 + 1);
+const Lr = new Float32Array(NLMAX), Lg = new Float32Array(NLMAX), Lb = new Float32Array(NLMAX);
+const Gr = new Float32Array(NLMAX), Gg = new Float32Array(NLMAX), Gb = new Float32Array(NLMAX), GT = new Float32Array(NLMAX), VIG = new Float32Array(NLMAX);
+function vigBuild() { for (let y = 0; y < LLH; y++) for (let x = 0; x < LLW; x++) { const dx = x / LLW - .5, dy = y / LLH - .5; VIG[y * LLW + x] = clamp(1.1 - (dx * dx * 1.1 + dy * dy * 1.3), .7, 1.1); } }
+vigBuild();
+// glow from an emissive pixel goes into the view's light map
+function glowAdd(x, y, r, g, b) { const lx = (x - VX0) >> 1, ly = (y - VY0) >> 1; if (lx < 0 || ly < 0 || lx >= LLW || ly >= LLH) return; const li = ly * LLW + lx; Gr[li] += r; Gg[li] += g; Gb[li] += b; }
 
 const packC = (r, g, b) => ((255 << 24) | ((b & 255) << 16) | ((g & 255) << 8) | (r & 255)) >>> 0;
 const HC = new Map();
@@ -3005,57 +3058,67 @@ function buildScene(statics, palIdx, seedN) {
       BASE[i] = packC(clamp(c[0] * k, 0, 255) | 0, clamp(c[1] * k, 0, 255) | 0, clamp(c[2] * k, 0, 255) | 0);
     }
     // torches on some wide ledges
-    if (r.w >= 60 && r.y > 120 && r.y < H - 30 && R() < .7 && RX.drips.length < 4) RX.drips.push({ x: Math.round((r.x + 15 + R() * (r.w - 30)) / SC), liq: R() < .3, rate: .25 + R() * .35, col: R() < .5 ? P.top : P.rock });
-    if (r.w >= 100 && r.y > 120 && r.y < H - 30 && R() < .45 && RX.torches.length < 5) RX.torches.push({ x: Math.round((r.x + 10 + R() * (r.w - 20)) / SC), y: y0 - 1, ph: R() * 10 });
+    if (r.w >= 60 && r.y > 120 && r.y < H - 30 && R() < .7 && RX.drips.length < 4 * Math.ceil(LW / 400)) RX.drips.push({ x: Math.round((r.x + 15 + R() * (r.w - 30)) / SC), liq: R() < .3, rate: .25 + R() * .35, col: R() < .5 ? P.top : P.rock });
+    if (r.w >= 100 && r.y > 120 && r.y < H - 30 && R() < .45 && RX.torches.length < 5 * Math.ceil(LW / 400)) RX.torches.push({ x: Math.round((r.x + 10 + R() * (r.w - 20)) / SC), y: y0 - 1, ph: R() * 10 });
   }
 }
 
 /* ---------- level backdrops: a painted far layer per biome, plus a few softly animated details ----------
    Purely visual (drawn only into empty space, using the real random), so gameplay and online sync never see it. */
-function bgMix(x, y, col, a) { x |= 0; y |= 0; if (x < 0 || y < 0 || x >= LW || y >= LH) return; const i = y * LW + x, c = BASE[i];
+let BGOX = 0, BGW = 400; // backdrops are painted in 400px tiles across wide levels
+function bgMix(x, y, col, a) { x = (x | 0) + BGOX; y |= 0; if (x < 0 || y < 0 || x >= LW || y >= LH) return; const i = y * LW + x, c = BASE[i];
   BASE[i] = packC((c & 255) * (1 - a) + col[0] * a | 0, ((c >>> 8) & 255) * (1 - a) + col[1] * a | 0, ((c >>> 16) & 255) * (1 - a) + col[2] * a | 0); }
-function bgRect(x0, y0, w, h, col, a) { for (let y = Math.max(0, y0 | 0); y < Math.min(LH, y0 + h); y++) for (let x = Math.max(0, x0 | 0); x < Math.min(LW, x0 + w); x++) bgMix(x, y, col, a); }
+function bgRect(x0, y0, w, h, col, a) { for (let y = Math.max(0, y0 | 0); y < Math.min(LH, y0 + h); y++) for (let x = Math.max(-BGOX, x0 | 0); x < Math.min(LW - BGOX, x0 + w); x++) bgMix(x, y, col, a); }
 function bgEll(cx, cy, rx, ry, col, a, half) { for (let y = Math.floor(cy - ry); y <= cy + (half ? 0 : ry); y++) for (let x = Math.floor(cx - rx); x <= cx + rx; x++) { const d = ((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2; if (d <= 1) bgMix(x, y, col, a * (d > .8 ? .7 : 1)); } }
 function paintBackdrop(P, s) {
-  const R = seeded(s * 31 + 5), dk = P.bg.map(v => v * .45), mid = P.rock.map(v => v * .38), FX2 = [];
-  RX.bg = { n: P.n, items: FX2, motes: [] };
+  RX.bg = { n: P.n, items: [], motes: [] };
+  for (let k = 0, n = Math.ceil(LW / 400); k < n; k++) { // one tile per 400px; an arena is a single tile
+    BGOX = k * 400; const i0 = RX.bg.items.length, m0 = RX.bg.motes.length;
+    paintBackdropTile(P, s + k * 17);
+    for (let i = i0; i < RX.bg.items.length; i++) if (RX.bg.items[i].x !== undefined) RX.bg.items[i].x += BGOX;
+    for (let i = m0; i < RX.bg.motes.length; i++) RX.bg.motes[i].x += BGOX;
+  }
+  BGOX = 0; let au = false; RX.bg.items = RX.bg.items.filter(it => it.k !== 'aurora' || (!au && (au = true)));
+}
+function paintBackdropTile(P, s) {
+  const R = seeded(s * 31 + 5), dk = P.bg.map(v => v * .45), mid = P.rock.map(v => v * .38), FX2 = RX.bg.items;
   const mote = (n, f) => { for (let i = 0; i < n; i++) RX.bg.motes.push(f(i)); };
   if (P.n === 'mine') { // timber supports with hanging lanterns, dust in the air
-    for (let x = 20 + R() * 30; x < LW - 10; x += 60 + R() * 30) { const top = 14 + R() * 10; bgRect(x, top, 3, LH, mid, .8); bgRect(x - 14, top, 31, 3, mid, .8); bgRect(x - 6, top + 3, 2, 6, mid, .4); bgRect(x + 7, top + 3, 2, 6, mid, .4);
+    for (let x = 20 + R() * 30; x < BGW - 10; x += 60 + R() * 30) { const top = 14 + R() * 10; bgRect(x, top, 3, LH, mid, .8); bgRect(x - 14, top, 31, 3, mid, .8); bgRect(x - 6, top + 3, 2, 6, mid, .4); bgRect(x + 7, top + 3, 2, 6, mid, .4);
       if (R() < .7) FX2.push({ k: 'lantern', x: x + (R() < .5 ? -10 : 12), y: top + 3, len: 6 + R() * 5 | 0, ph: R() * 9 }); }
-    for (let x = 0; x < LW; x += 2) if (hash2(x, 3, s) > .4) bgMix(x, LH - 34 + (hash2(x, 4, s) * 2 | 0), mid, .25);
-    mote(40, () => ({ x: R() * LW, y: R() * LH, vx: 1.5 + R() * 2, vy: -.4 + R() * .8, ph: R() * 9, c: [150, 128, 96], a: .35 }));
+    for (let x = 0; x < BGW; x += 2) if (hash2(x, 3, s) > .4) bgMix(x, LH - 34 + (hash2(x, 4, s) * 2 | 0), mid, .25);
+    mote(40, () => ({ x: R() * BGW, y: R() * LH, vx: 1.5 + R() * 2, vy: -.4 + R() * .8, ph: R() * 9, c: [150, 128, 96], a: .35 }));
   } else if (P.n === 'fungal') { // giant mushrooms with pulsing glowing caps, rising spores
     for (let k = 0; k < 7; k++) { const x = 20 + k * 55 + R() * 30, h = 50 + R() * 70, y = LH - 20 - h, r = 12 + R() * 16, st = 3 + R() * 4;
       bgRect(x - st / 2, y, st, h + 20, mid, .6); bgEll(x, y + 2, r, r * .55, [52, 30, 70], .7, true);
       FX2.push({ k: 'cap', x, y: y - r * .25, r, ph: R() * 9, c: R() < .5 ? [190, 80, 255] : [80, 220, 200] }); }
-    mote(45, () => ({ x: R() * LW, y: R() * LH, vx: -.5 + R(), vy: -2 - R() * 3, ph: R() * 9, c: R() < .5 ? [200, 110, 255] : [110, 255, 220], em: .5 }));
+    mote(45, () => ({ x: R() * BGW, y: R() * LH, vx: -.5 + R(), vy: -2 - R() * 3, ph: R() * 9, c: R() < .5 ? [200, 110, 255] : [110, 255, 220], em: .5 }));
   } else if (P.n === 'frost') { // ice spires from floor and ceiling, an aurora shimmer, falling snow
-    for (let k = 0; k < 16; k++) { const x = R() * LW, h = 20 + R() * 55, w = 4 + R() * 8, up = R() < .55;
+    for (let k = 0; k < 16; k++) { const x = R() * BGW, h = 20 + R() * 55, w = 4 + R() * 8, up = R() < .55;
       for (let j = 0; j < h; j++) { const ww = w * (1 - j / h); bgRect(x - ww / 2, up ? LH - 18 - j : j, ww, 1, [150, 190, 230], .22 + (j < 2 ? .1 : 0)); } }
     FX2.push({ k: 'aurora' });
-    mote(70, () => ({ x: R() * LW, y: R() * LH, vx: -1 + R() * 2, vy: 4 + R() * 5, ph: R() * 9, c: [230, 240, 255], a: .55 }));
+    mote(70, () => ({ x: R() * BGW, y: R() * LH, vx: -1 + R() * 2, vy: 4 + R() * 5, ph: R() * 9, c: [230, 240, 255], a: .55 }));
   } else if (P.n === 'jungle') { // roots and trunks, swaying vines, a waterfall, fireflies
     for (let k = 0; k < 6; k++) { const x = 10 + k * 70 + R() * 30, w = 6 + R() * 8; bgRect(x, 0, w, LH, [24, 36, 20], .55);
       for (let j = 0; j < 3; j++) { const by = 30 + R() * 140, dir = R() < .5 ? -1 : 1; for (let t = 0; t < 22; t++) bgRect(x + w / 2 + dir * t, by - t * .5, 2, 2, [24, 36, 20], .5); } }
-    for (let k = 0; k < 14; k++) FX2.push({ k: 'vine', x: R() * LW, len: 18 + R() * 50 | 0, ph: R() * 9 });
-    FX2.push({ k: 'fall', x: 40 + R() * (LW - 80) | 0, w: 5 + R() * 4 | 0 });
-    mote(22, () => ({ x: R() * LW, y: 30 + R() * (LH - 60), vx: 0, vy: 0, ph: R() * 9, c: [190, 255, 90], em: .9, fly: 1 }));
+    for (let k = 0; k < 14; k++) FX2.push({ k: 'vine', x: R() * BGW, len: 18 + R() * 50 | 0, ph: R() * 9 });
+    FX2.push({ k: 'fall', x: 40 + R() * (BGW - 80) | 0, w: 5 + R() * 4 | 0 });
+    mote(22, () => ({ x: R() * BGW, y: 30 + R() * (LH - 60), vx: 0, vy: 0, ph: R() * 9, c: [190, 255, 90], em: .9, fly: 1 }));
   } else if (P.n === 'desert') { // ruined columns and arches, slow sun shafts, drifting sand
     for (let k = 0; k < 6; k++) { const x = 15 + k * 66 + R() * 20, h = 60 + R() * 80, w = 9 + R() * 5, y = LH - 18 - h;
       bgRect(x, y, w, h, mid, .5); bgRect(x - 3, y - 3, w + 6, 3, mid, .55); if (R() < .4) bgRect(x - 2, y + h * .4, w + 4, 2, dk, .3);
       if (k % 2 === 0) bgEll(x + w + 25, y + 4, 26, 16, mid, .28, true); }
-    for (let k = 0; k < 3; k++) FX2.push({ k: 'shaft', x: 40 + R() * (LW - 80), w: 14 + R() * 18, ph: R() * 9 });
-    mote(50, () => ({ x: R() * LW, y: LH * .3 + R() * LH * .7, vx: 8 + R() * 10, vy: -.5 + R(), ph: R() * 9, c: [214, 176, 110], a: .45 }));
+    for (let k = 0; k < 3; k++) FX2.push({ k: 'shaft', x: 40 + R() * (BGW - 80), w: 14 + R() * 18, ph: R() * 9 });
+    mote(50, () => ({ x: R() * BGW, y: LH * .3 + R() * LH * .7, vx: 8 + R() * 10, vy: -.5 + R(), ph: R() * 9, c: [214, 176, 110], a: .45 }));
   } else { // vault: tall arches, hanging banners, glowing runes, rising embers
-    for (let x = 10; x < LW; x += 52) { bgRect(x, 30, 6, LH, mid, .45); bgRect(x + 46, 30, 6, LH, mid, .45); for (let a = 0; a <= 26; a++) { const t = a / 26 * Math.PI; bgRect(x + 26 - Math.cos(t) * 23, 30 - Math.sin(t) * 18, 3, 3, mid, .45); } }
+    for (let x = 10; x < BGW; x += 52) { bgRect(x, 30, 6, LH, mid, .45); bgRect(x + 46, 30, 6, LH, mid, .45); for (let a = 0; a <= 26; a++) { const t = a / 26 * Math.PI; bgRect(x + 26 - Math.cos(t) * 23, 30 - Math.sin(t) * 18, 3, 3, mid, .45); } }
     for (let k = 0; k < 6; k++) FX2.push({ k: 'banner', x: 20 + k * 66 + R() * 20 | 0, y: 34 + R() * 8 | 0, w: 9, h: 22 + R() * 10 | 0, ph: R() * 9, c: [[150, 40, 40], [40, 60, 130], [120, 90, 30]][k % 3] });
-    for (let k = 0; k < 5; k++) FX2.push({ k: 'rune', x: 30 + R() * (LW - 60), y: 40 + R() * 100, r: 5 + R() * 4, ph: R() * 9, c: [255, 120, 70] });
-    mote(30, () => ({ x: R() * LW, y: R() * LH, vx: -.5 + R(), vy: -3 - R() * 3, ph: R() * 9, c: [255, 150, 60], em: .8 }));
+    for (let k = 0; k < 5; k++) FX2.push({ k: 'rune', x: 30 + R() * (BGW - 60), y: 40 + R() * 100, r: 5 + R() * 4, ph: R() * 9, c: [255, 120, 70] });
+    mote(30, () => ({ x: R() * BGW, y: R() * LH, vx: -.5 + R(), vy: -3 - R() * 3, ph: R() * 9, c: [255, 150, 60], em: .8 }));
   }
 }
 const bgFree = i => !ROCK[i] && !DYN[i] && !T[i];
-function bgA(x, y, c, a) { x |= 0; y |= 0; if (x < 0 || y < 0 || x >= LW || y >= LH) return; const i = y * LW + x; if (!bgFree(i)) return; const o = ALB[i];
+function bgA(x, y, c, a) { x |= 0; y |= 0; if (x < VX0 || y < VY0 || x >= VX1 || y >= VY1) return; const i = y * LW + x; if (!bgFree(i)) return; const o = ALB[i];
   ALB[i] = packC((o & 255) * (1 - a) + c[0] * a | 0, ((o >>> 8) & 255) * (1 - a) + c[1] * a | 0, ((o >>> 16) & 255) * (1 - a) + c[2] * a | 0); }
 function bgE(x, y, r, g, b) { x |= 0; y |= 0; if (x < 0 || y < 0 || x >= LW || y >= LH || !bgFree(y * LW + x)) return; pE(x, y, r, g, b); }
 function drawBackdrop() {
@@ -3066,7 +3129,7 @@ function drawBackdrop() {
       bgA(ex, ey, [90, 70, 40], 1); bgA(ex, ey + 1, [90, 70, 40], 1); bgE(ex, ey + 1, 180 * fl, 110 * fl, 40 * fl); bgE(ex, ey, 120 * fl, 60 * fl, 20 * fl); addLight(ex * SC, ey * SC, 46, 255, 160, 70, .22 * fl); }
     else if (it.k === 'cap') { const p = .5 + .5 * Math.sin(t * 1.1 + it.ph), c = it.c; for (let k = 0; k < 7; k++) { const a = k / 6 * Math.PI; bgE(it.x - Math.cos(a) * it.r * .75, it.y - Math.sin(a) * it.r * .3, c[0] * .25 * p, c[1] * .25 * p, c[2] * .25 * p); }
       if ((RX.frame & 3) === 0) addLight(it.x * SC, it.y * SC, it.r * SC * 1.4, c[0], c[1], c[2], .1 * p); }
-    else if (it.k === 'aurora') { for (let x = 0; x < LW; x += 2) { const y = 14 + Math.sin(x * .03 + t * .4) * 6 + Math.sin(x * .011 - t * .25) * 8, k = .5 + .5 * Math.sin(x * .02 + t * .7);
+    else if (it.k === 'aurora') { for (let x = VX0 & ~1; x < VX0 + VW; x += 2) { const y = 14 + Math.sin(x * .03 + t * .4) * 6 + Math.sin(x * .011 - t * .25) * 8, k = .5 + .5 * Math.sin(x * .02 + t * .7);
       for (let j = 0; j < 7; j++) bgE(x, y + j, 20 * k * (1 - j / 7), 90 * k * (1 - j / 7), 70 * k * (1 - j / 7) + 30 * (1 - j / 7)); } }
     else if (it.k === 'vine') { for (let j = 0; j < it.len; j++) { const sw = Math.sin(t * .9 + it.ph + j * .06) * (j / it.len) * 3; bgA(it.x + sw, j, [40, 90, 34], .75); if (j % 7 === 3) bgA(it.x + sw + 1, j, [60, 130, 44], .75); } }
     else if (it.k === 'fall') { for (let y = 0; y < LH; y++) for (let x = 0; x < it.w; x++) { const v = ((y - t * 60 + x * 7) % 11 + 11) % 11; bgA(it.x + x, y, v < 3 ? [170, 210, 230] : [70, 120, 150], v < 3 ? .5 : .3); }
@@ -3085,7 +3148,7 @@ function drawBackdrop() {
     else bgA(x, y, m.c, m.a);
   }
 }
-function buildBg() { buildScene(M.statics, M.mapIdx, M.mapIdx + 1); RX.scene = 'match'; RX.key = M.roundNo; }
+function buildBg() { setWorld(M.ww || SW, M.wh || SH); buildScene(M.statics, M.mapIdx, M.mapIdx + 1); RX.scene = 'match'; RX.key = M.roundNo; }
 
 /* ---------- powder cellular automaton ---------- */
 const solidAtL = i => ROCK[i] || DYN[i];
@@ -3103,10 +3166,11 @@ function rasterDyn(sc) {
 }
 function stepCA() {
   RX.frame = (RX.frame + 1) & 0xffff || 1; const F = RX.frame, flip = F & 1, lavaY = LH - lavaH(); let cells = 0;
-  for (let y = LH - 1; y >= 0; y--) {
+  const cx0 = Math.max(0, VX0 - 24), cx1 = Math.min(LW, VX0 + VW + 24), cy0 = Math.max(0, VY0 - 24), cy1 = Math.min(LH, VY0 + VH + 24), cn = cx1 - cx0;
+  for (let y = cy1 - 1; y >= cy0; y--) {
     const row = y * LW;
-    for (let k = 0; k < LW; k++) {
-      const x = flip ? k : LW - 1 - k, i = row + x, t = T[i];
+    for (let k = 0; k < cn; k++) {
+      const x = flip ? cx0 + k : cx1 - 1 - k, i = row + x, t = T[i];
       if (!t) continue;
       cells++;
       if (STAMP[i] === F) continue;
@@ -3194,7 +3258,7 @@ function kickPowder(cx, cy, R, vx, vy) { // a body or bolt moving through powder
 
 /* ---------- light ---------- */
 function addLight(x, y, rad, r, g, b, I) { // game coords
-  const cx = x / (SC * 2), cy = y / (SC * 2), R = rad / (SC * 2), R2 = R * R;
+  const cx = (x / SC - VX0) / 2, cy = (y / SC - VY0) / 2, R = rad / (SC * 2), R2 = R * R;
   const x0 = Math.max(0, cx - R | 0), x1 = Math.min(LLW - 1, cx + R | 0), y0 = Math.max(0, cy - R | 0), y1 = Math.min(LLH - 1, cy + R | 0);
   const kr = r / 255 * I, kg = g / 255 * I, kb = b / 255 * I;
   for (let yy = y0; yy <= y1; yy++) { const o = yy * LLW, dy = yy - cy; for (let xx = x0; xx <= x1; xx++) { const dx = xx - cx, f = 1 - (dx * dx + dy * dy) / R2; if (f <= 0) continue; const v = f * f; Lr[o + xx] += kr * v; Lg[o + xx] += kg * v; Lb[o + xx] += kb * v; } }
@@ -3205,8 +3269,8 @@ function blurL(a, w, h, r) { // separable box blur, in place
   for (let x = 0; x < w; x++) { let s = 0; for (let y = -r; y <= r; y++) s += GT[clamp(y, 0, h - 1) * w + x]; for (let y = 0; y < h; y++) { a[y * w + x] = s / (2 * r + 1); s += GT[Math.min(h - 1, y + r + 1) * w + x] - GT[Math.max(0, y - r) * w + x]; } }
 }
 // pixel writers used by all sprite code
-function pA(x, y, c) { x = Math.round(x); y = Math.round(y); if (x < 0 || y < 0 || x >= LW || y >= LH) return; ALB[y * LW + x] = c; }
-function pE(x, y, r, g, b) { x = Math.round(x); y = Math.round(y); if (x < 0 || y < 0 || x >= LW || y >= LH) return; const i = y * LW + x; EMr[i] += r; EMg[i] += g; EMb[i] += b; const li = (y >> 1) * LLW + (x >> 1); Gr[li] += r; Gg[li] += g; Gb[li] += b; }
+function pA(x, y, c) { x = Math.round(x); y = Math.round(y); if (x < VX0 || y < VY0 || x >= VX1 || y >= VY1) return; ALB[y * LW + x] = c; }
+function pE(x, y, r, g, b) { x = Math.round(x); y = Math.round(y); if (x < VX0 || y < VY0 || x >= VX1 || y >= VY1) return; const i = y * LW + x; EMr[i] += r; EMg[i] += g; EMb[i] += b; glowAdd(x, y, r, g, b); }
 function pEh(x, y, h, k = 1) { const c = hex3(h); pE(x, y, c[0] * k, c[1] * k, c[2] * k); }
 function lavaH() { return 5 + (M && RX.scene === 'match' && M.lavaLv ? Math.round(M.lavaLv / SC) : 0); }
 
@@ -3794,17 +3858,17 @@ function drawSceneSprites(sc) {
   for (const tc of RX.torches) { pA(tc.x, tc.y, packC(80, 60, 40)); pA(tc.x, tc.y - 1, packC(100, 74, 46)); pA(tc.x, tc.y - 2, packC(110, 80, 50)); const fl = .7 + .3 * Math.sin(t * 17 + tc.ph) * Math.sin(t * 7.3 + tc.ph); pE(tc.x, tc.y - 3, 255 * fl, 190 * fl, 90 * fl); pE(tc.x, tc.y - 4, 255 * fl, 120 * fl, 40 * fl); addLight(tc.x * SC, (tc.y - 3) * SC, 240 + 30 * fl, 255, 170, 90, 1.1 * fl); }
 }
 function drawPowder() {
-  for (let i = 0; i < NPX; i++) {
+  for (let y = VY0; y < VY0 + VH; y++) for (let i = y * LW + VX0, ie = i + VW; i < ie; i++) {
     const t = T[i]; if (!t) continue;
     if (t === SAND || t === LIQ) { ALB[i] = COL[i]; if (t === LIQ && (i & 7) === (RX.frame & 7)) { EMr[i] += 6; EMg[i] += 6; EMb[i] += 6; } continue; }
-    if (t === FIRE) { const l = LIFE[i], r = 255, g = l > 22 ? 230 : l > 10 ? 150 : 70, b = l > 22 ? 140 : l > 10 ? 40 : 15, k = l > 4 ? 1 : .5; EMr[i] += r * k; EMg[i] += g * k; EMb[i] += b * k; const x = i % LW, y = (i / LW) | 0, li = (y >> 1) * LLW + (x >> 1); Gr[li] += r * k; Gg[li] += g * k; Gb[li] += b * k; continue; }
+    if (t === FIRE) { const l = LIFE[i], r = 255, g = l > 22 ? 230 : l > 10 ? 150 : 70, b = l > 22 ? 140 : l > 10 ? 40 : 15, k = l > 4 ? 1 : .5; EMr[i] += r * k; EMg[i] += g * k; EMb[i] += b * k; glowAdd(i % LW, y, r * k, g * k, b * k); continue; }
     // smoke / gas: blend over what's behind
     const c = COL[i], base = ALB[i], a = t === GAS ? .45 : Math.min(.6, LIFE[i] / 90);
     ALB[i] = packC(unR(base) + (unR(c) - unR(base)) * a | 0, unG(base) + (unG(c) - unG(base)) * a | 0, unB(base) + (unB(c) - unB(base)) * a | 0);
     if (t === GAS) { EMg[i] += 10; }
   }
   for (const p of RX.FP) {
-    const x = p.x | 0, y = p.y | 0; if (x < 0 || y < 0 || x >= LW || y >= LH) continue;
+    const x = p.x | 0, y = p.y | 0; if (x < VX0 || y < VY0 || x >= VX1 || y >= VY1) continue;
     if (p.mat === 'sand' || p.mat === 'liq') { ALB[y * LW + x] = p.col; continue; }
     const k = Math.min(1, p.life / p.max * 1.4);
     if (p.mat === 'ember') pE(x, y, 255 * k, 140 * k, 40 * k);
@@ -3814,14 +3878,14 @@ function drawPowder() {
 }
 function drawLava() {
   const lh = lavaH(), t = RX.t, m = 0;
-  for (let y = LH - lh; y < LH; y++) for (let x = 0; x < LW; x++) {
+  for (let y = Math.max(LH - lh, VY0); y < Math.min(LH, VY0 + VH); y++) for (let x = VX0; x < VX0 + VW; x++) {
     const n = vnoise(x / 6 + t * .8, y / 3 + t * .3, 5), n2 = vnoise(x / 3 - t * .5, y / 2, 6), top = y === LH - lh, crust = n2 > .72 && !top;
     if (ROCK[y * LW + x] && y > LH - 6) continue;
     pA(x, y, crust ? packC(50, 18, 10) : packC(140, 34, 10)); if (!crust) pE(x, y, 150 + n * 90, 30 + n * 70 + (top ? 70 : 0), 6 + (top ? 25 : 0));
   }
   if (m > 0) for (let y = 0; y < LH; y++) for (let x = 0; x < m; x++) { const n = vnoise(x / 5, y / 6 + t, 9); for (const xx of [x, LW - 1 - x]) { pA(xx, y, packC(110, 24, 10)); pE(xx, y, 220, 50 + n * 90, 20); } }
   // the deadly frame: faint heat shimmer on the walls
-  for (let y = 0; y < LH; y += 1) { const k = 30 + 20 * Math.sin(t * 3 + y * .3); pE(0, y, k * 2, k * .5, k * .2); pE(LW - 1, y, k * 2, k * .5, k * .2); }
+  if (!M || !M.rogue) for (let y = 0; y < LH; y += 1) { const k = 30 + 20 * Math.sin(t * 3 + y * .3); pE(0, y, k * 2, k * .5, k * .2); pE(LW - 1, y, k * 2, k * .5, k * .2); }
 }
 function drawMatchSprites() {
   const t = RX.t;
@@ -3839,9 +3903,11 @@ function drawMatchSprites() {
   for (const pd of M.pads) { const c = RX.pal.acc, x0 = Math.round(pd.x / SC), y0 = Math.round(pd.y / SC) - 1, w = Math.round(pd.w / SC); for (let x = 0; x < w; x++) pE(x0 + x, y0, c[0] * .8, c[1] * .8, c[2] * .8); for (let k = 0; k < 3; k++) { const ph = ((t * 14 + k * 4) % 12), cx = x0 + w / 2, yy = y0 - 2 - ph, a = 1 - ph / 12; for (let d = -3; d <= 3; d++) pE(cx + d, yy + Math.abs(d), c[0] * a, c[1] * a, c[2] * a); } addLight(pd.x + pd.w / 2, pd.y, 110, c[0], c[1], c[2], .45); }
   // bombs
   for (const bm of M.bombs) { const x = bm.x / SC, y = bm.y / SC; pA(x, y, packC(40, 36, 46)); pA(x + 1, y, packC(40, 36, 46)); pA(x, y - 1, packC(60, 56, 66)); if (Math.floor(bm.t * (bm.t < .3 ? 30 : 8)) % 2) pEh(x, y - 1, M.players[bm.owner].color); }
+  if (M.rogue) drawRogueSprites();
   // players
   for (const p of M.players) {
     if (p.dead) continue;
+    if (p.mob) { drawMob(p); continue; }
     const cx = Math.round(p.x / SC), cy = Math.round(p.y / SC), R = Math.max(3, Math.round(p.r / SC)), st = p.st, f = st.f, pc = hex3(p.color);
     addLight(p.x, p.y, 170, pc[0], pc[1], pc[2], .5); addLight(p.x, p.y, 70, 255, 255, 255, .14);
     if (p.abyssT > 0) ringPix(cx, cy, 110 / SC + Math.sin(t * 12), (x, y) => pE(x, y, 120, 40, 220), 1);
@@ -3886,8 +3952,8 @@ function drawMatchSprites() {
   for (const q of M.parts) { const k = clamp(q.t / q.m, 0, 1), c = hex3(q.col); if (q.col === '#9a96b8') continue; pE(q.x / SC, q.y / SC, c[0] * k * .8, c[1] * k * .8, c[2] * k * .8); }
 }
 function composeFrame(sc) {
-  ALB.set(BASE); EMr.fill(0); EMg.fill(0); EMb.fill(0);
-  const amb = RX.pal.amb; Lr.fill(0); Lg.fill(0); Lb.fill(0); Gr.fill(0); Gg.fill(0); Gb.fill(0);
+  for (let y = VY0; y < VY0 + VH; y++) { const o = y * LW + VX0; ALB.set(BASE.subarray(o, o + VW), o); EMr.fill(0, o, o + VW); EMg.fill(0, o, o + VW); EMb.fill(0, o, o + VW); }
+  const amb = RX.pal.amb; Lr.fill(0, 0, NL); Lg.fill(0, 0, NL); Lb.fill(0, 0, NL); Gr.fill(0, 0, NL); Gg.fill(0, 0, NL); Gb.fill(0, 0, NL);
   drawBackdrop();
   drawSceneSprites(sc);
   drawPowder();
@@ -3898,15 +3964,15 @@ function composeFrame(sc) {
   blurL(Gr, LLW, LLH, 3); blurL(Gg, LLW, LLH, 3); blurL(Gb, LLW, LLH, 3);
   const gk = .0105;
   for (let i = 0; i < NL; i++) { const v = VIG[i]; Lr[i] = Math.min(1.6, (amb[0] + Lr[i] + Gr[i] * gk) * v); Lg[i] = Math.min(1.6, (amb[1] + Lg[i] + Gg[i] * gk) * v); Lb[i] = Math.min(1.6, (amb[2] + Lb[i] + Gb[i] * gk) * v); }
-  for (let y = 0; y < LH; y++) {
-    const ro = y * LW, lo = (y >> 1) * LLW;
-    for (let x = 0; x < LW; x++) {
+  for (let y = 0; y < VH; y++) {
+    const ro = (y + VY0) * LW + VX0, lo = (y >> 1) * LLW, oo = y * MAXVW;
+    for (let x = 0; x < VW; x++) {
       const i = ro + x, li = lo + (x >> 1), c = ALB[i];
       const r = (c & 255) * Lr[li] + EMr[i], g = ((c >>> 8) & 255) * Lg[li] + EMg[i], b = ((c >>> 16) & 255) * Lb[li] + EMb[i];
-      OUT[i] = (255 << 24 | (b > 255 ? 255 : b) << 16 | (g > 255 ? 255 : g) << 8 | (r > 255 ? 255 : r)) >>> 0;
+      OUT[oo + x] = (255 << 24 | (b > 255 ? 255 : b) << 16 | (g > 255 ? 255 : g) << 8 | (r > 255 ? 255 : r)) >>> 0;
     }
   }
-  lowX.putImageData(IMG, 0, 0);
+  lowX.putImageData(IMG, 0, 0, 0, 0, VW, VH);
 }
 
 /* ---------- draw entry ---------- */
@@ -3915,16 +3981,20 @@ function draw() {
   if (!inMatch && RX.scene !== 'title') buildTitle();
   if (inMatch && RX.scene !== 'match') buildBg();
   if (!inMatch) RX.tick(1 / 60);
+  setView(); mouseWorld();
   composeFrame(inMatch ? M : TITLE);
   ctx.save(); ctx.imageSmoothingEnabled = false;
   if (inMatch && SET.shake && M.shake > 0) ctx.translate(Math.round(rnd(-1, 1) * M.shake * .5 / SC) * SC, Math.round(rnd(-1, 1) * M.shake * .5 / SC) * SC);
-  ctx.drawImage(lowC, 0, 0, W, H);
+  ctx.drawImage(lowC, 0, 0, VW, VH, 0, 0, SW, SH);
   ctx.restore();
   if (!inMatch) return;
+  const k = screenK(); ctx.save(); ctx.scale(k, k); ctx.translate(-VX0 * SC, -VY0 * SC); // world-space overlays
   for (const p of M.players) drawPlayerUI(p);
+  if (M.rogue) drawRogueWorldUI();
+  ctx.restore();
   drawHUD();
   if (app === 'match' && M.players.some(p => p.ctrl.kbm && !p.lastPad)) {
-    const col = M.players.find(p => p.ctrl.kbm).color, mx = Math.round(mouse.x / SC) * SC, my = Math.round(mouse.y / SC) * SC, s = SC;
+    const col = M.players.find(p => p.ctrl.kbm).color, mx = Math.round(mouse.sx / SC) * SC, my = Math.round(mouse.sy / SC) * SC, s = SC;
     ctx.fillStyle = '#000'; for (const [dx, dy] of [[-3, 0], [-2, 0], [2, 0], [3, 0], [0, -3], [0, -2], [0, 2], [0, 3]]) ctx.fillRect(mx + dx * s + 1, my + dy * s + 1, s, s);
     ctx.fillStyle = col; for (const [dx, dy] of [[-3, 0], [-2, 0], [2, 0], [3, 0], [0, -3], [0, -2], [0, 2], [0, 3]]) ctx.fillRect(mx + dx * s, my + dy * s, s, s);
   }
@@ -3932,7 +4002,7 @@ function draw() {
 const PFONT = "'Press Start 2P', 'Courier New', monospace";
 const snap = v => Math.round(v / SC) * SC;
 function drawPlayerUI(p) {
-  if (p.dead) return;
+  if (p.dead || p.mob) return;
   const st = p.st, s = SC, bw = 18 * s, x0 = snap(p.x - bw / 2), gh = p.gear && p.gear.head, top = gh ? Math.min(hatTop(lookOf(p)), GEAR_TOP[gh.id]) : hatTop(lookOf(p)), by = snap(p.y + (top - 3) * SC), frac = clamp(p.hp / st.maxHp, 0, 1);
   ctx.fillStyle = '#000'; ctx.fillRect(x0 - s, by - s, bw + 2 * s, 3 * s);
   ctx.fillStyle = '#3a1418'; ctx.fillRect(x0, by, bw, s);
@@ -3965,18 +4035,19 @@ function teamGroups() { const g = []; for (const p of M.players) { const k = tea
 const teamName = g => g.ps.map(q => q.nick).join(' & ');
 function drawHUDTeams(G) { // 3 or 4 teams: one score block per team across the top
   const s = SC * 2, nP = SET.points, nR = SET.rounds;
-  G.forEach((g, gi) => { const cx = W * (gi + .5) / G.length, PT = M.points[g.k] || 0, RW = M.rw[g.k] || 0, w = nP * 24;
+  G.forEach((g, gi) => { const cx = SW * (gi + .5) / G.length, PT = M.points[g.k] || 0, RW = M.rw[g.k] || 0, w = nP * 24;
     for (let k = 0; k < nP; k++) { const x = snap(cx - w / 2 + k * 24 + 12) - s, y = 16; ctx.fillStyle = '#000'; ctx.fillRect(x - SC, y - SC, s * 2 + SC * 2, s * 2 + SC * 2); ctx.fillStyle = k < PT ? g.col : '#2a2430'; ctx.fillRect(x, y, s * 2, s * 2); }
     if (nR > 1) for (let k = 0; k < nR - 1; k++) { const x = snap(cx - (nR - 1) * 7 + k * 14), y = 36; ctx.fillStyle = k < RW ? g.col : '#2a2430'; ctx.fillRect(x, y, SC * 2, SC * 2); }
     txt(teamName(g).toUpperCase(), cx, 54, g.col, g.ps.length > 1 ? 8 : 9); });
 }
 function drawHUD() {
-  const cx = W / 2, s = SC * 2, G = teamGroups();
+  if (M.rogue) return drawRogueHUD();
+  const cx = SW / 2, s = SC * 2, G = teamGroups();
   if (NET.on) { // online status: who left, waiting on a slow connection, ping
     if (NET.notice && NET.notice.t > 0) txt(NET.notice.msg.toUpperCase(), cx, 92, '#ffd27a', 9);
-    if (NET.waitT > .35) txt('WAITING FOR PLAYERS...', cx, H * .3, '#ffffff', 12);
-    txt((NET.rtt || 0) + ' MS', W - 14, H - 10, '#7a6a58', 7, 'right');
-    if (NET.desync) txt('OUT OF SYNC - TELL CLAUDE', 14, H - 10, '#ff6a5a', 7, 'left');
+    if (NET.waitT > .35) txt('WAITING FOR PLAYERS...', cx, SH * .3, '#ffffff', 12);
+    txt((NET.rtt || 0) + ' MS', SW - 14, SH - 10, '#7a6a58', 7, 'right');
+    if (NET.desync) txt('OUT OF SYNC - TELL CLAUDE', 14, SH - 10, '#ff6a5a', 7, 'left');
   }
   if (G.length > 2) drawHUDTeams(G);
   else for (let i = 0; i < 2; i++) {
@@ -3990,30 +4061,30 @@ function drawHUD() {
       ctx.fillStyle = '#000'; ctx.fillRect(bx - 1, cy0 - 1, s2 + 2, s2 + 2); ctx.fillStyle = '#ffd23d'; ctx.fillRect(bx, cy0, s2, s2); ctx.fillStyle = '#a07a1a'; ctx.fillRect(bx + SC, cy0 + SC, SC, SC);
       txt(String(M.run.coins[i]), bx + s2 + 5, cy0 + 8, '#ffd23d', 9, 'left'); }
   }
-  txt(M.run ? 'FLOOR ' + M.run.floor + '/' + M.run.floors + ' - ' + FLOOR_NAMES[M.run.floor - 1].toUpperCase() + ' - ' + M.map.n.toUpperCase() : M.map.n.toUpperCase(), cx, H - 22, '#c9a874', 8);
+  txt(M.run ? 'FLOOR ' + M.run.floor + '/' + M.run.floors + ' - ' + FLOOR_NAMES[M.run.floor - 1].toUpperCase() + ' - ' + M.map.n.toUpperCase() : M.map.n.toUpperCase(), cx, SH - 22, '#c9a874', 8);
   if (M.ot > 0 && M.phase === 'play') txt('OVERTIME - LAVA DRIPS FROM THE CEILING', cx, 80, '#ff8a4a', 13);
   if (M.phase === 'count') {
     const n = M.t > 1.6 ? '3' : M.t > .8 ? '2' : M.t > .2 ? '1' : 'GO!';
-    txt(n, cx, H * .44, '#ffe9b0', 48);
-    txt('ROUND ' + M.roundNo, cx, H * .44 - 52, '#d9b26a', 14);
-    if (M.t > 1.6) txt(M.run ? 'FLOOR ' + M.run.floor + ': ' + FLOOR_NAMES[M.run.floor - 1].toUpperCase() : M.map.n.toUpperCase(), cx, H * .44 + 40, '#c9a874', 12);
-    if (M.game !== 'classic' && M.roundNo > 1) txt('HEALTH +' + (M.roundNo - 1) * 10 + '%', cx, H * .44 + 70, '#5cd65c', 10);
+    txt(n, cx, SH * .44, '#ffe9b0', 48);
+    txt('ROUND ' + M.roundNo, cx, SH * .44 - 52, '#d9b26a', 14);
+    if (M.t > 1.6) txt(M.run ? 'FLOOR ' + M.run.floor + ': ' + FLOOR_NAMES[M.run.floor - 1].toUpperCase() : M.map.n.toUpperCase(), cx, SH * .44 + 40, '#c9a874', 12);
+    if (M.game !== 'classic' && M.roundNo > 1) txt('HEALTH +' + (M.roundNo - 1) * 10 + '%', cx, SH * .44 + 70, '#5cd65c', 10);
   }
   if (M.phase === 'play' && M.playT < 1.1) { // quick ROUND START banner: a bar sweeps in, holds, then fades
-    const t = M.playT, a = t < .85 ? 1 : 1 - (t - .85) / .25, sw = Math.min(1, t / .14), y = H * .42, bh = 46;
-    ctx.globalAlpha = clamp(a, 0, 1) * .78; ctx.fillStyle = '#0a0610'; ctx.fillRect(snap(cx - W * sw / 2), snap(y - bh / 2 - 12), snap(W * sw), bh);
-    ctx.globalAlpha = clamp(a, 0, 1); ctx.fillStyle = '#ffd23d'; ctx.fillRect(snap(cx - W * sw / 2), snap(y - bh / 2 - 12), snap(W * sw), SC); ctx.fillRect(snap(cx - W * sw / 2), snap(y + bh / 2 - 12 - SC), snap(W * sw), SC);
+    const t = M.playT, a = t < .85 ? 1 : 1 - (t - .85) / .25, sw = Math.min(1, t / .14), y = SH * .42, bh = 46;
+    ctx.globalAlpha = clamp(a, 0, 1) * .78; ctx.fillStyle = '#0a0610'; ctx.fillRect(snap(cx - SW * sw / 2), snap(y - bh / 2 - 12), snap(SW * sw), bh);
+    ctx.globalAlpha = clamp(a, 0, 1); ctx.fillStyle = '#ffd23d'; ctx.fillRect(snap(cx - SW * sw / 2), snap(y - bh / 2 - 12), snap(SW * sw), SC); ctx.fillRect(snap(cx - SW * sw / 2), snap(y + bh / 2 - 12 - SC), snap(SW * sw), SC);
     if (t > .08) txt('ROUND START', cx + (1 - Math.min(1, (t - .08) / .12)) * -60, y, '#ffe9b0', 26);
     ctx.globalAlpha = 1;
   }
-  if (M.phase === 'end' && M.t < 2) { const g = teamGroups().find(t => t.k === M.winner); txt(!g ? 'DRAW' : (teamName(g).toUpperCase() + (g.ps.length > 1 ? ' WIN THE ROUND' : ' WINS THE ROUND')), cx, H * .42, !g ? '#ffffff' : g.col, g && g.ps.length > 1 ? 18 : 22); }
+  if (M.phase === 'end' && M.t < 2) { const g = teamGroups().find(t => t.k === M.winner); txt(!g ? 'DRAW' : (teamName(g).toUpperCase() + (g.ps.length > 1 ? ' WIN THE ROUND' : ' WINS THE ROUND')), cx, SH * .42, !g ? '#ffffff' : g.col, g && g.ps.length > 1 ? 18 : 22); }
   // damage numbers
   for (const n of M.nums) { const v = parseFloat(n.v) || 30, sz = Math.round(8 + Math.min(8, v / 10)); ctx.globalAlpha = clamp(n.t * 2, 0, 1); txt(String(n.v), snap(n.x), snap(n.y), n.col, sz); } ctx.globalAlpha = 1;
 }
 
 /* ---------- title scene: a quiet cave with a sand fall, torches and the two profiles ---------- */
 const TITLE = { statics: [{ x: 0, y: 620, w: 420, h: 100 }, { x: 860, y: 620, w: 420, h: 100 }, { x: 420, y: 660, w: 440, h: 60 }, { x: 150, y: 470, w: 230, h: 30 }, { x: 900, y: 470, w: 230, h: 30 }, { x: 560, y: 300, w: 160, h: 26 }, { x: 0, y: 0, w: 1280, h: 40 }], movers: [], boxes: [] };
-function buildTitle() { buildScene(TITLE.statics, 0, 77); RX.scene = 'title'; RX.torches = [{ x: Math.round(190 / SC), y: Math.round(470 / SC) - 1, ph: 1 }, { x: Math.round(1090 / SC), y: Math.round(470 / SC) - 1, ph: 4 }, { x: Math.round(600 / SC), y: Math.round(300 / SC) - 1, ph: 7 }]; }
+function buildTitle() { setWorld(SW, SH); buildScene(TITLE.statics, 0, 77); RX.scene = 'title'; RX.torches = [{ x: Math.round(190 / SC), y: Math.round(470 / SC) - 1, ph: 1 }, { x: Math.round(1090 / SC), y: Math.round(470 / SC) - 1, ph: 4 }, { x: Math.round(600 / SC), y: Math.round(300 / SC) - 1, ph: 7 }]; }
 function titleEmit() {
   // sand pours from a crack in the ceiling and piles on the middle ledge
   if (Math.random() < .8) putCell(Math.round(660 / SC) + (Math.random() * 3 | 0) - 1, Math.round(44 / SC), SAND, packC(200 + (Math.random() * 30 | 0), 170 + (Math.random() * 20 | 0), 100), 0);
@@ -4372,17 +4443,17 @@ const ONLINE_UI = {
 
 /* ============================ UI ============================ */
 const $ = id => document.getElementById(id);
-const PANELS = ['title', 'setup', 'pick', 'end', 'library', 'settings', 'maps', 'online', 'lobby', 'help', 'pause', 'custom', 'controls', 'wpick', 'wand', 'shop'];
+const PANELS = ['title', 'setup', 'pick', 'end', 'library', 'settings', 'maps', 'online', 'lobby', 'help', 'pause', 'custom', 'controls', 'wpick', 'wand', 'shop', 'rpath', 'rcamp'];
 let focusIdx = 0;
 // shown under the title logo; bump with each published update (MAKE-UPDATE uses the same number)
-const GAME_VERSION = '1.4.4';
+const GAME_VERSION = '1.5.0';
 function drawMapPreviews() {
   document.querySelectorAll('#maps canvas[data-m]').forEach(cv => {
-    const m = MAPS[+cv.dataset.m], c = cv.getContext('2d'), k = cv.width / W; c.imageSmoothingEnabled = false;
+    const m = MAPS[+cv.dataset.m], c = cv.getContext('2d'), k = cv.width / SW; c.imageSmoothingEnabled = false;
     c.fillStyle = '#120d0a'; c.fillRect(0, 0, cv.width, cv.height);
     c.fillStyle = '#b8401a'; c.fillRect(0, cv.height - 4, cv.width, 4);
     const R = (x, y, w, h, col) => { c.fillStyle = col; c.fillRect(Math.round(x * k), Math.round(y * k), Math.max(1, Math.round(w * k)), Math.max(1, Math.round(h * k))); };
-    for (const [x, y, w, h] of m.r) R(x, y, w, h, y + h >= H ? '#6a5848' : '#9c8064');
+    for (const [x, y, w, h] of m.r) R(x, y, w, h, y + h >= SH ? '#6a5848' : '#9c8064');
     for (const [x, y, w, h, mat] of m.bl || []) R(x, y, w, h, mat === 'b' ? '#a85a40' : mat === 'w' ? '#a87840' : '#7ad0f0');
     for (const [x, y, w, h, dx = 0, dy = 0] of m.mv || []) { R(x + Math.min(0, dx), y + Math.min(0, dy), w + Math.abs(dx), h + Math.abs(dy), 'rgba(160,170,190,.18)'); R(x, y, w, h, '#a0aabe'); }
     for (const [ax, ay, w, h, len] of m.hg || []) { c.strokeStyle = '#c89a5a'; c.beginPath(); c.moveTo(ax * k, ay * k); c.lineTo(ax * k, (ay + len) * k); c.stroke(); R(ax - w / 2, ay + len, w, h, '#8a6a48'); }
@@ -4512,8 +4583,8 @@ const UI = {
     $('title').innerHTML = `<h1><span class="a">RETRO</span> <span class="b">SHOT</span></h1>
       <div class="gver">Version ${GAME_VERSION.replace(/\.0$/, '')}</div>
       <h3 style="margin-top:0">Game mode</h3>
-      <div class="seg">${[['classic', 'Classic'], ['arsenal', 'Arsenal'], ['dungeon', 'Dungeon Run']].map(([k, n]) => `<button class="btn small ${SET.game === k ? 'sel' : ''}" style="min-width:9em" data-act="game" data-v="${k}">${n}</button>`).join('')}</div>
-      <div class="hint" style="margin:.3em 0 .9em">${SET.game === 'dungeon' ? '5 floors · earn coins for everything you do · shop with the merchant between floors' : SET.game === 'arsenal' ? 'Pick an elemental wand: fire, laser, bomb, spark, bubble or acid · upgrades made for it' : 'Same Apprentice Wand for everyone · build it up spell by spell'}</div>
+      <div class="seg">${[['classic', 'Classic'], ['arsenal', 'Arsenal'], ['dungeon', 'Dungeon Run'], ['rogue', 'Delve (co-op)']].map(([k, n]) => `<button class="btn small ${SET.game === k ? 'sel' : ''}" style="min-width:9em" data-act="game" data-v="${k}">${n}</button>`).join('')}</div>
+      <div class="hint" style="margin:.3em 0 .9em">${SET.game === 'rogue' ? 'Co-op roguelike · 1 or 2 wizards · 3 acts of caves, chests, merchants and bosses' : SET.game === 'dungeon' ? '5 floors · earn coins for everything you do · shop with the merchant between floors' : SET.game === 'arsenal' ? 'Pick an elemental wand: fire, laser, bomb, spark, bubble or acid · upgrades made for it' : 'Same Apprentice Wand for everyone · build it up spell by spell'}</div>
       <button class="btn side" data-act="demo">Watch<br>the bots</button>
       <button class="btn" data-act="setup" data-v="bot">Play vs Bot</button>
       <button class="btn" data-act="setup" data-v="local">Local Versus</button>
@@ -4536,11 +4607,11 @@ const UI = {
         <span class="d">${detail(x, ctr[i] || {})}</span></div>`).join('');
     $('setup').innerHTML = `<h2>${setupMode === 'bot' ? 'Play vs Bot' : 'Local Versus'}</h2>
       <h3>Wizards</h3><div class="lineup">${rows}</div>
-      <div class="hint keep" style="margin:.3em 0 0"><b style="color:#ffe9b8">${teamsDesc(L)}</b></div>
-      <h3>Game mode</h3><div class="seg">${[['classic', 'Classic'], ['arsenal', 'Arsenal'], ['dungeon', 'Dungeon Run']].map(([k, n]) => `<button class="btn small ${SET.game === k ? 'sel' : ''}" data-act="game" data-v="${k}">${n}</button>`).join('')}</div>
-      <div class="hint" style="margin-top:.4em;max-width:34em">${SET.game === 'dungeon' ? 'Pick a starting wand, then fight through 5 floors (best of 3 rounds each). There are no card picks: you earn coins for damage, kills, wards, warded bolts, bolt clashes, trick shots, smashed terrain and more, and spend them with a mysterious merchant after every floor. Most floors won takes the run.' : SET.game === 'arsenal' ? 'Each player picks one of ' + WEAPON_LIST.length + ' elemental wands (fire, laser, bomb, spark, bubble, acid) and keeps it. Between rounds you get 3 cards for your element (new spells or attunements that change how it behaves), plus a spell upgrade and a wand upgrade.' : 'Everyone starts with the same Apprentice Wand and adds spells to it between rounds.'}</div>
+      <div class="hint keep" style="margin:.3em 0 0"><b style="color:#ffe9b8">${SET.game === 'rogue' ? (L.filter(x => x.who !== 'off').length > 1 ? 'Co-op' : 'Solo') : teamsDesc(L)}</b></div>
+      <h3>Game mode</h3><div class="seg">${[['classic', 'Classic'], ['arsenal', 'Arsenal'], ['dungeon', 'Dungeon Run'], ['rogue', 'Delve (co-op)']].map(([k, n]) => `<button class="btn small ${SET.game === k ? 'sel' : ''}" data-act="game" data-v="${k}">${n}</button>`).join('')}</div>
+      <div class="hint" style="margin-top:.4em;max-width:34em">${SET.game === 'rogue' ? 'Team up (with a friend or a bot) and fight through 3 acts of side-scrolling caves. Vote on the path at every fork: dungeons, deep dungeons, treasure vaults, campfires and the merchant, with a boss at the end of each act. Open chests for armor, coins, scrolls and Phoenix Feathers; a feather brings a fallen friend back. If everyone falls, the run is over.' : SET.game === 'dungeon' ? 'Pick a starting wand, then fight through 5 floors (best of 3 rounds each). There are no card picks: you earn coins for damage, kills, wards, warded bolts, bolt clashes, trick shots, smashed terrain and more, and spend them with a mysterious merchant after every floor. Most floors won takes the run.' : SET.game === 'arsenal' ? 'Each player picks one of ' + WEAPON_LIST.length + ' elemental wands (fire, laser, bomb, spark, bubble, acid) and keeps it. Between rounds you get 3 cards for your element (new spells or attunements that change how it behaves), plus a spell upgrade and a wand upgrade.' : 'Everyone starts with the same Apprentice Wand and adds spells to it between rounds.'}</div>
       ${anyBot ? `<h3>Bot difficulty</h3><div class="seg">${['easy', 'normal', 'hard'].map(d => `<button class="btn small ${SET.bot === d ? 'sel' : ''}" data-act="bot" data-v="${d}">${d}</button>`).join('')}</div>` : ''}
-      ${SET.game === 'dungeon' ? '' : `<h3>Card picks</h3><div class="seg">${[['loser', 'Loser picks (ROUNDS)'], ['both', 'Everyone picks']].map(([k, n]) => `<button class="btn small ${(SET.picks || 'loser') === k ? 'sel' : ''}" data-act="picks" data-v="${k}">${n}</button>`).join('')}</div>
+      ${SET.game === 'dungeon' || SET.game === 'rogue' ? '' : `<h3>Card picks</h3><div class="seg">${[['loser', 'Loser picks (ROUNDS)'], ['both', 'Everyone picks']].map(([k, n]) => `<button class="btn small ${(SET.picks || 'loser') === k ? 'sel' : ''}" data-act="picks" data-v="${k}">${n}</button>`).join('')}</div>
       <h3>Match length</h3><div class="seg">${[3, 5, 7].map(d => `<button class="btn small ${SET.points === d ? 'sel' : ''}" data-act="points" data-v="${d}">First to ${d}</button>`).join('')}</div>
       <div class="seg" style="margin-top:.3em">${[1, 2].map(d => `<button class="btn small ${SET.rounds === d ? 'sel' : ''}" data-act="rounds" data-v="${d}">${d} round${d > 1 ? 's' : ''} per point</button>`).join('')}</div>`}
       <div style="height:1em"></div>
@@ -4552,6 +4623,8 @@ const UI = {
   wpick() { renderWPick(); },
   wand() { renderWand(); },
   shop() { renderShop(); },
+  rpath() { renderRPath(); },
+  rcamp() { renderRCamp(); },
   controls() {
     const slot = (kind, a, i) => {
       const wait = REB && REB.kind === kind && REB.act === a && REB.slot === i;
@@ -4580,6 +4653,7 @@ const UI = {
       <div><button class="btn small" data-act="resetctl">Reset to defaults</button><button class="btn" data-act="ctlback">Done</button></div>`;
   },
   end() {
+    if (M.rogue) { $('end').innerHTML = rgEndHTML(); return; }
     const G = teamGroups(), win = G.slice().sort((a, b) => (M.points[b.k] || 0) - (M.points[a.k] || 0))[0], p = win.ps[0];
     $('end').innerHTML = `<div class="pickhead" style="color:${p.color};font-size:${win.ps.length > 1 ? 2.2 : 3}em">${teamName(win) + (win.ps.length > 1 ? ' win!' : ' wins!')}</div>
       <div class="score">${scoreLine()}</div>${M.run ? '<div class="sub">Floors cleared</div>' + runSummaryHTML() : ''}
@@ -4647,6 +4721,7 @@ function renderPick() {
   if (!PK) return; setTimeout(() => magicDom($('pick')), 0);
   const p = M.players[PK.pi], others = M.players.filter(q => q !== p);
   const lost = !M.losers || M.losers.includes(PK.pi);
+  if (M.rogue) { $('pick').innerHTML = `<div class="pickhead" style="color:${p.color}">${p.nick + (p.ctrl.bot ? ' is choosing a card…' : ': pick a card')}</div><div class="hint" style="margin:-.2em 0 .6em">Act ${M.rogue.act} · ${RG_BIOMES[M.rogue.biome].n}</div>` + pickBody(p, others); return; }
   $('pick').innerHTML = `<div class="pickhead" style="color:${p.color}">${p.nick + (lost ? ' lost the round' : ' won the round') + (p.ctrl.bot || (p.ctrl.net && !p.ctrl.local) ? ' and is choosing a card…' : ': pick a card')}</div>
     <div class="hint" style="margin:-.2em 0 .6em">${SET.picks === 'both' ? 'Everyone picks a card after every round (losers first).' : (M.players.length > 2 ? 'Every wizard on a losing team picks a card, to help them catch up.' : 'The loser of each round picks a card, to help them catch up.') + ' You can change this in the match setup.'}</div>
     <div class="score">${scoreLine()}</div>
@@ -4655,6 +4730,11 @@ function renderPick() {
     ${M.game === 'arsenal' ? `<div class="hint" style="margin:1.4em 0 0">3 <b style="color:#ffd23d">${WEAPONS[p.weapon].name}</b> upgrades + 2 general cards</div>` : ''}
     <div class="decks">${[p, ...others].map(q => `<div><h3 style="color:${q.color}">${poss(q)} cards${wtag(q)}</h3><div class="minis">${q.wand ? q.wand.spells.map(id => id ? `<span class="mini" style="border-color:${TYPE_COL[SPELLS[id].kind]};color:${TYPE_COL[SPELLS[id].kind]}">${SPELLS[id].name}</span>` : '<span class="mini" style="opacity:.4">empty</span>').join('') : ''}${q.cards.filter(id => !CARDS[id].spell && !CARDS[id].wandup).map(id => `<span class="mini r${CARDS[id].rar}">${CARDS[id].name}</span>`).join('')}</div></div>`).join('')}</div>
     <div class="hint">${p.ctrl.bot ? '' : 'Click a card · or ← → and Enter · or stick and A' + (M.game === 'classic' || M.game === 'arsenal' ? ' · R or Y to re-roll' : '')}</div>`;
+}
+function pickBody(p, others) {
+  return `<div class="cards deal" style="--e:${((performance.now() - PK.t0) / 1000).toFixed(3)}s">${CHEST_SVG}${PK.cards.map((id, i) => `<div class="cslot" style="--dx:${((PK.cards.length - 1) / 2 - i).toFixed(1)};--i:${i};--rot:${((i * 37) % 5 - 2) * 14}deg">${cardHTML(id, `data-act="card" data-v="${i}"`).replace('class="card', `class="card${i === PK.sel && !p.ctrl.bot ? ' focus' : ''}${PK.chosen && i === PK.sel ? ' chosen' : ''}${p.ctrl.bot && i === PK.sel && PK.botSel ? ' focus' : ''}`)}</div>`).join('')}</div>
+    <div class="decks">${[p, ...others].map(q => `<div><h3 style="color:${q.color}">${poss(q)} cards${wtag(q)}</h3><div class="minis">${q.wand ? q.wand.spells.map(id => id ? `<span class="mini" style="border-color:${TYPE_COL[SPELLS[id].kind]};color:${TYPE_COL[SPELLS[id].kind]}">${SPELLS[id].name}</span>` : '<span class="mini" style="opacity:.4">empty</span>').join('') : ''}${q.cards.filter(id => !CARDS[id].spell && !CARDS[id].wandup).map(id => `<span class="mini r${CARDS[id].rar}">${CARDS[id].name}</span>`).join('')}</div></div>`).join('')}</div>
+    <div class="hint">${p.ctrl.bot ? '' : 'Click a card · or ← → and Enter · or stick and A'}</div>`;
 }
 function renderWPick() {
   if (!WP || !M) return; setTimeout(() => magicDom($('wpick')), 0);
@@ -5014,11 +5094,11 @@ const RUN_PRICE = [20, 35, 60, 100];
 let CUR_OWNER = -1;   // whose bolt / blast is touching the world right now (for terrain coins)
 
 function newRun() { return { floor: 1, floors: 5, rw: [0, 0], fw: [0, 0], coins: [0, 0], frac: [0, 0], earned: [{}, {}], total: [{}, {}], spent: [0, 0], log: [] }; }
-function inRun() { return M && M.game === 'dungeon' && M.run; }
+function inRun() { return M && (M.game === 'dungeon' || M.game === 'rogue') && M.run; }
 // side income is capped per round, so wands that naturally bounce, clash or blast terrain can't snowball
 const COIN_CAP = { 'Trick shots': 9, 'Bolt clashes': 8, 'Warded bolts': 10, 'Terrain smashed': 6 };
 function coin(pid, n, why, x, y) {
-  const R = inRun(); if (!R || pid !== 0 && pid !== 1 || n <= 0) return;
+  const R = inRun(); if (!R || pid !== 0 && pid !== 1 || n <= 0 || (M.players[pid] && M.players[pid].mob)) return;
   if (COIN_CAP[why]) { const cc = M.coinCap || (M.coinCap = {}), k = pid + why, used = cc[k] || 0; n = Math.min(n, COIN_CAP[why] - used); if (n <= 0) return; cc[k] = used + n; }
   R.frac[pid] += n; const whole = Math.floor(R.frac[pid] + 1e-6); if (whole <= 0) return;
   R.frac[pid] -= whole; R.coins[pid] += whole;
@@ -5101,9 +5181,10 @@ function setTurn(t) {
 function saveTurn() { const st = SHOP.st[SHOP.p.id]; st.items = SHOP.items; st.armor = SHOP.armor; st.reroll = SHOP.reroll; }
 function endTurn(done) {
   if (!SHOP) return; saveTurn(); const me = SHOP.st[SHOP.p.id]; if (done) me.done = true;
-  const other = 1 - SHOP.turn, o = SHOP.st[SHOP.order[other]];
-  if (!o.done) { sfx(440, .08, 'triangle', .025, 120); return setTurn(other); }
+  const N = SHOP.order.length;
+  for (let k = 1; k < N; k++) { const other = (SHOP.turn + k) % N; if (!SHOP.st[SHOP.order[other]].done) { sfx(440, .08, 'triangle', .025, 120); return setTurn(other); } }
   if (!me.done) return setTurn(SHOP.turn);
+  if (SHOP.rogue) { SHOP = null; return rgShowPath(); }
   SHOP = null; M.run.floor++; app = 'match'; show(null); wrap.classList.add('play'); startRound();
 }
 const shopLog = (p, txt) => SHOP.log.push({ pid: p.id, txt });
@@ -5112,6 +5193,7 @@ function botPickItem(p) {
   const R = M.run, full = !p.wand.spells.includes(null); let best = -1, bs = .5;
   SHOP.items.forEach((it, i) => {
     if (it.sold || it.price > R.coins[p.id]) return;
+    if (it.special) { const sc = it.special === 'feather' ? (M.heroes && M.heroes.length > 1 && !(p.inv && p.inv.feather) ? 3.4 : -1) : p.hp < p.st.maxHp * .5 ? 3 : -1; if (sc > bs) { bs = sc; best = i; } return; }
     const c = it.mystery ? null : CARDS[it.id];
     let sc = it.mystery ? 2.6 : c.rar * 1.4 + 1 + Math.random() * 1.5;
     if (c && c.spell) sc += full ? -1.6 : 1.4;
@@ -5135,6 +5217,7 @@ function botTurn() {
       if (!SHOP || SHOP.tk !== tk || app !== 'shop') return;
       if (!act) { shopLog(p, 'done shopping'); return endTurn(true); }
       if (act.armor) { const a = ARMOR[A.id]; R.coins[p.id] -= a.price; R.spent[p.id] += a.price; A.sold = true; giveGear(p, A.id); shopLog(p, a.n + ' (' + a.price + '¢)'); sfx(520, .08, 'square', .03, -200); }
+      else if (SHOP.items[act.i].special) { const it = SHOP.items[act.i]; R.coins[p.id] -= it.price; R.spent[p.id] += it.price; it.sold = true; rgBuySpecial(p, it); shopLog(p, RG_ITEMS[it.special].n + ' (' + it.price + '¢)'); }
       else { const it = SHOP.items[act.i]; R.coins[p.id] -= it.price; R.spent[p.id] += it.price; it.sold = true; const id = it.mystery ? mysteryCard(p) : it.id; it.got = id; grantCard(p, id); shopLog(p, (it.mystery ? 'Murky Flask → ' : '') + CARDS[id].name + ' (' + it.price + '¢)'); sfx(990, .08, 'square', .03, 400); }
       endTurn();
     });
@@ -5166,6 +5249,7 @@ function shopBuy(i) {
   const it = SHOP.items[i], p = SHOP.p, R = M.run; if (!it || it.sold) return;
   if (R.coins[p.id] < it.price) { sfx(140, .15, 'square', .04, -40); return refreshShop(); }
   R.coins[p.id] -= it.price; R.spent[p.id] += it.price; it.sold = true;
+  if (it.special) { rgBuySpecial(p, it); sfx(990, .08, 'square', .035, 400); shopLog(p, RG_ITEMS[it.special].n + ' (' + it.price + '¢)'); return endTurn(); }
   const id = it.mystery ? mysteryCard(p) : it.id; it.got = id;
   sfx(990, .08, 'square', .035, 400); setTimeout(() => sfx(1480, .12, 'square', .03, 300), 70);
   shopLog(p, (it.mystery ? 'Murky Flask → ' : '') + CARDS[id].name + ' (' + it.price + '¢)');
@@ -5283,13 +5367,14 @@ function shopDetail(el) {
       <div class="rep"><span style="color:#4a3a28">${how}</span> ${sold ? 'Wearing it now.' : cur ? 'Replaces your ' + ARMOR[cur.id].n + ' (' + Math.ceil(cur.dur) + '/' + gearMax(cur.id) + ').' : 'Empty slot.'} Kept until you fall.</div></div></div>`;
   } else {
     const it = SHOP.items[el ? +el.dataset.v : 0]; if (!it) return;
-    if (it.mystery && !it.sold) h = `<h4 style="color:#8a2a6a">Murky Flask · ${it.price}¢</h4><div class="ty">MYSTERY · RARE OR BETTER</div><div class="dd">Something swims inside: a spell, wand upgrade or perk. You only find out once it's yours.</div>`;
+    if (it.special) { const I = RG_ITEMS[it.special]; h = `<div class="mdrow">${rgSpecialArt(it.special)}<div class="mdtx"><div class="kb2 k-perk">ITEM</div><h4 style="color:#8a3a1a">${I.n} · ${it.sold ? 'sold' : it.price + '¢'}</h4><div class="dd">${I.d}</div>${it.special === 'feather' ? `<div class="rep">You carry ${(p.inv && p.inv.feather) || 0}.</div>` : `<div class="rep">${Math.ceil(p.hp)}/${Math.round(p.st.maxHp)} health now.</div>`}</div></div>`; }
+    else if (it.mystery && !it.sold) h = `<h4 style="color:#8a2a6a">Murky Flask · ${it.price}¢</h4><div class="ty">MYSTERY · RARE OR BETTER</div><div class="dd">Something swims inside: a spell, wand upgrade or perk. You only find out once it's yours.</div>`;
     else { const id = it.got || it.id, c = CARDS[id], wp = c.type === 'weapon', RC = ['#5a4a3a', '#2a5a9a', '#6a2a9a', '#9a6a00'][c.rar];
       const [kk, kl] = cardKind(id), pv = hasPreview(id);
       const tx = `<div class="kb2 k-${kk}">${kl}</div><h4 style="color:${RC}">${c.name} · ${it.sold ? 'sold' : it.price + '¢'}</h4><div class="ty">${['COMMON', 'UNCOMMON', 'RARE', 'LEGENDARY'][c.rar]}${c.el ? ' · ' + EL_NAME[c.el].toUpperCase() : ''}${c.uniq ? ' · UNIQUE' : ''}${pv && PV_NOTE[c.type] ? ' · ' + PV_NOTE[c.type].toUpperCase() : ''}</div><div class="dd">${c.desc}</div>${c.lines.map(chip).join('')}`;
       h = pv ? `<div class="mdrow">${pvCanvas(id, 56, 26)}<div class="mdtx">${tx}</div></div>` : tx; }
   }
-  box.innerHTML = h; magicDom(box);
+  box.innerHTML = h; magicDom(box); box.querySelectorAll('.rspec').forEach(rgPaintSpec);
 }
 function shopItemHTML(it, i, coins) {
   const can = coins >= it.price, tag = `<div class="price${can || it.sold ? '' : ' poor'}">${it.sold ? 'SOLD' : it.price + '¢'}</div>`, ex = `data-act="buy" data-v="${i}"${it.sold ? ' disabled' : ''}`;
@@ -5298,6 +5383,7 @@ function shopItemHTML(it, i, coins) {
   return h.slice(0, k) + tag + '</div>';
 }
 function goodHTML(it, i, coins) {
+  if (it.special) { const I = RG_ITEMS[it.special], can = coins >= it.price; return `<div class="good r1${it.sold ? ' sold' : can ? '' : ' poor'}" data-act="buy" data-v="${i}"${it.sold ? ' disabled' : ''}><div class="gtag">${it.sold ? 'SOLD' : it.price + '¢'}</div><div class="gob">${rgSpecialArt(it.special)}</div><div class="gkind k-perk">ITEM</div><div class="gname">${I.n}</div></div>`; }
   const can = coins >= it.price, id = it.sold && it.got ? it.got : it.id, rar = it.mystery && !it.sold ? 2 : CARDS[id] ? CARDS[id].rar : 0, myst = it.mystery && !it.sold;
   const [kk, kl] = myst ? ['perk', 'MYSTERY'] : cardKind(id), ob = !myst && hasPreview(id) ? `<div class="gscroll">${pvCanvas(id, 44, 22)}</div>` : goodSVG(myst ? 'mystery' : id);
   return `<div class="good r${rar}${it.sold ? ' sold' : can ? '' : ' poor'}${!myst && hasPreview(id) ? ' wide' : ''}" data-act="buy" data-v="${i}"${it.sold ? ' disabled' : ''}><div class="gtag">${it.sold ? 'SOLD' : it.price + '¢'}</div><div class="gob">${ob}</div><div class="gkind k-${kk}">${kl.replace('PERK · ', '')}</div><div class="gname">${myst ? 'Murky Flask' : CARDS[id].name}</div></div>`;
@@ -5320,19 +5406,20 @@ function renderShop() {
 }
 
 function renderTable() {
-  const p = SHOP.p, R = M.run, coins = R.coins[p.id], E = R.earned[p.id], A = SHOP.armor, a = ARMOR[A.id];
-  const earned = Object.keys(E).filter(k => E[k] > 0).sort((x, y) => E[y] - E[x]).map(k => `<span class="mini" style="color:#ffd23d;border-color:#6b5420">${k} +${E[k]}</span>`).join('') || '<span class="hint keep">nothing this floor</span>';
-  const bot = !!p.ctrl.bot, opid = SHOP.order[1 - SHOP.turn], opp = M.players[opid], oDone = SHOP.st[opid].done;
+  const p = SHOP.p, R = M.run, coins = R.coins[p.id], E = SHOP.rogue ? R.total[p.id] : R.earned[p.id], A = SHOP.armor, a = ARMOR[A.id];
+  const earned = Object.keys(E).filter(k => E[k] > 0).sort((x, y) => E[y] - E[x]).map(k => `<span class="mini" style="color:#ffd23d;border-color:#6b5420">${k} +${E[k]}</span>`).join('') || `<span class="hint keep">${SHOP.rogue ? 'no coins yet' : 'nothing this floor'}</span>`;
+  const bot = !!p.ctrl.bot, opid = SHOP.order.length > 1 ? SHOP.order[(SHOP.turn + 1) % SHOP.order.length] : -1, opp = M.players[opid], oDone = opid < 0 || SHOP.st[opid].done;
   // one compact block per wizard: purse, look with armor, armor list, speed/jump, wand
   const block = (q, act) => { const st = SHOP.st[q.id], sp = clamp(gearMul(q, 'spd'), .55, 1.45), jp = clamp(gearMul(q, 'jmp'), .8, 1.3);
     const gl = ['head', 'body', 'legs', 'feet', 'hand'].filter(sl => q.gear && q.gear[sl]).map(sl => { const g = q.gear[sl]; return `<div><span>${ARMOR[g.id].n}</span><i><u style="width:${Math.round(100 * clamp(g.dur / gearMax(g.id), 0, 1))}%"></u></i></div>`; }).join('') || '<div><span style="color:#7a6a58">no armor</span></div>';
     return `<div class="mgp${act ? ' act' : ''}" style="border-color:${q.color}"><div class="mgh"><span style="color:${q.color}">${q.nick}</span><span>${act ? (q.ctrl.bot ? 'SHOPPING…' : 'YOUR TURN') : st.done ? 'DONE' : 'WAITING'}</span></div>
       <div class="mgr"><canvas class="gwiz" data-pid="${q.id}" width="26" height="24"></canvas><div class="mgl"><div><b>Purse</b><span style="color:#ffd23d">${R.coins[q.id]}¢</span></div>${gl}<div><b>Speed</b><span class="${sp > 1 ? 'sp' : sp < 1 ? 'sl' : ''}">${pct(sp)}</span></div><div><b>Jump</b><span class="${jp > 1 ? 'sp' : jp < 1 ? 'sl' : ''}">${pct(jp)}</span></div></div></div>
       <div class="mgw">${q.wand.spells.map(id => id ? `<span style="color:${TYPE_COL[SPELLS[id].kind]}">${SPELLS[id].name}</span>` : '<span style="opacity:.35">empty</span>').join('')}</div></div>`; };
-  const log = SHOP.log.length ? SHOP.log.map(e => `<span style="color:${M.players[e.pid].color}">${M.players[e.pid].nick}:</span> ${e.txt}`).join(' · ') : 'Take turns: one purchase each, starting with the wizard who lost the floor.';
+  const log = SHOP.log.length ? SHOP.log.map(e => `<span style="color:${M.players[e.pid].color}">${M.players[e.pid].nick}:</span> ${e.txt}`).join(' · ') : SHOP.rogue ? (SHOP.order.length > 1 ? 'Take turns: one purchase each.' : 'Buy as much as you like.') : 'Take turns: one purchase each, starting with the wizard who lost the floor.';
+  const fl = SHOP.rogue ? 'Act ' + M.rogue.act + ' · ' + RG_BIOMES[M.rogue.biome].n : 'Floor ' + R.floor + ' of ' + R.floors + ' cleared' + (R.lastWin === p.id ? ' (you won it)' : ''), lv = SHOP.rogue ? 'Back to the path' : R.floor + 1 <= R.floors ? 'Descend to floor ' + (R.floor + 1) : 'Leave';
   $('shop').innerHTML = `<div class="mshop">
     <div class="mhead">
-      <div class="purse" style="border-color:${p.color}"><div style="color:${p.color}">${bot ? p.nick + ' is shopping…' : (p.nick === 'You' ? 'Your' : p.nick + "'s") + ' turn'}</div><b>${coins}¢</b><div class="hint keep" style="margin:0">Floor ${R.floor} of ${R.floors} cleared${R.lastWin === p.id ? ' (you won it)' : ''}</div></div>
+      <div class="purse" style="border-color:${p.color}"><div style="color:${p.color}">${bot ? p.nick + ' is shopping…' : (p.nick === 'You' ? 'Your' : p.nick + "'s") + ' turn'}</div><b>${coins}¢</b><div class="hint keep" style="margin:0">${fl}</div></div>
       <img class="merchant" src="${merchantImg()}" alt="">
       <div class="mearn">${earned}</div>
     </div>
@@ -5345,18 +5432,837 @@ function renderTable() {
     <div class="mlog">${log}</div>
     <div class="mlow">
       <div class="mdetail" id="mdetail"></div>
-      <div class="mgear">${block(p, true)}${block(opp, false)}</div>
+      <div class="mgear">${block(p, true)}${opp ? block(opp, false) : ''}</div>
     </div>
-    <div class="mbtns">${bot ? `<div class="hint keep" style="color:${p.color}">${p.nick} is looking over the table…</div>` : `<button class="btn small" data-act="reroll">New stock (${SHOP.reroll}¢)</button><button class="btn small" data-act="shopwand">Arrange wand</button>${oDone ? '' : '<button class="btn small" data-act="endturn">End turn</button>'}<button class="btn" data-act="leave">${oDone ? (R.floor + 1 <= R.floors ? 'Descend to floor ' + (R.floor + 1) : 'Leave') : 'Done shopping'}</button>`}</div>
+    <div class="mbtns">${bot ? `<div class="hint keep" style="color:${p.color}">${p.nick} is looking over the table…</div>` : `<button class="btn small" data-act="reroll">New stock (${SHOP.reroll}¢)</button><button class="btn small" data-act="shopwand">Arrange wand</button>${oDone ? '' : '<button class="btn small" data-act="endturn">End turn</button>'}<button class="btn" data-act="leave">${oDone ? lv : 'Done shopping'}</button>`}</div>
   </div>`;
   $('shop').classList.toggle('botturn', bot);
-  $('shop').querySelectorAll('.gwiz').forEach(cv => gearWizard(cv, M.players[+cv.dataset.pid]));
+  $('shop').querySelectorAll('.gwiz').forEach(cv => gearWizard(cv, M.players[+cv.dataset.pid])); $('shop').querySelectorAll('.rspec').forEach(rgPaintSpec);
   const first = $('shop').querySelector('.good:not(.sold)') || $('shop').querySelector('.good'); shopDetail(first);
 }
 function runSummaryHTML() {
   const R = M.run; if (!R) return '';
   return `<div class="decks">${M.players.map(q => { const T = R.total[q.id], tot = Object.values(T).reduce((a, b) => a + b, 0);
     return `<div><h3 style="color:${q.color}">${q.nick}: ${R.fw[q.id]} floor${R.fw[q.id] === 1 ? '' : 's'} · ${tot}¢ earned · ${R.spent[q.id]}¢ spent</h3><div class="minis">${Object.keys(T).sort((a, b) => T[b] - T[a]).map(k => `<span class="mini" style="color:#ffd23d;border-color:#6b5420">${k} ${T[k]}</span>`).join('')}</div></div>`; }).join('')}</div>`;
+}
+
+/* ============================ DELVE: a co-op roguelike run (1-2 wizards, local) ============================
+   Three acts, each a branching path of side-scrolling levels picked by vote: dungeons, deep dungeons, treasure vaults,
+   campfires and the merchant, ending in a boss arena. The camera zooms out to 200% to keep both wizards in view;
+   past that they can't drift further apart. Coins, armor and spells carry over; a fallen wizard leaves a gravestone
+   that an ally can bring back with a Phoenix Feather or an Ankh. Both wizards down ends the run. */
+const RG_BIOMES = [
+  { pal: 0, n: 'The Upper Mines', boss: 'golem', bn: 'The Stone Golem', mob: ['Kobold', 'Cave Bat', 'Geomancer', 'Golemling'], bolt: 'rock' },
+  { pal: 1, n: 'Fungal Hollow', boss: 'mycelia', bn: 'Mother Mycelia', mob: ['Sporeling', 'Spore Moth', 'Mycomancer', 'Shroom Brute'], bolt: 'spore' },
+  { pal: 2, n: 'The Frozen Deep', boss: 'golem', bn: 'The Frost Colossus', mob: ['Frost Imp', 'Ice Wisp', 'Frost Witch', 'Yeti'], bolt: 'ice' },
+  { pal: 3, n: 'Sunken Jungle', boss: 'mycelia', bn: 'The Bloom Queen', mob: ['Lizardman', 'Venom Wasp', 'Shaman', 'Croc Brute'], bolt: 'dart' },
+  { pal: 4, n: 'The Buried Desert', boss: 'king', bn: 'Pharaoh Ankhet', mob: ['Scarab', 'Vulture', 'Sand Sorcerer', 'Mummy'], bolt: 'sand' },
+  { pal: 5, n: 'The Crimson Vault', boss: 'king', bn: 'The Hollow King', mob: ['Skeleton', 'Ghost', 'Lich Acolyte', 'Stone Knight'], bolt: 'skull' }
+];
+const RG_ACTS = [[0, 1], [2, 3], [4, 5]]; // each act draws its biome from a pair
+const MOB_ARCH = {
+  walk: { hp: 55, r: 12, spd: 140, touch: 9, coins: 2 },
+  fly: { hp: 34, r: 10, spd: 160, touch: 7, coins: 2, fly: true },
+  cast: { hp: 52, r: 12, spd: 80, touch: 6, coins: 4, cd: 2.5 },
+  brute: { hp: 200, r: 20, spd: 78, touch: 14, coins: 8, slam: 16 }
+};
+const MOB_ORDER = ['walk', 'fly', 'cast', 'brute'];
+// biome bolts: what the casters (and bosses) throw
+const RG_BOLT = {
+  rock: { spd: 480, g: .9, r: 5, col: '#d0a070', dmg: 1.15 },
+  spore: { spd: 250, poison: 3, r: 5, col: '#c870ff' },
+  ice: { spd: 390, slowHit: .45, r: 4, col: '#a8e8ff' },
+  dart: { spd: 640, poison: 2, r: 3, col: '#8aff5a', dmg: .8 },
+  sand: { spd: 410, n: 3, spread: .2, r: 4, col: '#f0c870', dmg: .65 },
+  skull: { spd: 250, homing: true, life: 2.6, r: 5, col: '#ff6a4a' }
+};
+const RG_NODE = {
+  dungeon: { n: 'Dungeon', d: 'A winding cave full of monsters. Chests along the way, a card when you get out.', col: '#d9b26a' },
+  hard: { n: 'Deep Dungeon', d: 'Longer and meaner, with elite monsters. Better chests, a gold one by the exit, 25¢ each and a card.', col: '#ff6a5a' },
+  treasure: { n: 'Treasure Vault', d: 'A short room stacked with chests. Some of them bite.', col: '#ffd23d' },
+  merchant: { n: 'Merchant', d: 'Spend your coins on spells, armor, feathers and draughts.', col: '#8fd8ff' },
+  camp: { n: 'Campfire', d: 'Each wizard rests, studies a new card, mends armor or rekindles a fallen friend.', col: '#ff9a2e' },
+  boss: { n: 'Boss', d: 'An arena and something big. Beat it to reach the next act.', col: '#ff3d6a' }
+};
+const RG_ITEMS = {
+  feather: { n: 'Phoenix Feather', d: 'Touch a fallen friend\'s gravestone to bring them back at half health.', col: '#ff8a3a' },
+  ankh: { n: 'Ankh of Return', d: 'Touch a fallen friend\'s gravestone to bring them back at full health.', col: '#ffd23d' },
+  elixir: { n: 'Elixir of Vigor', d: '+12 max health for the rest of the run.', col: '#6aff7a' },
+  heart: { n: 'Heart', d: 'Heals 30% of your health.', col: '#ff4a5a' },
+  draught: { n: 'Healing Draught', d: 'Drink at once: heals 60% of your health.', col: '#ff6a8a' }
+};
+
+const rgOn = () => !!(M && M.rogue);
+const rgHeroes = () => M.heroes || M.players;
+const rgAlive = () => rgHeroes().filter(h => !h.dead);
+const rgR = (a, b) => a + Math.random() * (b - a), ri = (a, b) => Math.floor(rgR(a, b + 1));
+function rgNewRun() { return { act: 1, row: -1, cur: null, map: null, biome: 0, levels: 0, kills: 0, chests: 0, bosses: 0, revives: 0, satchel: [[], []], log: [], won: false }; }
+function rgScale(hard) {
+  const R = M.rogue, d = (R.act - 1) * 6 + Math.max(0, R.row), n = rgHeroes().length;
+  return { hp: (1 + .2 * d) * (1 + .5 * (n - 1)) * (hard ? 1.2 : 1), dmg: (1 + .11 * d) * (hard ? 1.12 : 1) };
+}
+
+/* ---------- the path map: 7 columns per act, picked by vote ---------- */
+function rgGenAct() {
+  const R = M.rogue, rows = [];
+  R.biome = pick(RG_ACTS[R.act - 1]);
+  const W = { dungeon: 42, hard: 20, treasure: 11, merchant: 13, camp: 14 };
+  const roll = () => { let t = Math.random() * Object.values(W).reduce((a, b) => a + b, 0); for (const k in W) { t -= W[k]; if (t <= 0) return k; } return 'dungeon'; };
+  rows.push([{ kind: 'dungeon' }]);
+  for (let r = 1; r <= 4; r++) { const n = r === 1 ? 2 : ri(2, 3), row = []; for (let i = 0; i < n; i++) { let k = roll(); if (r === 1 && (k === 'merchant' || k === 'camp')) k = 'dungeon'; row.push({ kind: k }); } rows.push(row); }
+  if (!rows.slice(2, 5).some(r => r.some(n => n.kind === 'merchant'))) pick(rows[ri(2, 4)]).kind = 'merchant';
+  if (!rows.slice(1, 5).some(r => r.some(n => n.kind === 'hard'))) pick(rows[ri(1, 4)]).kind = 'hard';
+  rows.push([{ kind: 'camp' }, { kind: 'merchant' }]);
+  rows.push([{ kind: 'boss' }]);
+  rows.forEach((row, r) => row.forEach((n, i) => Object.assign(n, { r, i, f: (i + .5) / row.length, links: [], visited: false })));
+  for (let r = 0; r < rows.length - 1; r++) {
+    const A = rows[r], B = rows[r + 1];
+    for (const a of A) { const s = B.slice().sort((x, y) => Math.abs(x.f - a.f) - Math.abs(y.f - a.f)); a.links.push(s[0].i); if (s[1] && Math.random() < .55) a.links.push(s[1].i); }
+    for (const b of B) if (!A.some(a => a.links.includes(b.i))) A.slice().sort((x, y) => Math.abs(x.f - b.f) - Math.abs(y.f - b.f))[0].links.push(b.i);
+    for (const a of A) a.links.sort((x, y) => x - y);
+  }
+  R.map = rows; R.row = -1; R.cur = null;
+}
+function rgChoices() { const R = M.rogue; return R.row < 0 ? R.map[0] : R.cur.links.map(i => R.map[R.row + 1][i]); }
+
+/* ---------- level generation: a long cave with pits, ledges, pillars, overhangs, chests, monsters and a door ---------- */
+function rgGenLevel(kind) {
+  const R = M.rogue, hard = kind === 'hard', tre = kind === 'treasure', WW = tre ? 2560 : hard ? 4800 : 3840, WH = 1440;
+  const rects = [], bl = [], box = [], pads = [], mv = [], hg = [], surf = [], mobs = [], chests = [], shrines = [];
+  rects.push({ x: 0, y: 0, w: 40, h: WH }, { x: WW - 40, y: 0, w: 40, h: WH }, { x: 40, y: 0, w: WW - 80, h: 36 });
+  // ground: flat start and end, pits in between (they drop into lava)
+  const segs = []; let x = 40, gy = 1240; const SAFE = 720;
+  while (x < WW - 40) {
+    let len, gap = 0;
+    if (x === 40) len = SAFE - 40;
+    else if (x > WW - SAFE - 420) len = WW - 40 - x;
+    else { len = ri(260, 660); if (!tre && Math.random() < .55) gap = ri(110, 190); }
+    len = Math.min(len, WW - 40 - x);
+    segs.push({ x, w: len, y: gy }); rects.push({ x, y: gy, w: len, h: WH - gy }); surf.push({ x, w: len, y: gy, g: true });
+    x += len;
+    if (gap && x + gap < WW - SAFE) { segs.push({ gap: true, x, w: gap }); x += gap; gy = clamp(gy + pick([-40, 0, 0, 40, 80]), 1120, 1320); }
+    else gy = clamp(gy + pick([-80, -40, 0, 0, 40, 80]), 1120, 1320);
+  }
+  const gAt = px => { for (const s of segs) if (!s.gap && px >= s.x && px < s.x + s.w) return s.y; return null; };
+  // a ragged cave ceiling (solid rock) so the open air above the route isn't empty
+  for (let cx = 40; cx < WW - 40;) { const w = Math.min(ri(90, 220), WW - 40 - cx), g = Math.min(gAt(cx) || 1240, gAt(cx + w - 1) || 1240), h = ri(150, Math.max(170, g - 640));
+    rects.push({ x: cx, y: 36, w, h, fixed: true }); if (Math.random() < .5 && w > 120) rects.push({ x: cx + ri(20, w - 60), y: 36 + h, w: ri(24, 40), h: ri(30, 90), fixed: true }); cx += w; }
+  const plat = (px, py, w, h = 24) => { const r = { x: Math.round(px), y: Math.round(py), w: Math.round(w), h }; rects.push(r); surf.push({ x: r.x, w: r.w, y: r.y }); return r; };
+  // chunks between the safe zones
+  const chunks = [];
+  for (let cx = SAFE; cx < WW - SAFE - 200; cx += ri(520, 640)) chunks.push(cx);
+  const T = tre ? ['ledges', 'upper', 'crates', 'pillar'] : ['ledges', 'pillar', 'overhang', 'upper', 'crates', 'pad', 'ledges', 'pillar'];
+  for (const cx of chunks) {
+    const g = gAt(cx + 200) || gAt(cx + 60) || 1240, t = pick(T);
+    if (t === 'ledges') { const n = ri(2, 3); for (let i = 0; i < n; i++) plat(cx + 40 + i * 170 + rgR(-20, 20), g - 150 - i * rgR(60, 120) - (i & 1) * 40, rgR(140, 230)); }
+    else if (t === 'pillar') { const ph = ri(150, 240), pw = ri(70, 110), px = cx + rgR(120, 360); if (gAt(px) && gAt(px + pw)) { const top = Math.min(gAt(px), gAt(px + pw)); rects.push({ x: px, y: top - ph, w: pw, h: ph }); surf.push({ x: px, w: pw, y: top - ph }); plat(px - 150, top - ph - 120, 180); } }
+    else if (t === 'overhang') { const ow = ri(300, 460), oh = g - 330 - 36; if (oh > 200) rects.push({ x: cx + 60, y: 36, w: ow, h: oh }); plat(cx + 60 + rgR(40, ow - 220), g - 150, rgR(150, 220)); }
+    else if (t === 'upper') { let py = g; for (let i = 0; i < 3; i++) { py -= ri(110, 135); plat(cx + 40 + i * 120, py, 120); } plat(cx + 380, py - 40, ri(260, 380)); }
+    else if (t === 'crates') { const bx = cx + rgR(80, 300), by = gAt(bx); if (by) { for (let i = 0; i < ri(2, 4); i++) box.push([bx + i * 46, by - 44 - (i === 2 ? 44 : 0), 42]); bl.push([bx + 220, by - 96, 40, 96, pick(['b', 'w', 'b', 'c'])]); } plat(cx + 20, g - 200, 170); }
+    else if (t === 'pad') { const px = cx + rgR(60, 200), py = gAt(px); if (py) { pads.push([px, py, 60]); plat(px - 60, py - 470, 260); plat(px + 260, py - 230, 160); } }
+  }
+  // bridges over the widest pits: a swinging rope platform or a sliding iron one
+  for (const s of segs) if (s.gap && s.w > 150 && Math.random() < .55) { if (Math.random() < .5) mv.push([s.x + s.w / 2 - 50, (gAt(s.x - 10) || 1240) - 30, 100, 18, 90, 0, 3.4, Math.random() * 6]); else hg.push([s.x + s.w / 2, 36, 120, 18, (gAt(s.x - 10) || 1240) - 140, 0, .92]); }
+  // monsters, per chunk
+  const nHero = rgHeroes().length, per = (tre ? .8 : hard ? 2.6 : 1.8) + (R.act - 1) * .45 + Math.max(0, R.row) * .12 + (nHero - 1) * .45;
+  const surfIn = (x0, x1, ground) => surf.filter(s => s.x + s.w > x0 + 30 && s.x < x1 - 30 && s.w >= 70 && (ground === undefined || !!s.g === ground));
+  const onSurf = (s, r) => [clamp(rgR(s.x + r + 8, s.x + s.w - r - 8), s.x + r, s.x + s.w - r), s.y - r - 2];
+  let bruteN = 0;
+  chunks.forEach((cx, ci) => {
+    const n = Math.max(1, Math.round(per + rgR(-.6, .8)));
+    for (let k = 0; k < n; k++) {
+      let a = pick(['walk', 'walk', 'walk', 'fly', 'fly', 'cast', 'cast', 'brute']);
+      if (a === 'brute' && (bruteN > chunks.length / 2 || ci < 1)) a = 'walk'; if (a === 'brute') bruteN++;
+      const A = MOB_ARCH[a], elite = (hard ? .22 : .06 + .04 * (R.act - 1)) > Math.random();
+      if (a === 'fly') { mobs.push({ a, elite, x: cx + rgR(60, 520), y: (gAt(cx + 200) || 1240) - rgR(220, 420) }); continue; }
+      const ss = surfIn(cx, cx + 600, a === 'cast' && Math.random() < .7 ? false : undefined), s = ss.length ? pick(ss) : surfIn(cx, cx + 600)[0];
+      if (!s) continue; const [mx, my] = onSurf(s, A.r * (elite ? 1.15 : 1)); mobs.push({ a, elite, x: mx, y: my });
+    }
+  });
+  // chests: wood along the way, iron up high, gold by the exit of a deep dungeon; vaults are full of them
+  const high = surf.filter(s => !s.g && s.x > SAFE - 100 && s.x < WW - SAFE && s.w >= 90).sort((a, b) => a.y - b.y);
+  const ground = surf.filter(s => s.g && s.x > SAFE - 100 && s.x + s.w < WW - SAFE + 200 && s.w >= 120);
+  const put = (s, kind) => { if (!s) return; const cxp = clamp(rgR(s.x + 30, s.x + s.w - 30), s.x + 20, s.x + s.w - 20); if (chests.some(c => Math.abs(c.x - cxp) < 70 && Math.abs(c.y - s.y) < 40)) return; chests.push({ kind, x: cxp, y: s.y, mimic: kind !== 'wood' && (hard || tre) && Math.random() < (tre ? .3 : .18) }); };
+  if (tre) { for (const s of high.slice(0, 3)) put(s, pick(['iron', 'gold', 'iron'])); for (let i = 0; i < 3; i++) put(pick(ground), i === 0 ? 'gold' : pick(['wood', 'iron'])); }
+  else {
+    for (let i = 0; i < ri(2, 3); i++) put(pick(ground.length ? ground : high), 'wood');
+    for (const s of high.slice(0, hard ? 3 : ri(1, 2))) put(s, Math.random() < .25 ? 'wood' : 'iron');
+    if (hard) chests.push({ kind: 'gold', x: WW - 460, y: segs[segs.length - 1].y, mimic: false });
+  }
+  if (!tre && Math.random() < .4 && ground.length) { const s = pick(ground); shrines.push({ x: clamp(rgR(s.x + 40, s.x + s.w - 40), s.x + 30, s.x + s.w - 30), y: s.y, used: false }); }
+  const last = segs[segs.length - 1], gy0 = segs[0].y;
+  return { n: RG_NODE[kind].n, a: hexOfPal(PAL[RG_BIOMES[R.biome].pal].acc), rects, bl, box, pads, mv, hg, sp: [[140, gy0 - 20], [210, gy0 - 20]], ww: WW, wh: WH,
+    rg: { mobs, chests, shrines, door: { x: WW - 230, y: last.y }, kind } };
+}
+function hexOfPal(c) { return '#' + c.map(v => (v | 0).toString(16).padStart(2, '0')).join(''); }
+function rgBossArena() {
+  const R = M.rogue, B = RG_BIOMES[R.biome];
+  return { n: B.bn, a: hexOfPal(PAL[B.pal].acc), ww: SW, wh: SH, sp: [[170, 600], [250, 600]],
+    rects: [{ x: 0, y: 0, w: 30, h: SH }, { x: SW - 30, y: 0, w: 30, h: SH }, { x: 30, y: 0, w: SW - 60, h: 30 }, { x: 30, y: 640, w: SW - 60, h: 80 },
+      { x: 130, y: 470, w: 230, h: 24 }, { x: SW - 360, y: 470, w: 230, h: 24 }, { x: 520, y: 330, w: 240, h: 24 }],
+    rg: { mobs: [], chests: [], shrines: [], door: null, kind: 'boss', boss: { id: B.boss, x: 1000, y: 560 } } };
+}
+
+/* ---------- starting a level ---------- */
+function rgFresh(p, x, y) {
+  return { x, y, vx: 0, vy: 0, ammo: p.st.ammo, reloadT: 0, atkT: 0, sinceShot: 9, blockCd: 0, blockT: 0, onGround: false, wall: 0, coyote: 0, jumpBuf: 0,
+    aim: 0, lastBy: undefined, tgt: null, slowT: 0, slowAmt: 0, stunT: 0, silenceT: 0, dots: [], tempHp: 0, tempT: 0, bloodT: 0, empower: 0, rebirthUsed: false, abyss: 0, abyssT: 0,
+    stock: [], burstQ: [], hurt: false, trapT: 0, wfT: 0, thN: 0, edgeT: 0, chargeT: 0, chargeDir: 0, recoil: 0, recoverT: 0, sawT: 0, radT: 0, flash: 0, pristine: 0, jumpHeld: false, prev: {}, bot: null, deathT: 0,
+    bloom: 0, spin: 0, fresh: true, prevShoot: false, trigBuf: 0, tipN: 0, shred: 0, shredT: 0, snipeT: 0, snipeBy: -1, invT: 0 };
+}
+function rgStartLevel(node) {
+  const R = M.rogue; R.kind = node.kind; R.levels++;
+  M.players = M.heroes.slice();
+  const map = node.kind === 'boss' ? rgBossArena() : rgGenLevel(node.kind);
+  M.ww = map.ww; M.wh = map.wh; setWorld(M.ww, M.wh);
+  M.map = map; M.mapIdx = RG_BIOMES[R.biome].pal; M.roundNo++;
+  initWorld();
+  M.bullets = []; M.bombs = []; M.fields = []; M.rings = []; M.parts = []; M.nums = []; M.timers = []; M.acid = []; M.beams = []; M.flashes = [];
+  M.heroes.forEach((p, i) => {
+    const hp0 = p.hp, wasDead = p.dead; p.st = calcStats(p.cards, null); p.st.maxHp = p.st.maxHp * (1 + .12 * (R.act - 1)) + (p.bonusHp || 0);
+    const sp = map.sp[i] || map.sp[0]; Object.assign(p, rgFresh(p, sp[0], sp[1]));
+    p.hp = R.first ? p.st.maxHp : clamp(hp0, 1, p.st.maxHp); p.dead = !!wasDead; applyWand(p);
+  });
+  R.first = false;
+  const G = map.rg; M.rgL = { door: G.door, chests: G.chests.map(c => Object.assign({ open: false, t: 0 }, c)), shrines: G.shrines, drops: [], graves: [], wallFx: [], quakes: [], boss: null, doorT: 0, kind: G.kind, msgs: [] };
+  for (const h of M.heroes) if (h.dead) M.rgL.graves.push({ pid: h.id, x: h.x + 30, y: h.y - 20, vy: 0 });
+  for (const o of G.mobs) makeMob(o.a, o.x, o.y, { elite: o.elite });
+  if (G.boss) M.rgL.boss = makeBoss(G.boss.id, G.boss.x, G.boss.y);
+  M.cam = G.kind === 'boss' ? null : { x: SW / 2, y: M.wh - SH / 2, z: 1 }; if (M.cam) rgCamera(1, true);
+  M.coinCap = {}; M.phase = 'count'; M.t = G.kind === 'boss' ? 2.2 : 1.5; M.ts = 1; M.playT = 0; M.ot = 0; M.lavaLv = 0; M.lava = []; M.lavaAcc = 0; M.terrCoin = [0, 0, 0, 0]; M.rgEnd = null;
+  app = 'match'; show(null); wrap.classList.add('play');
+}
+
+/* ---------- monsters: player-like entities on the 'mobs' team, so every spell, blast and beam already hits them ---------- */
+function makeMob(arch, x, y, o = {}) {
+  const R = M.rogue, B = RG_BIOMES[R.biome], A = MOB_ARCH[arch], k = rgScale(R.kind === 'hard'), el = !!o.elite;
+  const m = newPlayer(0, { mob: true }); m.id = M.players.length;
+  m.mob = Object.assign({ arch, name: o.name || B.mob[MOB_ORDER.indexOf(arch)], biome: R.biome, elite: el }, A, o.extra || {});
+  m.team = 'mobs'; m.color = el ? '#ffd23d' : hexOfPal(PAL[B.pal].acc); m.nick = m.mob.name; m.cards = []; m.look = null;
+  m.st = calcStats([], null); m.st.maxHp = Math.round((o.hp || A.hp) * k.hp * (el ? 2.4 : 1)); m.r = (o.r || A.r) * (el ? 1.15 : 1);
+  Object.assign(m, rgFresh(m, x, y)); m.hp = m.st.maxHp; m.dmgK = k.dmg * (el ? 1.35 : 1);
+  m.sleep = !o.awake; m.dir = Math.random() < .5 ? -1 : 1; m.t = Math.random() * 9; m.ph = Math.random() * 9; m.atkT = rgR(.8, 2.2); m.touchT = 0; m.castT = 0;
+  M.players.push(m); return m;
+}
+const BOSS = {
+  golem: { hp: 1100, r: 54, spd: 70, touch: 26, coins: 60 },
+  mycelia: { hp: 950, r: 44, spd: 60, touch: 18, coins: 60, fly: true },
+  king: { hp: 1000, r: 36, spd: 90, touch: 16, coins: 60, fly: true }
+};
+function makeBoss(id, x, y) {
+  const R = M.rogue, n = rgHeroes().length, D = BOSS[id];
+  const m = makeMob(id === 'golem' ? 'brute' : 'fly', x, y, { awake: true, name: RG_BIOMES[R.biome].bn, r: D.r, extra: Object.assign({ boss: id }, D) });
+  m.st.maxHp = Math.round(D.hp * (1 + .6 * (R.act - 1)) * (1 + .5 * (n - 1))); m.hp = m.st.maxHp; m.dmgK = 1 + .25 * (R.act - 1); m.phaseN = 0; m.atkT = 2; m.mv = 0; return m;
+}
+function rgNearView(x, y, pad) {
+  if (!M.cam) return true; const w = SW * M.cam.z / 2 + pad, h = SH * M.cam.z / 2 + pad;
+  return Math.abs(x - M.cam.x) < w && Math.abs(y - M.cam.y) < h;
+}
+function mobTarget(m) { let best = null, bd = 1e18; for (const h of M.heroes) { if (h.dead) continue; const d = (h.x - m.x) ** 2 + (h.y - m.y) ** 2; if (d < bd) { bd = d; best = h; } } return best; }
+const groundAhead = (m, dir) => solidAt(m.x + dir * (m.r + 10), m.y + m.r + 12, M.solids) || solidAt(m.x + dir * (m.r + 10), m.y + m.r + 50, M.solids);
+const BOLT_ST = {};
+function boltSt(k) { return BOLT_ST[k] || (BOLT_ST[k] = Object.assign(baseStats(), { knockMul: .45, poison: RG_BOLT[k].poison || 0, slowHit: RG_BOLT[k].slowHit || 0 })); }
+function mobBolt(m, ang, k, mul = 1, o = {}) {
+  const K = RG_BOLT[k], sp = (o.spd || K.spd), r = o.r || K.r || 4;
+  M.bullets.push({ x: m.x + Math.cos(ang) * (m.r + 6), y: m.y + Math.sin(ang) * (m.r + 6), vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, owner: m.id, dmg: (K.dmg || 1) * 9 * m.dmgK * mul, kind: 'bullet', r, hitR: r + 2,
+    bounces: 0, bounced: 0, age: 0, dist: 0, ts: 1, g: o.g !== undefined ? o.g : K.g || 0, drill: 0, inWall: false, homing: !!K.homing, st: boltSt(k), col: K.col, emp: false, tip: false, life: o.life || K.life || 4, mob: true });
+}
+// aim a lobbed bolt (bolt gravity is BGRAV * g)
+function lobAng(dx, dy, v, g) { const G = BGRAV * g; if (G <= 0) return Math.atan2(dy, dx); const v2 = v * v, d = v2 * v2 - G * (G * dx * dx + 2 * dy * v2); if (d < 0) return Math.atan2(-1, Math.sign(dx) || 1); const a = Math.atan((v2 - Math.sqrt(d)) / (G * Math.abs(dx))); return dx >= 0 ? -a : Math.PI + a; }
+function mobShoot(m, tg) {
+  const k = RG_BIOMES[m.mob.biome].bolt, K = RG_BOLT[k], dx = tg.x - m.x, dy = tg.y - m.y;
+  const a = K.g ? lobAng(dx, dy, K.spd, K.g) : Math.atan2(dy + (tg.vy || 0) * .1, dx + (tg.vx || 0) * Math.hypot(dx, dy) / K.spd * .5);
+  const n = K.n || 1; for (let i = 0; i < n; i++) mobBolt(m, a + (i - (n - 1) / 2) * (K.spread || 0), k);
+  sfx(m.mob.arch === 'cast' ? 520 : 300, .14, 'triangle', .03, -200, 'mshot');
+}
+function updateMob(m, dt) {
+  if (m.dead) { m.deathT += dt; return; }
+  const D = m.mob;
+  if (m.sleep) { if (rgNearView(m.x, m.y, 200)) m.sleep = false; else return; }
+  for (const k of ['atkT', 'touchT', 'stunT', 'slowT', 'flash', 'trapT', 'castT', 'dashT', 'invT', 'snipeT', 'shredT']) if (m[k] > 0) m[k] -= dt;
+  if (m.slowT <= 0) m.slowAmt = 0; if (m.shredT <= 0) m.shred = 0;
+  for (const d of m.dots) { const a = Math.min(d.t, dt) * d.dps; d.t -= dt; damage(m, a, d.src === null ? null : M.players[d.src], { dot: true, decayed: d.decay, steal: d.steal }); }
+  m.dots = m.dots.filter(d => d.t > 0); if (m.dead) return;
+  if (isBurning(m) && Math.random() < .3) M.parts.push({ x: m.x + rnd(-m.r, m.r) * .8, y: m.y, vx: rnd(-25, 25), vy: rnd(-220, -120), t: rnd(.2, .4), m: .4, col: Math.random() < .5 ? '#ff7a2a' : '#ffd23d', s: 3 });
+  m.t += dt;
+  const tg = mobTarget(m), stun = m.stunT > 0 || m.trapT > 0, sp = D.spd * (1 - Math.min(.8, m.slowAmt || 0));
+  const dx = tg ? tg.x - m.x : 0, dy = tg ? tg.y - m.y : 0, dd = Math.hypot(dx, dy);
+  if (D.boss) bossAI(m, tg, dt, stun, dx, dy, dd);
+  else if (D.fly) {
+    if (!stun && tg && dd < 900) {
+      if (m.dashT > 0) { /* diving */ }
+      else { const tx = tg.x + Math.sin(m.t * 1.3 + m.ph) * 120, ty = tg.y - 130 + Math.sin(m.t * 2.1 + m.ph) * 35;
+        m.vx += clamp((tx - m.x) * 2.5 - m.vx, -900, 900) * dt * 2; m.vy += clamp((ty - m.y) * 2.5 - m.vy, -900, 900) * dt * 2;
+        const s = Math.hypot(m.vx, m.vy); if (s > sp) { m.vx *= sp / s; m.vy *= sp / s; }
+        if (m.atkT <= 0 && dd < 360) { m.vx = dx / dd * sp * 2.7; m.vy = dy / dd * sp * 2.7; m.dashT = .5; m.atkT = rgR(2.2, 3.4); sfx(700, .12, 'sawtooth', .02, -400, 'dive'); } }
+      m.dir = Math.sign(m.vx) || m.dir;
+    } else { m.vx *= Math.pow(.2, dt); m.vy = Math.sin(m.t * 2) * 30; }
+    if (m.trapT > 0) m.vy = -75;
+    if (D.biome === 5) { m.x += m.vx * dt; m.y += m.vy * dt; m.x = clamp(m.x, 50, W - 50); m.y = clamp(m.y, 50, H - 40); } // ghosts drift through rock
+    else movePlayer(m, m.vx * dt, m.vy * dt);
+  } else {
+    let mx = 0;
+    if (!stun) {
+      const near = tg && Math.abs(dx) < 650 && Math.abs(dy) < 380;
+      if (D.arch === 'cast') {
+        if (near) { m.dir = Math.sign(dx) || m.dir; mx = Math.abs(dx) < 240 ? -Math.sign(dx) : Math.abs(dx) > 460 ? Math.sign(dx) : 0; if (mx && !groundAhead(m, mx)) mx = 0;
+          if (m.atkT <= 0 && !m.casting && dd < 680 && los(m, tg, M.solids)) { m.casting = true; m.castT = .5; m.atkT = D.cd * rgR(.85, 1.2); }
+          if (m.casting && m.castT <= 0) { m.casting = false; mobShoot(m, tg); } }
+        else { mx = m.dir * .5; if (m.wall || !groundAhead(m, m.dir)) m.dir *= -1; m.casting = false; }
+      } else if (D.arch === 'brute') {
+        if (m.casting) { mx = 0; if (m.castT <= 0) { m.casting = false; mobSlam(m); } }
+        else if (near) { mx = Math.sign(dx); m.dir = mx; if (m.atkT <= 0 && dd < 160 && m.onGround) { m.casting = true; m.castT = .6; m.atkT = rgR(2.6, 3.4); sfx(90, .5, 'sawtooth', .04, 30, 'wind'); }
+          if (!groundAhead(m, mx) && !(dy > 60)) mx = 0; }
+        else { mx = m.dir * .6; if (m.wall || !groundAhead(m, m.dir)) m.dir *= -1; }
+      } else { // walker
+        if (near) { mx = Math.sign(dx); m.dir = mx || m.dir;
+          if (m.onGround && !groundAhead(m, mx) && dy < 60) { m.vy = -640; m.onGround = false; } // leap the gap
+          if (m.onGround && dy < -90 && Math.abs(dx) < 220 && Math.random() < dt * 2.5) m.vy = -660; }
+        else { mx = m.dir * .55; if (m.wall || !groundAhead(m, m.dir)) m.dir *= -1; }
+        if (m.onGround && m.wall && mx) m.vy = -620;
+      }
+    }
+    const acc = m.onGround ? 1800 : 700; m.vx += clamp(mx * sp - m.vx, -acc * dt, acc * dt);
+    m.vy = Math.min(m.vy + GRAV * dt, 1100); if (m.trapT > 0) { m.vx *= Math.pow(.05, dt); m.vy = -75; }
+    movePlayer(m, m.vx * dt, m.vy * dt);
+  }
+  // pits: lava eats monsters
+  if (m.y > H - m.r - 4) { m.y = H - m.r - 4; if (!D.fly) { damage(m, 9999, null, { edge: true }); return; } m.vy = -300; }
+  if (m.x < m.r) m.x = m.r; if (m.x > W - m.r) m.x = W - m.r;
+  // contact damage (a ward bounces them off)
+  if (!stun && m.touchT <= 0) for (const h of M.heroes) {
+    if (h.dead || Math.hypot(h.x - m.x, h.y - m.y) > m.r + h.r) continue;
+    const s = Math.sign(h.x - m.x) || 1;
+    if (h.blockT > 0) { m.vx = -s * 520; m.vy = -260; m.stunT = .5; ringFx(h.x, h.y, '#ffffff'); sfx(1100, .06, 'square', .04, -500, 'parry'); }
+    else { damage(h, D.touch * m.dmgK, m); h.vx = clamp(h.vx + s * 480, -1000, 1000); h.vy = Math.min(h.vy, -280); }
+    m.touchT = .8; if (m.dashT > 0) { m.dashT = 0; m.vx *= -.4; m.vy = -200; } break;
+  }
+}
+function mobSlam(m) {
+  const D = m.mob, y = m.y + m.r;
+  // a shockwave that runs along the ground both ways: jump over it
+  M.rgL.quakes.push({ x: m.x, y, r: 0, max: D.boss ? 520 : 230, owner: m.id, dmg: (D.slam || 24) * m.dmgK, hit: [] });
+  M.rings.push({ x: m.x, y, r: 10, max: 60, owner: -1, dmg: 0, hit: [], col: '#ffd27a', fx: true });
+  M.shake = Math.max(M.shake, D.boss ? 16 : 8); puffs(m.x, y, '#c8b090', 18, 260); sfx(70, .4, 'sawtooth', .07, -30, 'slam'); noise(.25, .07);
+  for (let i = -6; i <= 6; i++) kickPowder(m.x + i * 8, y - 2, 0, -2);
+}
+/* ---------- bosses ---------- */
+function bossAI(m, tg, dt, stun, dx, dy, dd) {
+  const D = m.mob, B = D.boss, half = m.hp < m.st.maxHp * .5, k = half ? 1.35 : 1;
+  if (half && !m.phaseN) { m.phaseN = 1; M.nums.push({ x: m.x, y: m.y - 70, v: 'ENRAGED!', t: 1.4, col: '#ff3d6a' }); ringFx(m.x, m.y, '#ff3d6a'); sfx(80, .8, 'sawtooth', .06, 40); M.shake = 14; }
+  if (!tg) return;
+  m.dir = Math.sign(dx) || m.dir;
+  const biomeK = RG_BIOMES[m.mob.biome].bolt;
+  if (B === 'golem') { // walks you down, slams the floor, lobs boulders; drops rocks from the ceiling when angry
+    let mx = 0;
+    if (m.casting) { if (m.castT <= 0) { m.casting = false;
+        if (m.atk === 'slam') { mobSlam(m); }
+        else if (m.atk === 'lob') { for (let i = -1; i <= 1; i++) { m.dmgK *= 1.4; mobBolt(m, lobAng(dx + i * 110, dy, 560, 1), 'rock', 1, { spd: 560, g: 1, r: 8 }); m.dmgK /= 1.4; } sfx(160, .3, 'square', .05, -80); }
+        else if (m.atk === 'rain') { for (let i = 0; i < 9; i++) { const x = rgR(60, W - 60); M.timers.push({ t: i * .12, fn: () => { if (m.dead) return; const b = { x, y: 40, r: 1 }; mobBolt(Object.assign({}, m, { x, y: 44, r: 0 }), Math.PI / 2, biomeK === 'ice' ? 'ice' : 'rock', 1.2, { spd: 120, g: 1.4, r: 7, life: 4 }); } }); } M.shake = 10; sfx(60, .6, 'sawtooth', .05, -20); }
+      } }
+    else { mx = Math.sign(dx) * (Math.abs(dx) > 90 ? 1 : 0);
+      if (m.atkT <= 0 && !stun) { m.atk = half && Math.random() < .4 ? 'rain' : Math.abs(dx) < 220 && m.onGround ? 'slam' : 'lob'; m.casting = true; m.castT = m.atk === 'slam' ? .55 : .7; m.atkT = rgR(1.8, 2.6) / k;
+        if (m.atk === 'slam') { m.vy = -520; } } }
+    if (stun) mx = 0;
+    m.vx += clamp(mx * D.spd * k - m.vx, -1200 * dt, 1200 * dt); m.vy = Math.min(m.vy + GRAV * dt, 1100); movePlayer(m, m.vx * dt, m.vy * dt);
+    if (m.onGround && m.wall && mx) m.vy = -560;
+  } else if (B === 'mycelia') { // hangs over the arena, bursts spores, calls her children, rains spores
+    const tx = W / 2 + Math.sin(m.t * .4) * 380, ty = 170 + Math.sin(m.t * .9) * 40;
+    m.vx += ((tx - m.x) * 1.5 - m.vx) * dt * 2; m.vy += ((ty - m.y) * 1.5 - m.vy) * dt * 2; m.x += m.vx * dt; m.y += m.vy * dt;
+    if (m.atkT <= 0 && !stun) {
+      const r = Math.random(), kid = M.players.filter(q => q.mob && !q.dead && !q.mob.boss).length;
+      if (r < .4) { const n = half ? 16 : 11, a0 = m.t; for (let i = 0; i < n; i++) mobBolt(m, a0 + i * TAU / n, biomeK, 1, { spd: 230 }); sfx(400, .3, 'triangle', .04, -200); }
+      else if (r < .6 && kid < 3) { for (let i = 0; i < 2; i++) { const c = makeMob('walk', m.x + rgR(-60, 60), m.y + 40, { awake: true }); c.vy = -200; c.vx = rgR(-200, 200); } puffs(m.x, m.y + 30, '#c870ff', 20, 200); sfx(220, .4, 'sawtooth', .03, 60); }
+      else { for (let i = 0; i < 6; i++) M.timers.push({ t: i * .18, fn: () => { if (m.dead) return; const t2 = mobTarget(m); if (t2) mobBolt(m, Math.atan2(t2.y - m.y, t2.x - m.x) + rgR(-.25, .25), biomeK, 1, { spd: 380 }); } }); }
+      m.atkT = rgR(1.6, 2.4) / k;
+    }
+  } else { // the king: teleports, homing skulls, bolt fans, raises the dead
+    if (m.blinkT > 0) { m.blinkT -= dt; if (m.blinkT <= 0) { m.x = m.bx; m.y = m.by; puffs(m.x, m.y, '#b070ff', 24, 260); sfx(900, .2, 'sine', .04, -600); } }
+    else { const ty = 260 + Math.sin(m.t * 1.4) * 60; m.vy += ((ty - m.y) * 2 - m.vy) * dt * 2; m.vx *= Math.pow(.3, dt); m.x += m.vx * dt; m.y += m.vy * dt; }
+    m.mv -= dt; if (m.mv <= 0 && !stun) { m.mv = rgR(4, 6) / k; m.bx = tg.x < W / 2 ? rgR(W * .6, W - 120) : rgR(120, W * .4); m.by = rgR(160, 320); m.blinkT = .45; puffs(m.x, m.y, '#b070ff', 24, 260); }
+    if (m.atkT <= 0 && !stun && !(m.blinkT > 0)) {
+      const r = Math.random(), kid = M.players.filter(q => q.mob && !q.dead && !q.mob.boss).length;
+      if (r < .35) { for (let i = 0; i < (half ? 4 : 3); i++) mobBolt(m, -Math.PI / 2 + (i - 1) * .7, 'skull', 1.1, { spd: 220, life: 3 }); sfx(300, .3, 'sawtooth', .03, 120); }
+      else if (r < .7) { const a = Math.atan2(dy, dx), n = half ? 9 : 7; for (let i = 0; i < n; i++) mobBolt(m, a + (i - (n - 1) / 2) * .16, biomeK === 'sand' ? 'sand' : 'skull', .9, { spd: 360, g: 0 }); sfx(500, .2, 'square', .03, -300); }
+      else if (kid < 3) { for (let i = 0; i < 2; i++) { const c = makeMob('walk', rgR(120, W - 120), 600, { awake: true }); puffs(c.x, c.y, '#b070ff', 14, 160); } sfx(120, .6, 'sawtooth', .04, 40); }
+      m.atkT = rgR(1.4, 2.2) / k;
+    }
+  }
+  if (m.y > H - m.r - 6) { m.y = H - m.r - 6; m.vy = -400; }
+}
+function rgMobDie(q) {
+  const D = q.mob, R = M.rogue; q.dead = true; q.deathT = 0; q.hp = 0; R.kills++;
+  puffs(q.x, q.y, q.color, D.boss ? 80 : 22, D.boss ? 500 : 260); puffs(q.x, q.y, '#ffffff', 8, 200);
+  sfx(D.boss ? 60 : 140, D.boss ? 1.2 : .25, 'sawtooth', .05, -60); noise(D.boss ? .6 : .15, D.boss ? .12 : .05);
+  const k = q.lastBy !== undefined ? M.players[q.lastBy] : null; if (k && !k.mob) coin(k.id, D.boss ? 0 : 2, 'Kills', q.x, q.y - 30);
+  const coins = Math.round((D.coins || 2) * (D.elite ? 2.5 : 1) * (1 + .25 * (R.act - 1)));
+  rgSpill(q.x, q.y, coins, D.boss ? 14 : D.elite ? 5 : Math.min(4, coins));
+  if (D.elite && Math.random() < .45) rgDrop(q.x, q.y, Math.random() < .3 ? 'elixir' : 'heart');
+  else if (!D.boss && Math.random() < .08) rgDrop(q.x, q.y, 'heart');
+  if (D.mimic) rgChestLoot({ kind: D.mimic === true ? 'iron' : D.mimic, x: q.x, y: q.y + q.r });
+  if (D.boss) { M.shake = 30; M.ts = .25; M.slowT = 1.2; for (const h of M.heroes) if (!h.dead) h.hp = h.st.maxHp; for (const o of M.players) if (o.mob && !o.dead) { o.dead = true; puffs(o.x, o.y, o.color, 14, 200); } rgDrop(q.x, q.y, Math.random() < .5 ? 'feather' : 'elixir'); }
+}
+
+/* ---------- chests, drops, shrines, gravestones ---------- */
+function rgDrop(x, y, kind, o = {}) { M.rgL.drops.push(Object.assign({ kind, x, y: y - 6, vx: rgR(-160, 160), vy: rgR(-420, -260), t: 0, bob: Math.random() * 9 }, o)); }
+function rgSpill(x, y, total, n) { n = Math.max(1, Math.min(n, total)); let left = total; for (let i = 0; i < n; i++) { const v = i === n - 1 ? left : Math.max(1, Math.round(total / n)); left -= v; if (v > 0) rgDrop(x, y, 'coin', { v }); } }
+function rgChestLoot(c) {
+  const R = M.rogue, x = c.x, y = c.y - 14; R.chests++;
+  if (c.kind === 'wood') { rgSpill(x, y, ri(6, 11) + R.act * 2, 4); if (Math.random() < .35) rgDrop(x, y, 'heart'); if (Math.random() < .12) rgDrop(x, y, 'elixir'); if (Math.random() < .25) rgDrop(x, y, 'scroll', { id: rgScrollCard(0) }); }
+  else if (c.kind === 'iron') { rgDrop(x, y, 'armor', { id: rgArmorRoll() }); rgSpill(x, y, ri(8, 13) + R.act * 3, 4); if (Math.random() < .22) rgDrop(x, y, 'feather'); if (Math.random() < .3) rgDrop(x, y, 'scroll', { id: rgScrollCard(1) }); }
+  else { rgDrop(x, y, 'scroll', { id: rgScrollCard(2) }); rgSpill(x, y, ri(14, 20) + R.act * 4, 6); rgDrop(x, y, Math.random() < .2 ? 'ankh' : Math.random() < .55 ? 'feather' : 'elixir'); if (Math.random() < .5) rgDrop(x, y, 'armor', { id: rgArmorRoll() }); }
+}
+function rgArmorRoll() { return pick(ARMOR_LIST.filter(id => id !== 'sombrero' || Math.random() < .5)); }
+// a spell card: rare+ for gold chests; elemental wands get their own element's cards
+function rgScrollCard(tier) {
+  const p = pick(M.heroes), pool = Math.random() < .55 && p.wand && p.wand.el ? EL_CARDS[p.wand.el] : SPELL_LIST.concat(UPGRADE_LIST, WANDUP_LIST);
+  for (let g = 0; g < 200; g++) { const rar = tier >= 2 ? (Math.random() < .3 ? 3 : 2) : tier === 1 ? ri(1, 2) : ri(0, 1), c = pool.filter(id => CARDS[id] && CARDS[id].rar === rar); if (c.length) return pick(c); }
+  return pick(pool);
+}
+function rgPickup(h, d) {
+  const R = M.rogue, I = RG_ITEMS[d.kind], say = (v, col) => SET.nums && M.nums.push({ x: h.x, y: h.y - 44, v, t: 1.1, col });
+  if (d.kind === 'coin') { coin(h.id, d.v, 'Loot'); sfx(1500 + Math.random() * 300, .05, 'square', .02, 600, 'coin'); return true; }
+  if (d.kind === 'heart') { if (h.hp >= h.st.maxHp - 1) return false; heal(h, h.st.maxHp * .3); say('+HEALTH', '#ff4a5a'); sfx(700, .15, 'triangle', .04, 400); return true; }
+  if (d.kind === 'elixir') { h.bonusHp = (h.bonusHp || 0) + 12; h.st.maxHp += 12; heal(h, 12); say('+12 MAX HEALTH', '#6aff7a'); sfx(500, .3, 'triangle', .04, 700); return true; }
+  if (d.kind === 'feather' || d.kind === 'ankh') { h.inv = h.inv || {}; h.inv[d.kind] = (h.inv[d.kind] || 0) + 1; say(I.n.toUpperCase(), I.col); sfx(900, .3, 'sine', .04, 800); return true; }
+  if (d.kind === 'scroll') { R.satchel[h.id].push(d.id); say('SCROLL: ' + CARDS[d.id].name.toUpperCase(), '#ffe9b0'); sfx(800, .2, 'triangle', .04, 500); return true; }
+  if (d.kind === 'armor') { const a = ARMOR[d.id];
+    if (!rgWants(h, d)) return false; // you already wear something as good in that slot
+    giveGear(h, d.id); say(a.n.toUpperCase(), '#c8ccd8'); sfx(520, .1, 'square', .035, -200); setTimeout(() => sfx(1250, .1, 'square', .03, -600), 60); return true; }
+  return false;
+}
+function rgWants(h, d) { // would rgPickup take it?
+  if (d.kind === 'heart') return h.hp < h.st.maxHp - 1;
+  if (d.kind === 'armor') { const a = ARMOR[d.id], cur = h.gear && h.gear[a.slot]; return !(cur && cur.dur >= gearMax(d.id) * .9); }
+  return true;
+}
+function rgRevive(h, g, item) {
+  const p = M.players[g.pid]; h.inv[item]--; M.rogue.revives++;
+  Object.assign(p, rgFresh(p, g.x, g.y - 20)); p.dead = false; p.hp = p.st.maxHp * (item === 'ankh' ? 1 : .5); p.invT = 2; applyWand(p);
+  M.rgL.graves.splice(M.rgL.graves.indexOf(g), 1);
+  puffs(p.x, p.y, item === 'ankh' ? '#ffd23d' : '#ff8a3a', 50, 360); ringFx(p.x, p.y, '#ffd23d'); sfx(400, .7, 'triangle', .05, 700); setTimeout(() => sfx(800, .6, 'triangle', .04, 600), 150);
+  if (SET.nums) M.nums.push({ x: p.x, y: p.y - 50, v: p.nick.toUpperCase() + ' RETURNS!', t: 1.6, col: '#ffd23d' });
+}
+// one physics step for small loose things (drops and gravestones)
+function rgFall(o, dt, r) {
+  o.vy = Math.min((o.vy || 0) + GRAV * .8 * dt, 900); const nx = o.x + (o.vx || 0) * dt, ny = o.y + o.vy * dt;
+  if (solidAt(nx, o.y, M.solids) || nx < 44 || nx > W - 44) o.vx = -(o.vx || 0) * .4; else o.x = nx;
+  if (solidAt(o.x, ny + r, M.solids)) { if (o.vy > 0) { o.vy = o.vy > 200 ? -o.vy * .3 : 0; o.vx = (o.vx || 0) * .6; o.rest = true; } else o.vy = 0; }
+  else { o.y = ny; o.rest = false; }
+  if (o.y > H - 14) { o.y = H - 14; o.vy = -700; } // lava spits it back up
+}
+
+/* ---------- the camera: frames every living wizard, zooming out to 200%; past that they can't drift apart ---------- */
+function rgZMax() { return Math.min(2, W / SW, H / SH); }
+function rgCamera(dt, snapTo) {
+  const C = M.cam; if (!C) return;
+  const pts = rgAlive().length ? rgAlive() : M.rgL.graves.length ? M.rgL.graves : M.heroes;
+  let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9; for (const p of pts) { x0 = Math.min(x0, p.x); x1 = Math.max(x1, p.x); y0 = Math.min(y0, p.y); y1 = Math.max(y1, p.y); }
+  const zm = rgZMax(), tz = clamp(Math.max((x1 - x0 + 520) / SW, (y1 - y0 + 380) / SH), 1, zm);
+  const k = snapTo ? 1 : 1 - Math.exp(-dt * (tz > C.z ? 7 : 2.5)); C.z += (tz - C.z) * k;
+  const vw = SW * C.z, vh = SH * C.z;
+  const tx = (x0 + x1) / 2 + 110, ty = (y0 + y1) / 2 - 60, kp = snapTo ? 1 : 1 - Math.exp(-dt * 6);
+  C.x += (tx - C.x) * kp; C.y += (ty - C.y) * kp;
+  // never let anyone slip off screen
+  const m = 50; if (x1 - x0 + 2 * m <= vw) { if (x0 - m < C.x - vw / 2) C.x = x0 - m + vw / 2; if (x1 + m > C.x + vw / 2) C.x = x1 + m - vw / 2; } else C.x = (x0 + x1) / 2;
+  if (y1 - y0 + 2 * m <= vh) { if (y0 - m < C.y - vh / 2) C.y = y0 - m + vh / 2; if (y1 + m > C.y + vh / 2) C.y = y1 + m - vh / 2; } else C.y = (y0 + y1) / 2;
+  C.x = clamp(C.x, vw / 2, W - vw / 2); C.y = clamp(C.y, vh / 2, H - vh / 2);
+}
+// at full zoom the edge of the screen is a wall: the wizard pulling away is held back until the other follows
+function rgSpread(prev) {
+  const A = rgAlive(); if (A.length < 2) return;
+  const zm = rgZMax(), SX = SW * zm - 140, SY = SH * zm - 120;
+  const order = A.slice().sort((a, b) => Math.abs(b.x - prev[b.id][0]) - Math.abs(a.x - prev[a.id][0]));
+  for (const p of order) {
+    const o = A.filter(q => q !== p), lo = Math.max(...o.map(q => q.x)) - SX, hi = Math.min(...o.map(q => q.x)) + SX;
+    if (p.x < lo) { p.x = lo; if (p.vx < 0) p.vx = 0; rgWall(lo - p.r - 6, p.y, -1); } else if (p.x > hi) { p.x = hi; if (p.vx > 0) p.vx = 0; rgWall(hi + p.r + 6, p.y, 1); }
+    const loY = Math.max(...o.map(q => q.y)) - SY, hiY = Math.min(...o.map(q => q.y)) + SY;
+    if (p.y < loY) { p.y = loY; if (p.vy < 0) p.vy = 0; } else if (p.y > hiY) { p.y = hiY; if (p.vy > 0) p.vy = 0; }
+  }
+}
+function rgWall(x, y, side) { const F = M.rgL.wallFx, f = F.find(w => w.side === side); if (f) { f.x = x; f.y = y; f.t = .5; } else F.push({ x, y, side, t: .5 }); }
+
+/* ---------- the per-step update for a Delve level ---------- */
+function rogueStep(dt, prev) {
+  const L = M.rgL, R = M.rogue;
+  if (M.cam) { rgSpread(prev); rgCamera(dt); }
+  for (const w of L.wallFx) w.t -= dt; L.wallFx = L.wallFx.filter(w => w.t > 0);
+  for (const q of L.quakes) { q.r += 560 * dt; if (q.r > q.max) q.dead = true; const src = M.players[q.owner];
+    if ((RX.frame & 1) === 0) for (const sx of [-1, 1]) { const x = q.x + sx * q.r; if (solidAt(x, q.y + 4, M.solids)) puffs(x, q.y - 2, '#c8b090', 1, 90); }
+    for (const h of rgAlive()) { if (q.hit.includes(h) || !h.onGround || Math.abs(h.y + h.r - q.y) > 34 || Math.abs(Math.abs(h.x - q.x) - q.r) > h.r + 12) continue;
+      q.hit.push(h); if (h.blockT > 0) { ringFx(h.x, h.y, '#ffffff'); continue; } damage(h, q.dmg, src); h.vy = -520; h.vx += Math.sign(h.x - q.x) * 300; } }
+  L.quakes = L.quakes.filter(q => !q.dead);
+  // chests open at a touch (mimics wake up)
+  for (const c of L.chests) { if (c.open) { c.t += dt; continue; }
+    for (const h of rgAlive()) if (Math.abs(h.x - c.x) < 30 && Math.abs(h.y - (c.y - 14)) < 32) {
+      c.open = true; c.t = 0;
+      if (c.mimic) { const mm = makeMob('brute', c.x, c.y - 22, { awake: true, name: 'Mimic', extra: { mimic: c.kind, coins: 14 }, hp: 260 }); mm.vy = -380; puffs(c.x, c.y - 10, '#ff3d6a', 20, 220); sfx(120, .5, 'sawtooth', .05, 80); if (SET.nums) M.nums.push({ x: c.x, y: c.y - 60, v: 'MIMIC!', t: 1.2, col: '#ff3d6a' }); }
+      else { rgChestLoot(c); puffs(c.x, c.y - 12, c.kind === 'gold' ? '#ffd23d' : '#e8c890', 16, 200); sfx(300, .12, 'square', .04, 300); setTimeout(() => sfx(900, .2, 'triangle', .03, 500), 90); }
+      break; } }
+  // drops: bounce, then fly to whoever is close
+  for (const d of L.drops) { d.t += dt;
+    if (d.t > .35) { let best = null, bd = d.kind === 'coin' ? 70 : 34; for (const h of rgAlive()) { const dd = Math.hypot(h.x - d.x, h.y - d.y); if (dd < bd) { bd = dd; best = h; } }
+      if (best && d.kind === 'coin' && bd > 22) { d.x += (best.x - d.x) * Math.min(1, dt * 9); d.y += (best.y - d.y) * Math.min(1, dt * 9); d.vy = 0; continue; }
+      if (best && bd < 26 && rgPickup(best, d)) { d.gone = true; continue; } }
+    rgFall(d, dt, 3); }
+  L.drops = L.drops.filter(d => !d.gone);
+  // shrines heal everyone once
+  for (const s of L.shrines) if (!s.used) for (const h of rgAlive()) if (Math.abs(h.x - s.x) < 26 && Math.abs(h.y - (s.y - 20)) < 34) { s.used = true; for (const q of rgAlive()) { heal(q, q.st.maxHp * .35); puffs(q.x, q.y, '#6aff7a', 16, 160); } ringFx(s.x, s.y - 20, '#6aff7a'); sfx(500, .6, 'sine', .05, 600); if (SET.nums) M.nums.push({ x: s.x, y: s.y - 70, v: 'SHRINE OF VIGOR', t: 1.4, col: '#6aff7a' }); break; }
+  // gravestones follow the living (they're dragged along at the edge of the screen) and wait for a feather
+  for (const g of L.graves) {
+    rgFall(g, dt, 8);
+    if (M.cam) { const vw = SW * M.cam.z / 2 - 40; g.x = clamp(g.x, M.cam.x - vw, M.cam.x + vw); }
+    for (const h of rgAlive()) { if (Math.hypot(h.x - g.x, h.y - g.y) > 34) continue; const it = h.inv && (h.inv.feather ? 'feather' : h.inv.ankh ? 'ankh' : null); if (it) { rgRevive(h, g, it); break; } }
+  }
+  // the door: everyone still standing has to be in it
+  if (L.door && M.phase === 'play') {
+    const A = rgAlive(), inD = A.filter(h => Math.abs(h.x - L.door.x) < 46 && h.y > L.door.y - 150 && h.y < L.door.y + 10);
+    L.atDoor = inD.length; if (A.length && inD.length === A.length) { L.doorT += dt; if (L.doorT > .5) { M.phase = 'end'; M.t = .9; M.rgEnd = 'clear'; sfx(330, .3, 'triangle', .04, 300); setTimeout(() => sfx(660, .4, 'triangle', .04, 300), 140); } } else L.doorT = 0;
+  }
+  if (M.phase === 'play' && L.boss && L.boss.dead) { M.phase = 'end'; M.t = 3; M.rgEnd = 'boss'; R.bosses++; }
+  if (M.phase === 'play' && !rgAlive().length) { M.phase = 'end'; M.t = 3; M.rgEnd = 'over'; }
+}
+function rgEndPhase() {
+  const how = M.rgEnd; M.rgEnd = null;
+  if (how === 'over') return rgGameOver(false);
+  return rgLevelDone(how === 'boss');
+}
+
+/* ---------- between levels ---------- */
+function rgQueue(q, done) { const next = () => { if (!M) return; const f = q.shift(); if (!f) return done(); f(next); }; next(); }
+function rgLevelDone(boss) {
+  const R = M.rogue, kind = R.kind; M.players = M.heroes.slice();
+  for (const h of M.heroes) if (!h.dead) { heal(h, h.st.maxHp * (boss ? 1 : .35)); if (kind === 'hard') coin(h.id, 25, 'Deep dungeon'); }
+  const q = [];
+  M.heroes.forEach(h => { const S = R.satchel[h.id]; while (S.length) { const id = S.shift(); q.push(next => { const res = grantCard(h, id); R.log.push(h.nick + ' read ' + CARDS[id].name); if (res === 'edit') return openWandEditor(h, id, next); next(); }); } });
+  if (kind === 'dungeon' || kind === 'hard' || boss) for (const h of M.heroes) if (!h.dead) q.push(next => { M.afterPick = next; beginPick(h.id); });
+  rgQueue(q, () => {
+    if (boss) { if (R.act >= 3) return rgGameOver(true); R.act++; rgGenAct(); }
+    rgShowPath();
+  });
+}
+function rgGameOver(won) {
+  const R = M.rogue; R.won = won; M.players = M.heroes.slice();
+  M.phase = 'over'; app = 'end'; wrap.classList.remove('play'); show('end');
+  if (won) { sfx(523, .2, 'square', .04); setTimeout(() => sfx(659, .2, 'square', .04), 150); setTimeout(() => sfx(784, .5, 'square', .04), 300); } else { sfx(200, .6, 'sawtooth', .04, -120); }
+}
+function rgEnter(node) {
+  const R = M.rogue; if (R.cur) R.cur.visited = true; node.visited = true; R.cur = node; R.row = node.r; M.run.floor = (R.act - 1) * 2 + 1 + Math.floor(node.r / 3); R.vote = null;
+  if (node.kind === 'merchant') { M.players = M.heroes.slice(); return openRogueMerchant(); }
+  if (node.kind === 'camp') return rgOpenCamp();
+  rgStartLevel(node);
+}
+
+/* ---------- voting on the path ---------- */
+function rgShowPath() {
+  const R = M.rogue; M.players = M.heroes.slice(); M.phase = 'path'; app = 'rpath'; wrap.classList.remove('play');
+  for (const h of M.heroes) if (!h.st) { h.st = calcStats(h.cards, null); h.hp = h.st.maxHp; }
+  const order = M.heroes.filter(h => !h.dead).map(h => h.id);
+  R.vote = { order, turn: 0, votes: {}, opts: rgChoices(), spin: -1, tk: (R.vote ? R.vote.tk : 0) + 1, done: false, t0: performance.now() };
+  show('rpath'); rgVoteTurn();
+}
+function rgVoteTurn() {
+  const R = M.rogue, V = R.vote, p = M.players[V.order[V.turn]], tk = V.tk;
+  if (!p.ctrl.bot) return;
+  setTimeout(() => { if (!M || !M.rogue || M.rogue.vote !== V || V.tk !== tk || V.done) return;
+    // bots like dungeons and treasure; the merchant when rich; a campfire when hurt or a friend is down
+    let best = 0, bs = -1e9; V.opts.forEach((n, i) => { let s = Math.random() * 2; const hp = p.hp / p.st.maxHp, rich = M.run.coins[p.id] > 70, down = M.heroes.some(h => h.dead);
+      s += { dungeon: 2, hard: hp > .7 ? 2.4 : 0, treasure: 2.6, merchant: rich ? 3 : .5, camp: hp < .5 || down ? 4 : .8, boss: 2 }[n.kind];
+      const hv = Object.values(V.votes); if (hv.length && hv[0] === i) s += 1.5; if (s > bs) { bs = s; best = i; } });
+    rgVote(best, true); }, 1100);
+}
+function rgVote(i, fromBot) {
+  const R = M.rogue, V = R && R.vote; if (!V || V.done || V.spin >= 0) return;
+  const p = M.players[V.order[V.turn]]; if (p.ctrl.bot && !fromBot) return; if (!fromBot && performance.now() - V.t0 < 350) return;
+  V.votes[p.id] = i; V.turn++; sfx(620, .08, 'square', .03, 200);
+  if (V.turn < V.order.length) { UI.rpath(); return rgVoteTurn(); }
+  const vs = [...new Set(Object.values(V.votes))];
+  if (vs.length === 1) { V.done = true; V.win = vs[0]; UI.rpath(); return setTimeout(() => rgEnter(V.opts[V.win]), 700); }
+  // split vote: a little roulette between the picked paths
+  V.done = true; V.win = pick(vs); let n = 0; const steps = 12 + vs.indexOf(V.win) + vs.length * ri(1, 2);
+  const spin = () => { if (!M || R.vote !== V) return; V.spin = vs[n % vs.length]; UI.rpath(); sfx(400 + (n % vs.length) * 160, .05, 'square', .025); n++;
+    if (n <= steps && !(n > 10 && V.spin === V.win)) setTimeout(spin, 70 + n * 14); else { V.spin = V.win; UI.rpath(); sfx(880, .3, 'triangle', .04, 300); setTimeout(() => rgEnter(V.opts[V.win]), 900); } };
+  spin();
+}
+// node icons (13x11 pixel sprites)
+const RG_ICON = {
+  dungeon: ['......w......', '.....wWw.....', '.....wWw.....', '.....wWw.....', '.....wWw.....', '.....wWw.....', '...ggggggg...', '.....bBb.....', '.....bBb.....', '.....ggg.....', '.............'],
+  hard: ['...wwwwwww...', '..wWWWWWWWw..', '.wWWWWWWWWWw.', '.wWrrWWWrrWw.', '.wWrrWWWrrWw.', '.wWWWWrWWWWw.', '..wWWWWWWWw..', '...wWbWbWw...', '...wbWbWbw...', '....wwwww....', '.............'],
+  treasure: ['.............', '...ggggggg...', '..gyyyyyyyg..', '.gyGGGGGGGyg.', '.gbbbbbbbbbg.', '.gbbbbgbbbbg.', '.gbbbgygbbbg.', '.gbbbbgbbbbg.', '.gbbbbbbbbbg.', '.ggggggggggg.', '.............'],
+  merchant: ['.....bbb.....', '....b...b....', '...bBBBBBb...', '..bByyyyyBb..', '.bByyGGGyyBb.', '.bByGyyyyyBb.', '.bByyGGGyyBb.', '.bByyyyyGyBb.', '.bByGGGGyyBb.', '..bBBBBBBBb..', '...........'],
+  camp: ['......r......', '.....rr......', '.....ryr.....', '....ryyrr....', '...rryWyrr...', '...ryWWWyr...', '....rWWWr....', '..bb.rrr.bb..', '.bBBbbbbbBBb.', '..bbBBBBBbb..', '.............'],
+  boss: ['..y...y...y..', '..yy.yyy.yy..', '..yyyyyyyyy..', '..ggggggggg..', '.wWWWWWWWWWw.', '.wWrrWWWrrWw.', '.wWrrWWWrrWw.', '.wWWWWrWWWWw.', '..wWWWWWWWw..', '...wWbWbWw...', '....wwwww....']
+};
+const RG_ICOL = { w: [70, 60, 56], W: [226, 220, 206], g: [200, 150, 60], b: [120, 80, 44], B: [80, 50, 26], r: [230, 60, 40], y: [255, 214, 80], G: [150, 110, 40] };
+function rgDrawIcon(c, kind, x0, y0, s, dim) {
+  const I = RG_ICON[kind]; I.forEach((row, y) => [...row].forEach((ch, x) => { if (ch === '.') return; const col = RG_ICOL[ch]; c.fillStyle = `rgb(${col.map(v => v * (dim ? .45 : 1) | 0).join(',')})`; c.fillRect(x0 + x * s, y0 + y * s, s, s); }));
+}
+function rgDrawMap(cv) {
+  const R = M.rogue, V = R.vote, c = cv.getContext('2d'), S = 2, rows = R.map; c.imageSmoothingEnabled = false; c.clearRect(0, 0, cv.width, cv.height);
+  const pos = n => [40 + n.r * ((cv.width - 80) / (rows.length - 1)), cv.height / 2 + (n.i - (rows[n.r].length - 1) / 2) * 62];
+  const opts = V ? V.opts : [], t = performance.now() / 1000;
+  // dotted trails
+  for (const row of rows) for (const n of row) for (const j of n.links) { const m = rows[n.r + 1][j], [x0, y0] = pos(n), [x1, y1] = pos(m), lit = n.visited && (m.visited || (R.cur === n && opts.includes(m)));
+    const L = Math.hypot(x1 - x0, y1 - y0), k = Math.ceil(L / 6); for (let s = 1; s < k; s++) { if (s % 2) continue; c.fillStyle = lit ? (m.visited ? '#ffd23d' : '#c9a874') : '#3a2e28'; c.fillRect(Math.round(x0 + (x1 - x0) * s / k) - 1, Math.round(y0 + (y1 - y0) * s / k) - 1, 3, 3); } }
+  for (const row of rows) for (const n of row) {
+    const [x, y] = pos(n), on = opts.includes(n), oi = opts.indexOf(n), dim = !on && !n.visited, hl = V && (V.spin === oi || (V.done && V.win === oi && V.spin < 0));
+    if (on) { const pulse = .5 + .5 * Math.sin(t * 5); c.fillStyle = hl ? '#ffffff' : `rgba(255,210,61,${.25 + .35 * pulse})`; c.fillRect(x - 17, y - 15, 34, 30); c.fillStyle = '#120a0e'; c.fillRect(x - 15, y - 13, 30, 26); }
+    rgDrawIcon(c, n.kind, x - 13, y - 11, S, dim);
+    if (R.cur === n) { c.fillStyle = '#ffffff'; c.fillRect(x - 3, y + 15, 6, 3); }
+    if (V && on) { let k = 0; for (const pid in V.votes) if (V.votes[pid] === oi) { c.fillStyle = M.players[pid].color; c.fillRect(x + 12 + k * 6, y - 18, 5, 8); c.fillStyle = '#120a0e'; c.fillRect(x + 12 + k * 6, y - 18, 1, 12); k++; } }
+  }
+}
+function rgHeroLine(h) {
+  const it = h.inv || {}, S = M.rogue.satchel[h.id] || [];
+  return `<div class="rhero${h.dead ? ' dead' : ''}" style="border-color:${h.color}"><b style="color:${h.color}">${h.nick}</b><span>${h.dead ? 'FALLEN' : Math.ceil(h.hp) + '/' + Math.round(h.st.maxHp) + ' HP'}</span><span style="color:#ffd23d">${M.run.coins[h.id]}¢</span>${it.feather ? `<span style="color:#ff8a3a">Feather ×${it.feather}</span>` : ''}${it.ankh ? `<span style="color:#ffd23d">Ankh ×${it.ankh}</span>` : ''}${S.length ? `<span>${S.length} scroll${S.length > 1 ? 's' : ''}</span>` : ''}</div>`;
+}
+function renderRPath() {
+  const R = M.rogue, V = R.vote; if (!V) return;
+  const B = RG_BIOMES[R.biome], p = !V.done && M.players[V.order[V.turn]], bossN = B.bn;
+  const opt = (n, i) => { const N = RG_NODE[n.kind], hl = V.spin === i || (V.done && V.win === i && V.spin < 0), vs = V.order.filter(pid => V.votes[pid] === i).map(pid => `<i style="background:${M.players[pid].color}"></i>`).join('');
+    return `<button class="btn rch${hl ? ' hl' : ''}" data-act="rvote" data-v="${i}"${V.done || (p && p.ctrl.bot) ? ' disabled' : ''}><canvas class="ric" data-k="${n.kind}" width="26" height="22"></canvas><span class="rn" style="color:${N.col}">${n.kind === 'boss' ? bossN : N.n}</span><span class="rd">${N.d}</span><span class="rv">${vs}</span></button>`; };
+  const head = V.done ? (V.spin >= 0 && Object.keys(V.votes).length > 1 && new Set(Object.values(V.votes)).size > 1 ? 'Split vote! Fate decides…' : 'Onward!') : (p.ctrl.bot ? p.nick + ' is voting…' : (V.order.length > 1 ? p.nick + ': vote for the path' : 'Choose your path'));
+  $('rpath').innerHTML = `<div class="rtop"><div class="ract">ACT ${R.act} OF 3</div><h2 style="margin:.1em 0 0">${B.n}</h2></div>
+    <canvas id="rmap" width="560" height="170"></canvas>
+    <div class="pickhead" style="font-size:1.25em;margin:.3em 0 .4em;color:${p ? p.color : '#ffe9b8'}">${head}</div>
+    <div class="rchoices">${V.opts.map(opt).join('')}</div>
+    <div class="rheroes">${M.heroes.map(rgHeroLine).join('')}</div>
+    <div class="hint">${V.order.length > 1 ? 'Each wizard votes in turn. A split vote picks one of the voted paths at random.' : ''}</div>`;
+  rgDrawMap($('rmap')); $('rpath').querySelectorAll('.ric').forEach(cv => { const c = cv.getContext('2d'); rgDrawIcon(c, cv.dataset.k, 0, 0, 2, false); });
+}
+
+/* ---------- the campfire: each wizard takes one action ---------- */
+function rgOpenCamp() {
+  const R = M.rogue; M.players = M.heroes.slice(); M.phase = 'camp'; app = 'rcamp'; wrap.classList.remove('play');
+  R.camp = { order: M.heroes.filter(h => !h.dead).map(h => h.id), turn: 0, log: [], tk: 1 };
+  show('rcamp'); rgCampTurn();
+}
+function rgCampOpts(p) {
+  const o = [['rest', 'Rest', 'Heal 50% of your health.']];
+  if (M.heroes.some(h => h.dead)) o.unshift(['revive', 'Rekindle', 'Bring a fallen friend back at half health.']);
+  o.push(['study', 'Study', 'Pick one of three new cards.']);
+  if (p.gear && Object.keys(p.gear).length) o.push(['mend', 'Mend armor', 'Repair every piece of armor you wear.']);
+  return o;
+}
+function rgCampTurn() {
+  const R = M.rogue, C = R.camp; if (C.turn >= C.order.length) return setTimeout(() => rgShowPath(), 500);
+  const p = M.players[C.order[C.turn]]; C.tk++; UI.rcamp();
+  if (p.ctrl.bot) { const tk = C.tk; setTimeout(() => { if (!M || R.camp !== C || C.tk !== tk) return; const ks = rgCampOpts(p).map(o => o[0]); rgCampAct(ks.includes('revive') ? 'revive' : p.hp < p.st.maxHp * .6 ? 'rest' : 'study', true); }, 1200); }
+}
+function rgCampAct(k, fromBot) {
+  const R = M.rogue, C = R.camp; if (!C || C.turn >= C.order.length) return;
+  const p = M.players[C.order[C.turn]]; if (p.ctrl.bot && !fromBot) return;
+  const next = () => { if (!M || R.camp !== C) return; C.turn++; app = 'rcamp'; show('rcamp'); rgCampTurn(); };
+  if (k === 'rest') { heal(p, p.st.maxHp * .5); C.log.push([p, 'rested']); sfx(400, .4, 'sine', .04, 200); return next(); }
+  if (k === 'mend') { for (const sl in p.gear) p.gear[sl].dur = gearMax(p.gear[sl].id); C.log.push([p, 'mended their armor']); sfx(900, .1, 'square', .03, -300); return next(); }
+  if (k === 'revive') { const d = M.heroes.find(h => h.dead); if (!d) return; d.dead = false; d.st = calcStats(d.cards, null); d.st.maxHp = d.st.maxHp * (1 + .12 * (R.act - 1)) + (d.bonusHp || 0); d.hp = d.st.maxHp * .5; R.revives++; C.log.push([p, 'rekindled ' + d.nick]); sfx(400, .7, 'triangle', .05, 700);
+    if (!C.order.includes(d.id)) C.order.push(d.id); return next(); }
+  if (k === 'study') { C.log.push([p, 'studied']); M.afterPick = next; return beginPick(p.id); }
+}
+function renderRCamp() {
+  const R = M.rogue, C = R.camp; if (!C) return; const p = C.turn < C.order.length ? M.players[C.order[C.turn]] : null;
+  $('rcamp').innerHTML = `<div class="rtop"><div class="ract">ACT ${R.act} · CAMPFIRE</div></div>
+    <canvas id="rfire" width="96" height="64"></canvas>
+    <div class="pickhead" style="font-size:1.25em;margin:.2em 0 .5em;color:${p ? p.color : '#ffe9b8'}">${p ? (p.ctrl.bot ? p.nick + ' sits by the fire…' : p.nick + ': what will you do?') : 'The fire burns low…'}</div>
+    <div class="rchoices">${p ? rgCampOpts(p).map(([k, n, d]) => `<button class="btn rch" data-act="rcamp" data-v="${k}"${p.ctrl.bot ? ' disabled' : ''}><canvas class="ric" data-k="camp" width="26" height="22"></canvas><span class="rn">${n}</span><span class="rd">${d}</span></button>`).join('') : ''}</div>
+    <div class="mlog" style="margin:.6em auto">${C.log.map(([q, t]) => `<span style="color:${q.color}">${q.nick}</span> ${t}`).join(' · ') || 'Each wizard takes one action.'}</div>
+    <div class="rheroes">${M.heroes.map(rgHeroLine).join('')}</div>`;
+  $('rcamp').querySelectorAll('.ric').forEach(cv => rgDrawIcon(cv.getContext('2d'), 'camp', 0, 0, 2, false));
+  rgFireAnim();
+}
+function rgFireAnim() {
+  const cv = $('rfire'); if (!cv || app !== 'rcamp') return; const c = cv.getContext('2d'), t = performance.now() / 1000; c.clearRect(0, 0, 96, 64);
+  for (let x = 0; x < 96; x += 4) for (let y = 0; y < 64; y += 4) { const dx = (x - 48) / 48, dy = (y - 46) / 40, g = Math.max(0, 1 - dx * dx - dy * dy) * (.8 + .2 * Math.sin(t * 9 + x)); if (g > .05) { c.fillStyle = `rgba(255,${120 + g * 80 | 0},40,${g * .25})`; c.fillRect(x, y, 4, 4); } }
+  c.fillStyle = '#5a3a20'; c.fillRect(30, 52, 36, 5); c.fillStyle = '#3a2412'; c.fillRect(26, 55, 44, 4);
+  for (let i = 0; i < 26; i++) { const ph = (t * 1.6 + i * .37) % 1, x = 48 + Math.sin(i * 7.1 + t * 3) * 9 * (1 - ph), y = 52 - ph * 40; c.fillStyle = ph < .3 ? '#fff2b0' : ph < .6 ? '#ffb030' : '#ff5a20'; const s = ph < .5 ? 4 : 2; c.fillRect(Math.round(x / 2) * 2, Math.round(y / 2) * 2, s, s); }
+  requestAnimationFrame(rgFireAnim);
+}
+
+/* ---------- the merchant, Delve edition: also sells feathers and draughts ---------- */
+function openRogueMerchant() {
+  const order = M.heroes.filter(h => !h.dead).map(h => h.id);
+  SHOP = { order, turn: 0, st: {}, log: [], notes: [], tk: 0, rogue: true };
+  for (const pid of order) { const p = M.players[pid], pool = ARMOR_LIST.filter(id => !(p.gear && p.gear[ARMOR[id].slot] && p.gear[ARMOR[id].slot].id === id)), items = shopStock(p);
+    items.push({ special: 'feather', price: 55 + 10 * M.rogue.act, sold: false }); items.push({ special: 'draught', price: 25, sold: false });
+    SHOP.st[pid] = { items, armor: { id: pick(pool), sold: false }, reroll: 10, done: false }; }
+  sfx(220, .5, 'triangle', .04, -60); setTimeout(() => sfx(330, .5, 'triangle', .035, -80), 180);
+  app = 'shop'; wrap.classList.remove('play'); setTurn(0);
+}
+function rgBuySpecial(p, it) {
+  if (it.special === 'feather') { p.inv = p.inv || {}; p.inv.feather = (p.inv.feather || 0) + 1; }
+  else if (it.special === 'draught') heal(p, p.st.maxHp * .6);
+}
+function rgSpecialArt(k) { return `<canvas class="rspec" data-k="${k}" width="20" height="20"></canvas>`; }
+const RG_SPEC_ART = {
+  feather: ['..........yr', '........yrr.', '.......yrrr.', '......yrrro.', '.....yrrro..', '....yrrroo..', '...yrrroo...', '..yrrroo....', '..yrroo.....', '.yrro.......', '.yo.........', 'w...........'],
+  draught: ['....ww....', '....bb....', '...wkkw...', '..wkkkkw..', '.wkrrrrkw.', '.wrrRrrrw.', '.wrrrrrRw.', '.wrRrrrrw.', '..wrrrrw..', '...wwww...'],
+  ankh: ['...yyyy...', '..y....y..', '..y....y..', '...y..y...', 'yyyyyyyyyy', '....yy....', '....yy....', '....yy....', '....yy....', '....yy....'],
+  elixir: ['....ww....', '....bb....', '...wkkw...', '..wkkkkw..', '.wkggggkw.', '.wggGgggw.', '.wgggggGw.', '.wgGggggw.', '..wggggw..', '...wwww...']
+};
+const RG_SPEC_COL = { y: [255, 214, 90], r: [255, 110, 40], o: [200, 50, 30], w: [230, 220, 210], b: [120, 80, 44], k: [70, 80, 110], R: [255, 200, 210], g: [90, 230, 110], G: [200, 255, 210] };
+function rgPaintSpec(cv) { const A = RG_SPEC_ART[cv.dataset.k], c = cv.getContext('2d'), s = Math.floor(cv.width / A[0].length) || 1; c.clearRect(0, 0, cv.width, cv.height); const ox = (cv.width - A[0].length * s) >> 1, oy = (cv.height - A.length * s) >> 1;
+  A.forEach((row, y) => [...row].forEach((ch, x) => { if (ch === '.') return; c.fillStyle = `rgb(${RG_SPEC_COL[ch].join(',')})`; c.fillRect(ox + x * s, oy + y * s, s, s); })); }
+
+/* ---------- drawing: monsters, chests, door, gravestones, drops (into the pixel layer) ---------- */
+const MOB_TPL = {
+  walk: [['...aaa...', '..bbbbb..', '.bbebebb.', '.bbbbbbb.', '..BbwbB..', '.bbbbbbb.', 'b.bbbbb.b', '..bBBBb..', '..b...b..', '.BB...BB.'],
+    ['...aaa...', '..bbbbb..', '.bbebebb.', '.bbbbbbb.', '..BbwbB..', '.bbbbbbb.', 'b.bbbbb.b', '..bBBBb..', '...b.b...', '..BB.BB..']],
+  fly: [['a.........a', 'aa..bbb..aa', '.aabbbbbaa.', '..bbebebb..', '...bbbbb...', '....bwb....', '.....B.....'],
+    ['....bbb....', '...bbbbb...', '..bbebebb..', '.aabbbbbaa.', 'aa..bwb..aa', 'a....B....a', '...........']],
+  cast: [['...aaa...e', '..aaaaa..w', '.aaaaaaa.w', '..bebeb..w', '..bbbbb..w', '.BbbbbbBbw', '.bbbbbbb.w', '.bbbbbbb.w', 'BbbbbbbbBw', 'BBbbbbbBBw', '.BBBBBBB..']],
+  brute: [['...aaaaaaa...', '..aabbbbbaa..', '..bbebbbebb..', '..bbbbbbbbb..', '.bbbwbwbwbbb.', 'bbbbbbbbbbbbb', 'bBbbbbbbbbbBb', 'bBbbbbbbbbbBb', 'bb.bbbbbbb.bb', 'ww.bbBBBbb.ww', '...bbb.bbb...', '...bbb.bbb...', '..BBBB.BBBB..'],
+    ['...aaaaaaa...', '..aabbbbbaa..', '..bbebbbebb..', '..bbbbbbbbb..', '.bbbwbwbwbbb.', 'bbbbbbbbbbbbb', 'bBbbbbbbbbbBb', 'bBbbbbbbbbbBb', 'bb.bbbbbbb.bb', 'ww.bbBBBbb.ww', '...bbb..bbb..', '..bbb...bbb..', '.BBBB...BBBB.']],
+  mimic: [['.aaaaaaaaaaa.', 'aAAAAAAAAAAAa', 'aAwwwwwwwwwAa', 'a.w.w.w.w.w.a', '.............', 'aw.w.w.w.w.wa', 'aBwwwwwwwwwBa', 'aBBBBeBeBBBBa', 'aBBBBBBBBBBBa', '.aaaaaaaaaaa.']],
+  golem: [['.......aaaaaaaaa.......', '.....aabbbbbbbbbaa.....', '....abbbbbbbbbbbbba....', '....bbbeeebbbeeebbb....', '....bbbeeebbbeeebbb....', '....bbbbbbbbbbbbbbb....', '.....bbbBBBBBBBbbb.....', '..abbbbbbbbbbbbbbbbba..', '.abbbbbbbwwwwwbbbbbbba.', 'abbbBbbbwwewwwwbbbBbbba', 'abbbBbbbwwwwwwwbbbBbbba', 'abbBBbbbbwwwwwbbbbBBbba', 'bbbBBbbbbbbbbbbbbbBBbbb', 'bbb.BbbbbbbbbbbbbbB.bbb', 'www.bbbbbbbbbbbbbbb.www', 'www..bbbbBBBBBbbbb..www', '.....bbbbb...bbbbb.....', '.....bbbbb...bbbbb.....', '....BBBBBB...BBBBBB....', '...BBBBBBB...BBBBBBB...']],
+  mycelia: [['........aaaaaaaaa........', '.....aaaaAAAAAAAaaaaa.....', '...aaAAAwAAAAAAAwAAAaa....', '..aAAAAAAAAAwAAAAAAAAAa...', '.aAAwAAAAAAAAAAAAAAwAAAa..', 'aAAAAAAAAwAAAAAAAAAAAAAAa.', 'aaaaaaaaaaaaaaaaaaaaaaaaa.', '...bbbbbbbbbbbbbbbbbbb....', '....bbbbbeeebbbbbbbb......', '....bbbbeeeeebbbbbbb......', '.....bbbbeeebbbbbbb.......', '......bbbbbbbbbbbb........', '.......bBbBbBbBbB.........', '.......b.B.b.B.b..........', '........B...b...B.........', '.........b.....b..........']],
+  king: [['....y.y.y....', '....yyyyy....', '....ggggg....', '...wwwwwww...', '...wewwwew...', '...wwwwwww...', '....wbwbw....', '..aaawwwaaa..', '.aaaaaaaaaaa.', 'aaAaaaaaaaAaa', 'aaAaaAAAaaAaa', 'w.aaaAAAaaa.w', 'w.aaaaaaaaa.w', '..aaaaaaaaa..', '..aaAaaaAaa..', '...aaaaaaa...', '....aa.aa....', '.....a.a.....']]
+};
+// colours per biome: [body, shade, accent, eye, light]
+const MOB_PAL = [
+  { walk: ['b86e3c', '784224', 'e2aa46', 'ffdc5a', 'e6dcc8'], fly: ['604656', '3c283a', '8c6478', 'ff5050', 'dcc8c8'], cast: ['78604a', '503c2c', 'c88c3c', 'ffb43c', 'b4966e'], brute: ['8c7864', '5c4e40', '6e6050', 'ffaa3c', 'c8beaa'] },
+  { walk: ['c878dc', '804a96', 'f0a0ff', 'ffffb0', 'e8d0f0'], fly: ['b0a0d0', '6a5a90', 'e0c0ff', 'ff80ff', 'ffffff'], cast: ['5a4a7a', '3a2e54', 'c060ff', 'e0a0ff', 'b0a0c0'], brute: ['a05ab4', '6a3a7a', 'e080ff', 'ffff80', 'f0d0ff'] },
+  { walk: ['8cb4dc', '5a7a9c', 'dcf0ff', 'a0ffff', 'ffffff'], fly: ['b4e6ff', '6eaad2', 'ffffff', '40c0ff', 'ffffff'], cast: ['4a6a9a', '2e4466', 'a8dcff', '80e0ff', 'dce8f8'], brute: ['dce6f0', 'a0aec0', 'ffffff', '60c0ff', 'b4c8dc'] },
+  { walk: ['5a9a44', '3a6a2a', 'a0d060', 'ffe040', 'd8e8b0'], fly: ['e8c040', '8a6a1a', 'ffe890', 'ff4040', '302010'], cast: ['7a5a3a', '4e3a24', '50c050', 'c0ff60', 'e0d0a0'], brute: ['4a7a4a', '2e4e2e', '7aa060', 'ffcc40', 'e8e0b0'] },
+  { walk: ['3a5a7a', '243a50', '60a0c0', 'ffe060', '9ac0d0'], fly: ['7a5a44', '4e3a2a', 'a88060', 'ff6040', 'e0d0c0'], cast: ['c8a060', '8a6a3a', 'e05050', 'ffe080', 'f0e0b0'], brute: ['d8ccaa', 'a89a7a', 'ece2c8', 'ff7040', 'f8f0e0'] },
+  { walk: ['dcd6c8', 'a09a8c', '8a8478', 'ff5040', 'ffffff'], fly: ['c8d8f0', '8aa0c0', 'e8f0ff', '60ffd0', 'ffffff'], cast: ['5a2a4a', '3a1a30', '9a4070', 'ff60c0', 'e0d0d8'], brute: ['8a8c98', '5a5c68', 'b0b4c0', 'ff4040', 'd0d4dc'] }
+];
+const BOSS_PAL = { golem: [['8c7864', '5c4e40', '6e6050', 'ffaa3c', 'ffd08a'], ['b8c8dc', '7a8ca4', 'e8f4ff', '60d0ff', 'dff6ff']], mycelia: [['5a4a7a', '3a2e54', 'b050e0', 'ffe060', 'f0c0ff'], ['4a6a3a', '2e4426', 'e05060', 'ffe060', 'ffd0a0']], king: [['c8a060', '8a6a3a', '3a7aa0', 'ff6040', 'f0e8d0'], ['dcd6c8', 'a09a8c', '6a2040', 'ff4060', 'ffffff']] };
+const SPR_CACHE = {};
+function sprOf(key, f) { // pixel list with a dark outline: [dx, dy, ch] relative to the bottom-centre
+  const k = key + f; if (SPR_CACHE[k]) return SPR_CACHE[k];
+  const T = MOB_TPL[key][f] || MOB_TPL[key][0], h = T.length, w = T[0].length, out = [], on = (x, y) => y >= 0 && y < h && x >= 0 && x < w && T[y][x] !== '.';
+  for (let y = -1; y <= h; y++) for (let x = -1; x <= w; x++) { if (on(x, y)) out.push([x - (w >> 1), y - h + 1, T[y][x]]); else if (on(x - 1, y) || on(x + 1, y) || on(x, y - 1) || on(x, y + 1)) out.push([x - (w >> 1), y - h + 1, 'o']); }
+  out.h = h; return SPR_CACHE[k] = out;
+}
+const hexP = h => { const n = parseInt(h, 16); return [n >> 16, (n >> 8) & 255, n & 255]; };
+function drawMob(m) {
+  const D = m.mob, t = RX.t, B = D.biome;
+  const key = D.boss || (D.mimic ? 'mimic' : D.arch), moving = D.fly || D.boss === 'mycelia' || D.boss === 'king' ? true : Math.abs(m.vx) > 25 && m.onGround;
+  const f = moving ? ((t * (D.fly ? 10 : 7) + m.ph) | 0) & 1 : 0, S = sprOf(key, f);
+  const pal = D.boss ? BOSS_PAL[D.boss][B === 0 || B === 1 || B === 4 ? 0 : 1] : D.mimic ? ['a0703a', '6a4422', 'c89a50', 'ff3d4a', 'f0e0c0'] : MOB_PAL[B][D.arch];
+  const P = { b: hexP(pal[0]), B: hexP(pal[1]), a: hexP(pal[2]), A: hexP(pal[2]).map(v => v * .75), e: hexP(pal[3]), w: hexP(pal[4]), o: [18, 10, 14], y: [255, 214, 80], g: [190, 140, 50] };
+  if (D.boss === 'mycelia') P.A = P.a.map(v => v * .7);
+  const Z = D.boss ? 2 : 1, flip = m.dir < 0, cx = Math.round(m.x / SC), R = Math.round(m.r / SC), bob = D.fly && !D.boss ? Math.round(Math.sin(t * 6 + m.ph)) : 0;
+  const by = D.fly || D.boss === 'mycelia' || D.boss === 'king' ? Math.round(m.y / SC) + (S.h * Z >> 1) + bob : Math.round(m.y / SC) + R;
+  const flash = m.flash > 0, wind = m.casting && (D.arch === 'brute' || D.boss) ? Math.round(Math.sin(t * 60)) : 0, blink = m.blinkT > 0 && ((t * 30) | 0) & 1;
+  if (blink) return;
+  const ghost = B === 5 && D.fly && !D.boss;
+  for (const [dx, dy, ch] of S) {
+    const c = P[ch], col = flash && ch !== 'o' ? packC(255, 255, 255) : packC(c[0] | 0, c[1] | 0, c[2] | 0);
+    for (let zy = 0; zy < Z; zy++) for (let zx = 0; zx < Z; zx++) {
+      const x = cx + (flip ? -dx * Z - zx : dx * Z + zx) + wind, y = by + dy * Z - zy;
+      if (ghost && ch !== 'e' && ch !== 'o' && ((x + y + (RX.frame >> 2)) & 1)) continue;
+      pA(x, y, col); if (ch === 'e') pE(x, y, c[0] * .8, c[1] * .8, c[2] * .8); }
+  }
+  if (m.trapT > 0) drawTrap(cx, Math.round(m.y / SC), R);
+  if (isBurning(m)) for (let i = 0; i < 2; i++) pE(cx + rnd(-R, R), by - S.h * Z + rnd(0, S.h * Z), 255, 120, 30);
+  if (D.elite || D.boss) { const c = D.boss ? [255, 60, 100] : [255, 210, 60]; for (let k = 0; k < (D.boss ? 10 : 5); k++) { const a = t * 2 + k * TAU / (D.boss ? 10 : 5) + m.ph, rr2 = S.h * Z * .62 + 2; pE(cx + Math.cos(a) * rr2, by - S.h * Z / 2 + Math.sin(a) * rr2 * .6, c[0] * .55, c[1] * .55, c[2] * .55); } }
+  if (m.casting) { const c = P.e, sx = D.arch === 'cast' ? cx + (flip ? -1 : 1) * 4 : cx, sy = D.arch === 'cast' ? by - S.h + 1 : by - S.h * Z / 2, k = 1 - Math.max(0, m.castT) / .6;
+    ringPix(sx, sy, 1 + k * 3, (x, y) => pE(x, y, c[0] * k, c[1] * k, c[2] * k), 1); addLight(sx * SC, sy * SC, 90, c[0], c[1], c[2], .5 * k); }
+  else if (D.arch === 'cast' || D.boss) addLight(m.x, m.y, D.boss ? 200 : 70, P.e[0], P.e[1], P.e[2], D.boss ? .35 : .18);
+}
+function chestPix(c) {
+  const x0 = Math.round(c.x / SC) - 5, y0 = Math.round(c.y / SC) - 1, open = c.open, lid = open ? Math.min(3, (c.t * 12) | 0) : 0;
+  const K = c.kind === 'gold' ? [[250, 200, 70], [200, 140, 40], [140, 90, 20]] : c.kind === 'iron' ? [[150, 156, 170], [100, 106, 120], [60, 64, 76]] : [[170, 116, 60], [124, 80, 38], [80, 50, 24]];
+  const band = c.kind === 'wood' ? [150, 150, 160] : [255, 220, 100], P = (x, y, col) => pA(x0 + x, y0 + y, packC(col[0], col[1], col[2]));
+  for (let x = -1; x <= 10; x++) P(x, 1, [18, 10, 14]);
+  for (let y = -5; y <= 0; y++) for (let x = 0; x < 10; x++) P(x, y, x === 0 || x === 9 || y === 0 ? K[2] : y === -3 ? band : K[1]);
+  if (!open) { for (let y = -8; y <= -6; y++) for (let x = 0; x < 10; x++) P(x, y, y === -8 ? K[2] : K[0]); P(4, -5, band); P(5, -5, band); P(4, -4, [40, 30, 20]); }
+  else { for (let x = 0; x < 10; x++) P(x, -6 - lid, K[0]); for (let x = 1; x < 9; x++) pE(x0 + x, y0 - 6, 255 * .5, 210 * .5, 120 * .5); if (c.t < .8) addLight(c.x, c.y - 20, 120, 255, 220, 120, .8 * (1 - c.t / .8)); }
+  if (!open && c.kind === 'gold') { const k = .5 + .5 * Math.sin(RX.t * 3 + c.x); pE(x0 + 2, y0 - 8, 200 * k, 160 * k, 60 * k); pE(x0 + 7, y0 - 7, 200 * k, 160 * k, 60 * k); addLight(c.x, c.y - 16, 80, 255, 210, 80, .25); }
+}
+function drawRogueSprites() {
+  const L = M.rgL; if (!L) return; const t = RX.t;
+  // the door: a stone arch with a swirling portal
+  if (L.door) { const dx = Math.round(L.door.x / SC), dy = Math.round(L.door.y / SC), Wd = 7, Hd = 15, ready = L.atDoor > 0;
+    for (let y = -Hd - 3; y <= 0; y++) for (let x = -Wd - 3; x <= Wd + 3; x++) { const inner = Math.abs(x) <= Wd && y > -Hd + Math.abs(x) * .35 - 1, edge = Math.abs(x) > Wd || y <= -Hd + Math.abs(x) * .35 - 1;
+      if (inner) { const a = Math.atan2(y + Hd / 2, x), r = Math.hypot(x, (y + Hd / 2) * .6), v = .5 + .5 * Math.sin(a * 3 + r * .9 - t * (ready ? 9 : 4)); pA(dx + x, dy + y, packC(20, 12, 30)); pE(dx + x, dy + y, 90 * v + 30, 50 * v, 200 * v + 40); }
+      else if (edge && y > -Hd - 3 + Math.abs(x) * .3) pA(dx + x, dy + y, packC(84 + (hash2(x, y, 5) * 30 | 0), 76, 70)); }
+    addLight(L.door.x, L.door.y - 24, 180, 150, 90, 255, ready ? 1 : .6); }
+  for (const s of L.shrines) { const x0 = Math.round(s.x / SC), y0 = Math.round(s.y / SC) - 1; for (let y = -9; y <= 0; y++) for (let x = -3; x <= 3; x++) if (Math.abs(x) <= (y < -6 ? 1 : 3)) pA(x0 + x, y0 + y, packC(110, 120, 110));
+    if (!s.used) { const k = .6 + .4 * Math.sin(t * 3); pE(x0, y0 - 10, 80 * k, 255 * k, 120 * k); pE(x0, y0 - 11, 60 * k, 200 * k, 90 * k); addLight(s.x, s.y - 30, 110, 90, 255, 140, .5 * k); } }
+  for (const c of L.chests) chestPix(c);
+  for (const g of L.graves) { const x0 = Math.round(g.x / SC), y0 = Math.round(g.y / SC) + 2, col = hex3(M.players[g.pid].color);
+    for (let y = -6; y <= 0; y++) for (let x = -2; x <= 2; x++) if (!(y === -6 && Math.abs(x) === 2)) pA(x0 + x, y0 + y, packC(130, 128, 136)); pA(x0, y0 - 4, packC(60, 58, 66)); pA(x0 - 1, y0 - 3, packC(60, 58, 66)); pA(x0 + 1, y0 - 3, packC(60, 58, 66)); pA(x0, y0 - 2, packC(60, 58, 66));
+    const k = .5 + .5 * Math.sin(t * 4); pE(x0, y0 - 8 - Math.round(Math.sin(t * 2) * 1.5), col[0] * k, col[1] * k, col[2] * k); }
+  for (const d of L.drops) { const x = Math.round(d.x / SC), y = Math.round(d.y / SC), b = d.rest ? Math.round(Math.sin(t * 4 + d.bob)) : 0;
+    if (d.kind === 'coin') { const k = .7 + .3 * Math.sin(t * 8 + d.bob); pA(x, y, packC(255, 214, 80)); pA(x + 1, y, packC(200, 150, 40)); pE(x, y, 120 * k, 90 * k, 20 * k); continue; }
+    const yy = y - 2 + b, I = RG_ITEMS[d.kind], c = d.kind === 'armor' ? [200, 204, 216] : d.kind === 'scroll' ? [240, 228, 190] : hex3(I.col);
+    if (d.kind === 'heart') { for (const [a, e] of [[-1, -1], [1, -1], [-2, 0], [-1, 0], [0, 0], [1, 0], [2, 0], [-1, 1], [0, 1], [1, 1], [0, 2]]) pA(x + a, yy + e - 1, packC(230, 50, 60)); pE(x, yy - 1, 120, 20, 30); continue; }
+    for (let a = -1; a <= 1; a++) for (let e = -1; e <= 1; e++) pA(x + a, yy + e, packC(c[0] * .8 | 0, c[1] * .8 | 0, c[2] * .8 | 0));
+    const k = .6 + .4 * Math.sin(t * 5 + d.bob); pE(x, yy, c[0] * k, c[1] * k, c[2] * k); addLight(d.x, d.y, 50, c[0], c[1], c[2], .25); }
+  // the edge of the screen, when it's holding someone back
+  for (const w of L.wallFx) { const x = Math.round(w.x / SC), k = w.t / .5; for (let y = VY0; y < VY1; y++) { const v = (.5 + .5 * Math.sin(y * .7 - t * 12)) * k; if (Math.abs(y - w.y / SC) < 40) pE(x, y, 120 * v, 80 * v, 255 * v); } }
+}
+// canvas overlays in world space: monster health, labels, damage numbers
+function drawRogueWorldUI() {
+  if (!M.rgL) return; const s = SC;
+  for (const m of M.players) { if (!m.mob || m.dead || m.sleep || m.mob.boss) continue;
+    if (m.hp < m.st.maxHp || m.mob.elite) { const bw = Math.max(14, m.r * 1.6) * s / 3.2, x0 = snap(m.x - bw / 2), y0 = snap(m.y - m.r - 18), fr = clamp(m.hp / m.st.maxHp, 0, 1);
+      ctx.fillStyle = '#000'; ctx.fillRect(x0 - 2, y0 - 2, bw + 4, 6); ctx.fillStyle = '#3a1418'; ctx.fillRect(x0, y0, bw, 2); ctx.fillStyle = m.mob.elite ? '#ffd23d' : '#e04040'; ctx.fillRect(x0, y0, snap(bw * fr), 2); }
+    if (m.mob.elite) txt(m.nick.toUpperCase(), m.x, m.y - m.r - 24, '#ffd23d', 7); }
+  for (const d of M.rgL.drops) if (d.kind !== 'coin' && d.rest) txt(d.kind === 'armor' ? ARMOR[d.id].n.toUpperCase() : d.kind === 'scroll' ? 'SCROLL' : RG_ITEMS[d.kind].n.toUpperCase(), d.x, d.y - 16, d.kind === 'armor' ? '#c8ccd8' : '#ffe9b0', 7);
+  for (const g of M.rgL.graves) { const p = M.players[g.pid], any = rgAlive().some(h => h.inv && (h.inv.feather || h.inv.ankh)); txt(p.nick.toUpperCase(), g.x, g.y - 34, p.color, 7); txt(any ? 'TOUCH TO REVIVE' : 'NEEDS A PHOENIX FEATHER', g.x, g.y - 46, any ? '#ffd23d' : '#8a7a6a', 6); }
+  if (M.rgL.door && M.rgL.atDoor > 0 && M.rgL.atDoor < rgAlive().length) txt('WAITING FOR EVERYONE', M.rgL.door.x, M.rgL.door.y - 170, '#c8a8ff', 9);
+  for (const n of M.nums) { const v = parseFloat(n.v) || 30, sz = Math.round(8 + Math.min(8, v / 10)); ctx.globalAlpha = clamp(n.t * 2, 0, 1); txt(String(n.v), snap(n.x), snap(n.y), n.col, sz); } ctx.globalAlpha = 1;
+}
+function drawRogueHUD() {
+  const R = M.rogue, L = M.rgL, B = RG_BIOMES[R.biome], cx = SW / 2;
+  M.heroes.forEach((h, i) => { const right = i === 1, x = right ? SW - 16 : 16, al = right ? 'right' : 'left', dir = right ? -1 : 1;
+    txt(h.nick.toUpperCase(), x, 26, h.color, 10, al);
+    const bw = 180, bx = right ? x - bw : x, fr = h.dead ? 0 : clamp(h.hp / h.st.maxHp, 0, 1);
+    ctx.fillStyle = '#000'; ctx.fillRect(bx - 3, 33, bw + 6, 12); ctx.fillStyle = '#3a1418'; ctx.fillRect(bx, 36, bw, 6); ctx.fillStyle = h.dead ? '#3a3440' : fr > .5 ? '#5cd65c' : fr > .25 ? '#e8c040' : '#e04040'; ctx.fillRect(right ? bx + bw - snap(bw * fr) : bx, 36, snap(bw * fr), 6);
+    const [gd, gm] = gearTotals(h); if (gm > 0) { ctx.fillStyle = '#b8c4dc'; ctx.fillRect(right ? bx + bw - snap(bw * clamp(gd / gm, 0, 1)) : bx, 43, snap(bw * clamp(gd / gm, 0, 1)), 2); }
+    txt(h.dead ? 'FALLEN' : Math.ceil(h.hp) + '/' + Math.round(h.st.maxHp), right ? bx - 8 : bx + bw + 8, 44, h.dead ? '#8a7a6a' : '#e8dcc8', 8, right ? 'right' : 'left');
+    let ix = x; const item = (s, col) => { const w = s.length * 7 + 10; txt(s, ix, 62, col, 8, al); ix += dir * w; };
+    item(M.run.coins[h.id] + '¢', '#ffd23d'); const it = h.inv || {}; if (it.feather) item('FEATHER ' + it.feather, '#ff8a3a'); if (it.ankh) item('ANKH ' + it.ankh, '#ffd23d'); const S = R.satchel[h.id]; if (S.length) item(S.length + ' SCROLL' + (S.length > 1 ? 'S' : ''), '#ffe9b0'); });
+  txt('ACT ' + R.act + ' · ' + B.n.toUpperCase(), cx, 24, '#d9b26a', 9);
+  txt((L.kind === 'boss' ? B.bn : RG_NODE[L.kind].n).toUpperCase(), cx, 40, RG_NODE[L.kind].col, 8);
+  if (L.door) { const A = rgAlive(), lead = A.length ? Math.max(...A.map(h => h.x)) : 0, fr = clamp(lead / L.door.x, 0, 1), bw = 240, bx = snap(cx - bw / 2);
+    ctx.fillStyle = '#000'; ctx.fillRect(bx - 2, 49, bw + 4, 6); ctx.fillStyle = '#2a2430'; ctx.fillRect(bx, 51, bw, 2); ctx.fillStyle = '#c8a8ff'; ctx.fillRect(bx, 51, snap(bw * fr), 2); ctx.fillStyle = '#9a6aff'; ctx.fillRect(bx + bw - 4, 46, 6, 10); }
+  if (L.boss && !L.boss.dead) { const b = L.boss, bw = 640, bx = snap(cx - bw / 2), by = SH - 42, fr = clamp(b.hp / b.st.maxHp, 0, 1);
+    txt(b.nick.toUpperCase(), cx, by - 8, '#ff6a8a', 11); ctx.fillStyle = '#000'; ctx.fillRect(bx - 3, by - 3, bw + 6, 14); ctx.fillStyle = '#3a1418'; ctx.fillRect(bx, by, bw, 8); ctx.fillStyle = b.phaseN ? '#ff3d6a' : '#d04060'; ctx.fillRect(bx, by, snap(bw * fr), 8); }
+  if (M.phase === 'count') { const a = clamp(M.t * 2, 0, 1); ctx.globalAlpha = a; txt(L.kind === 'boss' ? B.bn.toUpperCase() : RG_NODE[L.kind].n.toUpperCase(), cx, SH * .4, L.kind === 'boss' ? '#ff6a8a' : '#ffe9b0', L.kind === 'boss' ? 30 : 24); txt('ACT ' + R.act + ' · ' + B.n.toUpperCase(), cx, SH * .4 + 34, '#c9a874', 11); ctx.globalAlpha = 1; }
+  if (M.phase === 'play' && M.playT < 3 && L.door) { ctx.globalAlpha = clamp(3 - M.playT, 0, 1); txt('REACH THE DOOR →', cx, SH * .3, '#c8a8ff', 12); ctx.globalAlpha = 1; }
+  if (M.phase === 'end' && M.rgEnd) txt(M.rgEnd === 'over' ? 'THE RUN IS OVER' : M.rgEnd === 'boss' ? 'VICTORY!' : 'LEVEL CLEAR', cx, SH * .42, M.rgEnd === 'over' ? '#ff6a5a' : '#ffd23d', 26);
+}
+function rgEndHTML() {
+  const R = M.rogue, B = RG_BIOMES[R.biome];
+  return `<div class="pickhead" style="color:${R.won ? '#ffd23d' : '#ff7a5a'};font-size:2.6em">${R.won ? 'The deep is conquered!' : 'The run is over'}</div>
+    <div class="sub">${R.won ? 'All three acts cleared.' : 'Fell in Act ' + R.act + ', ' + B.n + '.'} ${R.levels} level${R.levels === 1 ? '' : 's'} · ${R.kills} monsters slain · ${R.chests} chests opened · ${R.bosses} boss${R.bosses === 1 ? '' : 'es'} beaten${R.revives ? ' · ' + R.revives + ' revive' + (R.revives > 1 ? 's' : '') : ''}</div>
+    <div class="decks">${M.heroes.map(q => `<div><h3 style="color:${q.color}">${poss(q)} wand${wtag(q)} · ${M.run.coins[q.id]}¢ left</h3><div class="minis">${q.wand ? q.wand.spells.map(id => id ? `<span class="mini" style="border-color:${TYPE_COL[SPELLS[id].kind]};color:${TYPE_COL[SPELLS[id].kind]}">${SPELLS[id].name}</span>` : '').join('') : ''}${q.cards.filter(id => !CARDS[id].spell && !CARDS[id].wandup).map(id => `<span class="mini r${CARDS[id].rar}">${CARDS[id].name}</span>`).join('')}</div></div>`).join('')}</div>
+    <div style="height:1.4em"></div><button class="btn" data-act="rematch">New run</button><button class="btn" data-act="go" data-v="title">Main Menu</button>`;
+}
+
+/* ---------- a co-op bot for Delve: heads for the door, keeps near its friend, shoots what it sees, grabs loot ---------- */
+function rogueBot(p) {
+  const o = { mx: 0, jump: false, shoot: false, block: false, aim: p.aim, aimPt: { x: p.x + Math.cos(p.aim) * 200, y: p.y + Math.sin(p.aim) * 200 } }, L = M.rgL; if (!L) return o;
+  const B = p.rb || (p.rb = { t: 0, tg: null, jt: 0, sx: p.x, st: 0, goal: null });
+  B.t -= DT; B.jt -= DT;
+  if (B.t <= 0) { B.t = .18 + Math.random() * .08;
+    let best = null, bd = 1e9; for (const m of M.players) { if (!m.mob || m.dead || m.sleep) continue; const d = Math.hypot(m.x - p.x, m.y - p.y) - (m.mob.boss ? 300 : 0); if (d < 760 && d < bd && los(p, m, M.solids)) { bd = d; best = m; } } B.tg = best;
+    const ally = M.heroes.find(h => h !== p && !h.dead), grave = L.graves.find(g => g.pid !== p.id), inv = p.inv && (p.inv.feather || p.inv.ankh);
+    let gx = L.door ? L.door.x : (B.tg ? B.tg.x + (p.x < B.tg.x ? -320 : 320) : p.x);
+    if (L.door && ally && ally.x < p.x - 260) gx = ally.x + 60; // don't run off ahead of a friend
+    if (grave && inv) gx = grave.x;
+    B.skip = B.skip || new Set();
+    const loot = L.drops.filter(d => d.kind !== 'coin' && d.rest && !B.skip.has(d) && rgWants(p, d) && Math.abs(d.x - p.x) < 320 && Math.abs(d.y - p.y) < 160).concat(L.chests.filter(c => !c.open && !B.skip.has(c) && Math.abs(c.x - p.x) < 380 && Math.abs(c.y - p.y) < 170)).sort((a, b) => Math.abs(a.x - p.x) - Math.abs(b.x - p.x))[0];
+    if (loot && !(grave && inv)) { gx = loot.x; if (B.lt === loot) { B.lc += .2; if (B.lc > 3) { B.skip.add(loot); B.lc = 0; } } else { B.lt = loot; B.lc = 0; } }
+    if (!L.door && B.tg) { gx = clamp(gx, 80, W - 80); if (Math.abs(gx - p.x) < 40) gx = p.x + (Math.random() < .5 ? -200 : 200); }
+    B.goal = { x: gx, y: loot ? loot.y : grave && inv ? grave.y : null };
+    if (Math.abs(p.x - B.sx) < 6 && Math.abs(B.goal.x - p.x) > 60) B.st += .2; else B.st = 0; B.sx = p.x;
+  }
+  if (B.tg && !B.tg.dead) { const m = B.tg, d = Math.hypot(m.x - p.x, m.y - p.y), lead = d / 700; const ax = m.x + (m.vx || 0) * lead * .6, ay = m.y + (m.vy || 0) * lead * .3; o.aim = Math.atan2(ay - p.y, ax - p.x); o.aimPt = { x: ax, y: ay }; o.shoot = true; }
+  const gx = B.goal ? B.goal.x : p.x, dx = gx - p.x; o.mx = Math.abs(dx) > 24 ? Math.sign(dx) : 0;
+  const dir = o.mx || Math.sign(Math.cos(o.aim)) || 1;
+  const gapAhead = p.onGround && o.mx && !solidAt(p.x + dir * 46, p.y + p.r + 30, M.solids) && !solidAt(p.x + dir * 46, p.y + p.r + 180, M.solids);
+  const wantUp = B.goal && B.goal.y !== null && B.goal.y < p.y - 70 && Math.abs(dx) < 260;
+  if ((p.onGround && (p.wall && o.mx || gapAhead || wantUp || B.st > .5)) || (!p.onGround && p.wall && o.mx && p.vy > 0)) { B.jt = .4; B.st = 0; }
+  if (B.tg && B.tg.mob.boss && p.onGround && Math.random() < .015) B.jt = .35;
+  o.jump = B.jt > 0;
+  for (const b of M.bullets) if (b.mob && Math.hypot(b.x - p.x, b.y - p.y) < 70 && (b.vx * (p.x - b.x) + b.vy * (p.y - b.y)) > 0 && p.blockCd <= 0 && Math.random() < .35) { o.block = true; break; }
+  for (const m of M.players) if (m.mob && !m.dead && m.dashT > 0 && Math.hypot(m.x - p.x, m.y - p.y) < 80 && p.blockCd <= 0) o.block = true;
+  return o;
 }
 
 let ctlBack = 'title';
@@ -5376,6 +6282,8 @@ function act(a, v, el) {
     case 'buyarmor': return shopBuyArmor();
     case 'reroll': return shopReroll();
     case 'leave': return shopLeave();
+    case 'rvote': return rgVote(+v);
+    case 'rcamp': return rgCampAct(v);
     case 'endturn': return shopLocked() ? null : endTurn();
     case 'shopwand': return SHOP && !shopLocked() && openWandEditor(SHOP.p, null, () => { app = 'shop'; show('shop'); });
     case 'game': { SET.game = v; saveSet(); const on = document.querySelector('.panel.on').id, f = focusIdx; show(on); focusIdx = f; markFocus(); return; }
