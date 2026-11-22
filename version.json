@@ -1,13 +1,13 @@
 {
-  "version": "1.5.0",
+  "version": "1.5.1",
   "notes": "",
   "minShell": "0.10.0",
-  "released": "2026-11-22",
+  "released": "2026-11-23",
   "files": [
     {
       "path": "index.html",
-      "sha256": "b5af083595a7d801b666e7db47ae7a187996bb23f193aba50398c45c91c7b6fe",
-      "bytes": 601711
+      "sha256": "dfbfe8bbed4623513af5efac88f09b7b62f1b48fa5b444a7c54c39b3fbbb73b1",
+      "bytes": 617272
     }
   ]
 }
