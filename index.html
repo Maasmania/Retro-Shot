@@ -2485,7 +2485,7 @@ function damage(q, amt, src, o = {}) {
   if (SET.nums && !o.quiet && amt >= 1) M.nums.push({ x: q.x + rnd(-10, 10), y: q.y - 30, v: Math.round(amt - soaked) + (o.crit ? '!' : ''), t: .8, col: o.crit ? '#ffd23d' : soaked ? '#c8ccd8' : src ? src.color : '#ffffff' });
   if (src && src !== q && !o.dot && !o.thorn && q.gear && q.gear.body && ARMOR[q.gear.body.id].thorns) damage(src, ARMOR[q.gear.body.id].thorns, q, { thorn: true });
   if (src && src !== q && !o.self) {
-    coin(src.id, amt / (M.rogue ? 30 : 10), 'Damage'); if (o.crit) coin(src.id, 1, 'Crits');
+    if (!M.rogue) coin(src.id, amt / 10, 'Damage'); if (o.crit) coin(src.id, 1, 'Crits');
     const sf = src.st.f;
     if (o.steal) heal(src, amt * o.steal);
     if (sf.recycler && !o.dot) { src.ammo = src.st.ammo; src.reloadT = 0; if (src.slots) for (const sl of src.slots) sl.t *= .5; }
@@ -4446,7 +4446,7 @@ const $ = id => document.getElementById(id);
 const PANELS = ['title', 'setup', 'pick', 'end', 'library', 'settings', 'maps', 'online', 'lobby', 'help', 'pause', 'custom', 'controls', 'wpick', 'wand', 'shop', 'rpath', 'rcamp'];
 let focusIdx = 0;
 // shown under the title logo; bump with each published update (MAKE-UPDATE uses the same number)
-const GAME_VERSION = '1.5.0';
+const GAME_VERSION = '1.5.1';
 function drawMapPreviews() {
   document.querySelectorAll('#maps canvas[data-m]').forEach(cv => {
     const m = MAPS[+cv.dataset.m], c = cv.getContext('2d'), k = cv.width / SW; c.imageSmoothingEnabled = false;
@@ -5206,7 +5206,7 @@ function botPickItem(p) {
 function botTurn() {
   const p = SHOP.p, R = M.run, st = SHOP.st[p.id], tk = SHOP.tk, A = SHOP.armor;
   if (st.armorRoll === undefined) st.armorRoll = Math.random() < .65;
-  const act = A && !A.sold && st.armorRoll && R.coins[p.id] >= ARMOR[A.id].price ? { armor: 1 } : (i => i >= 0 ? { i } : null)(botPickItem(p));
+  const act = A && !A.sold && st.armorRoll && R.coins[p.id] >= (A.price || ARMOR[A.id].price) ? { armor: 1 } : (i => i >= 0 ? { i } : null)(botPickItem(p));
   const instant = M.players.every(q => q.ctrl.bot); // nobody watching (bot-only runs): no pauses
   const later = (ms, fn) => instant ? fn() : setTimeout(fn, ms);
   later(900, () => {
@@ -5216,9 +5216,10 @@ function botTurn() {
     later(800, () => {
       if (!SHOP || SHOP.tk !== tk || app !== 'shop') return;
       if (!act) { shopLog(p, 'done shopping'); return endTurn(true); }
-      if (act.armor) { const a = ARMOR[A.id]; R.coins[p.id] -= a.price; R.spent[p.id] += a.price; A.sold = true; giveGear(p, A.id); shopLog(p, a.n + ' (' + a.price + '¢)'); sfx(520, .08, 'square', .03, -200); }
+      if (act.armor) { const a = ARMOR[A.id], ap = A.price || a.price; R.coins[p.id] -= ap; R.spent[p.id] += ap; A.sold = true; giveGear(p, A.id); shopLog(p, a.n + ' (' + ap + '¢)'); sfx(520, .08, 'square', .03, -200); }
       else if (SHOP.items[act.i].special) { const it = SHOP.items[act.i]; R.coins[p.id] -= it.price; R.spent[p.id] += it.price; it.sold = true; rgBuySpecial(p, it); shopLog(p, RG_ITEMS[it.special].n + ' (' + it.price + '¢)'); }
       else { const it = SHOP.items[act.i]; R.coins[p.id] -= it.price; R.spent[p.id] += it.price; it.sold = true; const id = it.mystery ? mysteryCard(p) : it.id; it.got = id; grantCard(p, id); shopLog(p, (it.mystery ? 'Murky Flask → ' : '') + CARDS[id].name + ' (' + it.price + '¢)'); sfx(990, .08, 'square', .03, 400); }
+      if (SHOP.rogue) rgAfterBuy(p);
       endTurn();
     });
   });
@@ -5228,7 +5229,7 @@ function shopPick(pool, p, out) {
   for (let g = 0; g < 400; g++) { const rar = shopRar(M.run.floor), c = pool.filter(id => CARDS[id].rar === rar && !out.includes(id) && !(CARDS[id].uniq && p.cards.includes(id))); if (c.length) return pick(c); }
   return pool.find(id => !out.includes(id));
 }
-function priceOf(id) { const base = RUN_PRICE[CARDS[id].rar], k = 1 + (M.run.floor - 1) * .08; return Math.round(base * k / 5) * 5; }
+function priceOf(id) { const base = RUN_PRICE[CARDS[id].rar], k = M.rogue ? 1 : 1 + (M.run.floor - 1) * .08; return Math.round(base * k / 5) * 5; }
 function shopStock(p) {
   const ids = [];
   const SPOOL = p.wand && p.wand.el ? EL_CARDS[p.wand.el] : SPELL_LIST;
@@ -5248,7 +5249,7 @@ function shopBuy(i) {
   if (shopLocked()) return;
   const it = SHOP.items[i], p = SHOP.p, R = M.run; if (!it || it.sold) return;
   if (R.coins[p.id] < it.price) { sfx(140, .15, 'square', .04, -40); return refreshShop(); }
-  R.coins[p.id] -= it.price; R.spent[p.id] += it.price; it.sold = true;
+  R.coins[p.id] -= it.price; R.spent[p.id] += it.price; it.sold = true; if (SHOP.rogue) rgAfterBuy(p);
   if (it.special) { rgBuySpecial(p, it); sfx(990, .08, 'square', .035, 400); shopLog(p, RG_ITEMS[it.special].n + ' (' + it.price + '¢)'); return endTurn(); }
   const id = it.mystery ? mysteryCard(p) : it.id; it.got = id;
   sfx(990, .08, 'square', .035, 400); setTimeout(() => sfx(1480, .12, 'square', .03, 300), 70);
@@ -5262,16 +5263,16 @@ function shopReroll() {
   const p = SHOP.p, R = M.run;
   if (R.coins[p.id] < SHOP.reroll) { sfx(140, .15, 'square', .04, -40); return refreshShop(); }
   R.coins[p.id] -= SHOP.reroll; R.spent[p.id] += SHOP.reroll; SHOP.reroll += 5;
-  SHOP.items = shopStock(p); saveTurn(); sfx(600, .1, 'triangle', .03, -200);
+  if (SHOP.rogue) { const st = SHOP.st[p.id]; st.rerolls = (st.rerolls || 0) + 1; SHOP.items = rgStock(p); saveTurn(); rgReprice(st); SHOP.reroll = st.reroll; SHOP.items = st.items; } else { SHOP.items = shopStock(p); saveTurn(); } sfx(600, .1, 'triangle', .03, -200);
   refreshShop();
 }
 function shopBuyArmor() {
   if (shopLocked()) return;
   const A = SHOP && SHOP.armor, p = SHOP.p, R = M.run; if (!A || A.sold) return;
-  const a = ARMOR[A.id]; if (R.coins[p.id] < a.price) { sfx(140, .15, 'square', .04, -40); return refreshShop(); }
-  R.coins[p.id] -= a.price; R.spent[p.id] += a.price; A.sold = true; giveGear(p, A.id);
+  const a = ARMOR[A.id], ap = A.price || a.price; if (R.coins[p.id] < ap) { sfx(140, .15, 'square', .04, -40); return refreshShop(); }
+  R.coins[p.id] -= ap; R.spent[p.id] += ap; A.sold = true; giveGear(p, A.id);
   sfx(520, .08, 'square', .035, -200); setTimeout(() => sfx(1250, .1, 'square', .03, -600), 60);
-  shopLog(p, a.n + ' (' + a.price + '¢)'); endTurn();
+  shopLog(p, a.n + ' (' + ap + '¢)'); if (SHOP.rogue) rgAfterBuy(p); endTurn();
 }
 function shopLeave() { if (shopLocked()) return; shopLog(SHOP.p, 'done shopping'); sfx(330, .2, 'triangle', .03, -120); endTurn(true); }
 function refreshShop() { const f = focusIdx; renderShop(); magicDom($('shop')); focusIdx = Math.min(f, navItems().length - 1); markFocus(); }
@@ -5362,7 +5363,7 @@ function shopDetail(el) {
     if (a.thorns) rows.push(['Thorns', bar(a.thorns / 10), a.thorns + ' dmg back per hit']);
     const how = a.umb ? 'Catches falling bolts and lava, tearing as it does.' : a.front ? 'Stops bolts from the side you face, not from behind.' : a.ar ? 'Halves every hit until used up, then breaks.' : '';
     h = `<div class="mdrow"><canvas class="arprev" width="34" height="26" data-armor="${id}"></canvas><div class="mdtx">
-      <div class="kb2 k-arm">ARMOR · ${SLOT_NAME[a.slot].toUpperCase()} · ${wt}</div><h4 style="color:#3a4a6a">${a.n} · ${sold ? 'sold' : a.price + '¢'}</h4>
+      <div class="kb2 k-arm">ARMOR · ${SLOT_NAME[a.slot].toUpperCase()} · ${wt}</div><h4 style="color:#3a4a6a">${a.n} · ${sold ? 'sold' : (SHOP.armor && SHOP.armor.id === id && SHOP.armor.price || a.price) + '¢'}</h4>
       <div class="dd">${a.d}</div><div class="astats">${rows.map(r => `<b>${r[0]}</b>${r[1]}<span>${r[2]}</span>`).join('')}</div>
       <div class="rep"><span style="color:#4a3a28">${how}</span> ${sold ? 'Wearing it now.' : cur ? 'Replaces your ' + ARMOR[cur.id].n + ' (' + Math.ceil(cur.dur) + '/' + gearMax(cur.id) + ').' : 'Empty slot.'} Kept until you fall.</div></div></div>`;
   } else {
@@ -5426,7 +5427,7 @@ function renderTable() {
     <div class="mrow">
       <div class="mtable"><div class="mtop">${SHOP.items.map((it, i) => goodHTML(it, i, coins)).join('')}</div><div class="mfront"></div><div class="mleg a"></div><div class="mleg b"></div></div>
       <div class="mstand"><div class="sign">ARMOR</div>
-        <div class="good armor${A.sold ? ' sold' : coins >= a.price ? '' : ' poor'}" data-act="buyarmor"${A.sold ? ' disabled' : ''}><div class="gtag">${A.sold ? 'SOLD' : a.price + '¢'}</div><div class="ingame"><canvas class="arprev" width="34" height="26" data-armor="${A.id}"></canvas><span>IN GAME</span></div><div class="gob">${armorArt(A.id)}</div><div class="stable"></div><div class="gkind k-arm">${SLOT_NAME[a.slot].toUpperCase()} · ${a.umb ? 'BRIM ' + a.umb : a.front ? 'SHIELD ' + a.ar : a.ar + ' ARMOR'}</div><div class="gname">${a.n}</div></div>
+        <div class="good armor${A.sold ? ' sold' : coins >= (A.price || a.price) ? '' : ' poor'}" data-act="buyarmor"${A.sold ? ' disabled' : ''}><div class="gtag">${A.sold ? 'SOLD' : (A.price || a.price) + '¢'}</div><div class="ingame"><canvas class="arprev" width="34" height="26" data-armor="${A.id}"></canvas><span>IN GAME</span></div><div class="gob">${armorArt(A.id)}</div><div class="stable"></div><div class="gkind k-arm">${SLOT_NAME[a.slot].toUpperCase()} · ${a.umb ? 'BRIM ' + a.umb : a.front ? 'SHIELD ' + a.ar : a.ar + ' ARMOR'}</div><div class="gname">${a.n}</div></div>
       </div>
     </div>
     <div class="mlog">${log}</div>
@@ -5461,8 +5462,8 @@ const RG_BIOMES = [
 ];
 const RG_ACTS = [[0, 1], [2, 3], [4, 5]]; // each act draws its biome from a pair
 const MOB_ARCH = {
-  walk: { hp: 55, r: 12, spd: 140, touch: 9, coins: 2 },
-  fly: { hp: 34, r: 10, spd: 160, touch: 7, coins: 2, fly: true },
+  walk: { hp: 55, r: 12, spd: 125, touch: 8, coins: 2 },
+  fly: { hp: 34, r: 10, spd: 160, touch: 6, coins: 2, fly: true },
   cast: { hp: 52, r: 12, spd: 80, touch: 6, coins: 4, cd: 2.5 },
   brute: { hp: 200, r: 20, spd: 78, touch: 14, coins: 8, slam: 16 }
 };
@@ -5499,7 +5500,7 @@ const rgR = (a, b) => a + Math.random() * (b - a), ri = (a, b) => Math.floor(rgR
 function rgNewRun() { return { act: 1, row: -1, cur: null, map: null, biome: 0, levels: 0, kills: 0, chests: 0, bosses: 0, revives: 0, satchel: [[], []], log: [], won: false }; }
 function rgScale(hard) {
   const R = M.rogue, d = (R.act - 1) * 6 + Math.max(0, R.row), n = rgHeroes().length;
-  return { hp: (1 + .2 * d) * (1 + .5 * (n - 1)) * (hard ? 1.2 : 1), dmg: (1 + .11 * d) * (hard ? 1.12 : 1) };
+  return { hp: (1 + .2 * d) * (1 + .5 * (n - 1)) * (hard ? 1.1 : 1), dmg: (1 + .11 * d) * (hard ? 1.08 : 1) };
 }
 
 /* ---------- the path map: 7 columns per act, picked by vote ---------- */
@@ -5525,74 +5526,172 @@ function rgGenAct() {
 }
 function rgChoices() { const R = M.rogue; return R.row < 0 ? R.map[0] : R.cur.links.map(i => R.map[R.row + 1][i]); }
 
-/* ---------- level generation: a long cave with pits, ledges, pillars, overhangs, chests, monsters and a door ---------- */
+/* ---------- level generation: a descending grid of hand-made rooms (Spelunky style) ----------
+   The level is a grid of rooms, 16x12 tiles each. A guaranteed route starts top-left and works its way right and
+   down through drop shafts to the door at the bottom right. Every room connects to its left/right neighbours, so
+   rooms off the route are side pockets worth exploring. Rooms come from hand-drawn templates (mirrored at random),
+   and the finished tile map doubles as a navigation map for the bots. */
+const RT = 40, RCW = 16, RCH = 12; // tile size, room size in tiles
+// Templates are the 14x10 room interior. Floor is under the bottom row; standing rows are where 'm' and 'c' sit.
+// # solid rock · % breakable rock · = platform · W wooden block · B crate · m ground monster · f flyer · c chest spot
+// drop: the floor can open (interior columns 5-8 stay walkable) · Jumps on the main route never exceed 2 tiles.
+const RG_ROOMS = [
+  { n: 'ledges', drop: 1, t: ['..............', '..............', '..........c...', '.........====.', '..............', '..f...........', '..........m...', '.====...====..', '..............', '...m..........'] },
+  { n: 'hill', drop: 0, t: ['..............', '..............', '......f.......', '..............', '.......c......', '......%%......', '.....%%%%.....', '....%%##%%..m.', '...%%####%%...', '..m%######%...'] },
+  { n: 'pillars', drop: 1, t: ['..............', '..............', '...f......f...', '......c.......', '.....====.....', '..............', '..............', '..m...........', '..%%......%%..', '..%%..m...%%..'] },
+  { n: 'gallery', drop: 1, t: ['..............', '.c...f........', '=====.........', '..............', '......m.......', '.....====.....', '..............', '..........m...', '.........====.', '..............'] },
+  { n: 'bridge', drop: 1, t: ['..............', '..............', '......f.......', '..............', '..............', '...c......m...', '..====..====..', '..............', '.#..........#.', '..............'] },
+  { n: 'lowcave', drop: 1, t: ['%%%%%%%%%%%%%%', '%%%%%%%%%%%%%%', '#%%%%%cc%%%%%#', '##%%%....%%%##', '###........###', '##..........##', '#....f.......#', '..............', '..............', '..m.......m...'] },
+  { n: 'stalactites', drop: 1, t: ['..#.....#...#.', '..#.....#...#.', '..%.....%...%.', '........%.....', '..............', '....f.....f...', '.....c........', '....======....', '..............', '..m........m..'] },
+  { n: 'lofts', drop: 0, t: ['..............', '...c......c...', '..====..====..', '..............', '..............', '.....====.....', '..f...........', '..............', '..====..====..', '.....m........'] },
+  { n: 'crates', drop: 1, t: ['..............', '..............', '..........f...', '..............', '..............', '..f...........', '..............', '...........c..', '..B.......WW..', '.BBB...m..WW..'] },
+  { n: 'terraces', drop: 0, t: ['..............', '..............', '..f.......c...', '.........===..', '..............', '..............', '.....m........', '....%%%%......', '..%%%%%%%%....', '..%%%%%%%%%%..'] },
+  { n: 'chasm', drop: 1, t: ['..............', '.f..........f.', '..............', '..c........c..', '.===......===.', '..............', '..............', '..m........m..', '.###......###.', '.###......###.'] },
+  { n: 'nest', drop: 0, t: ['%%%%......%%%%', '%%%..f.f...%%%', '%%..........%%', '%....%%%%....%', '....%%cc%%....', '....%%%%%%....', '..............', '..m........m..', '..............', '......m.......'] },
+  { n: 'colonnade', drop: 1, t: ['..............', '..f.......f...', '..............', '.c..........c.', '.==..====..==.', '..............', '..............', '..............', '.%%..%%..%%...', '.%%..%%..%%..m'] },
+  { n: 'mushroom', drop: 0, t: ['..............', '..............', '....%%%%%%....', '...%%%%%%%%...', '......%%..c...', '......%%.===..', '..f...%%......', '......%%......', '..m..........m', '..............'] }
+];
+const RG_START = ['..............', '..............', '..............', '..............', '..............', '..............', '..............', '..............', '..............', '..............'];
+const RG_DOOR = ['..............', '..............', '..f...........', '..............', '..====........', '..............', '..............', '..............', '..............', '..m...........'];
+const rgMirror = t => t.map(r => [...r].reverse().join(''));
+const isSolidCh = c => c === '#' || c === '%' || c === '=' || c === 'W';
+
+function rgLayout(kind) {
+  const hard = kind === 'hard', tre = kind === 'treasure', cols = tre ? 4 : hard ? 7 : 6, rows = hard ? 4 : 3;
+  // the route: across, drop, across, drop… finishing in the bottom-right room
+  const route = []; let e = 0;
+  for (let r = 0; r < rows; r++) {
+    const d = r === rows - 1 ? cols - 1 : Math.min(cols - 1, Math.max(e + 1, Math.min(cols - 1 - (rows - 1 - r), e + ri(1, 2))));
+    route.push([e, d]); e = d;
+  }
+  const tw = cols * RCW, th = rows * RCH, G = []; for (let y = 0; y < th; y++) G.push(new Array(tw).fill('#'));
+  const set = (x, y, c) => { if (x >= 0 && y >= 0 && x < tw && y < th) G[y][x] = c; };
+  const rooms = [];
+  for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+    const [e0, d0] = route[r], onRoute = c >= e0 && c <= d0, drop = r < rows - 1 && c === d0, top = r > 0 && c === e0;
+    const start = r === 0 && c === 0, door = r === rows - 1 && c === cols - 1;
+    let tpl;
+    if (start) tpl = RG_START; else if (door) tpl = RG_DOOR;
+    else { const pool = RG_ROOMS.filter(T => !drop || T.drop); tpl = pick(pool).t; }
+    if (Math.random() < .5) tpl = rgMirror(tpl);
+    const ox = c * RCW, oy = r * RCH;
+    for (let y = 0; y < 10; y++) for (let x = 0; x < 14; x++) { let ch = tpl[y][x]; if (ch === '%' && Math.random() < .25) ch = '#'; set(ox + 1 + x, oy + 1 + y, ch); }
+    rooms.push({ r, c, onRoute, drop, top, start, door, ox, oy });
+    if (drop) for (let x = 6; x <= 9; x++) { set(ox + x, oy + RCH - 1, '.'); set(ox + x, oy + RCH, '.'); }
+  }
+  // doorways between neighbours: always a 3-tile opening at floor level, sometimes a whole cave mouth
+  for (let r = 0; r < rows; r++) for (let c = 0; c < cols - 1; c++) {
+    const xL = c * RCW + RCW - 1, oy = r * RCH, tall = Math.random() < .35;
+    for (let y = tall ? 3 : 8; y <= 10; y++) { set(xL, oy + y, '.'); set(xL + 1, oy + y, '.'); }
+  }
+  // the odd extra hole between floors: another way down (everything below still leads to the door)
+  for (let r = 0; r < rows - 1; r++) for (let c = 0; c < cols; c++) {
+    if (route[r][1] === c || Math.random() > .18 || (r === 0 && c === 0)) continue;
+    const ox = c * RCW, oy = r * RCH, x0 = ox + ri(3, 10); for (let x = x0; x < x0 + 3; x++) { set(x, oy + RCH - 1, '.'); set(x, oy + RCH, '.'); }
+  }
+  return { G, tw, th, cols, rows, rooms, route };
+}
+// navigation: standable tiles and the moves between them (walk, jump, drop)
+function rgNav(G, tw, th) {
+  const S = new Uint8Array(tw * th); for (let y = 0; y < th; y++) for (let x = 0; x < tw; x++) S[y * tw + x] = isSolidCh(G[y][x]) ? 1 : 0;
+  const N = { tw, th, S, dist: null };
+  N.stand = (x, y) => x >= 0 && y >= 0 && x < tw && y < th - 1 && !S[y * tw + x] && S[(y + 1) * tw + x] === 1;
+  N.free = (x, y) => x >= 0 && y >= 0 && x < tw && y < th && !S[y * tw + x];
+  return N;
+}
+function navEdges(N, x, y, maxUp) {
+  const out = [], { free, stand } = N;
+  for (const d of [-1, 1]) {
+    const nx = x + d; if (!free(nx, y)) continue;
+    if (stand(nx, y)) { out.push([nx, y, 0]); continue; }
+    for (let yy = y + 1; yy < N.th; yy++) { if (!free(nx, yy)) break; if (stand(nx, yy)) { out.push([nx, yy, 2]); break; } }
+  }
+  for (let dy = 1; dy <= maxUp; dy++) { // jumping up onto a ledge
+    let clear = true; for (let k = 1; k <= dy + 1; k++) if (!free(x, y - k)) { clear = false; break; } if (!clear) break;
+    for (let dx = -(4 - dy); dx <= 4 - dy; dx++) { if (!dx) continue; const tx = x + dx, ty = y - dy; if (!stand(tx, ty)) continue;
+      let ok = true; for (let cx = Math.min(x, tx) + 1; cx < Math.max(x, tx); cx++) if (!free(cx, ty) || !free(cx, ty - 1)) { ok = false; break; }
+      if (ok && free(tx, ty - 1)) out.push([tx, ty, 1]); }
+  }
+  for (const d of [-1, 1]) for (let dx = 2; dx <= 4; dx++) { // leaping across a gap, landing level or lower
+    const tx = x + d * dx; if (!free(x, y - 1)) break; let ok = true;
+    for (let k = 1; k < dx; k++) if (!free(x + d * k, y) || !free(x + d * k, y - 1) || (dx >= 3 && !free(x + d * k, y - 2))) { ok = false; break; } if (!ok) break;
+    for (let dd = 0; dd <= 3; dd++) if (stand(tx, y + dd)) { if (!out.some(o => o[0] === tx && o[1] === y + dd)) out.push([tx, y + dd, 1]); break; }
+  }
+  return out;
+}
+// distance (in moves) from every standable tile to the goal tiles, walking the graph backwards
+function navField(N, goals, maxUp) {
+  const { tw, th } = N, n = tw * th, dist = new Int32Array(n).fill(-1), rev = new Array(n);
+  for (let y = 0; y < th; y++) for (let x = 0; x < tw; x++) if (N.stand(x, y)) for (const [ex, ey] of navEdges(N, x, y, maxUp)) { const j = ey * tw + ex; (rev[j] || (rev[j] = [])).push(y * tw + x); }
+  const q = []; for (const [x, y] of goals) { const i = y * tw + x; if (dist[i] < 0) { dist[i] = 0; q.push(i); } }
+  for (let h = 0; h < q.length; h++) { const i = q[h]; for (const j of rev[i] || []) if (dist[j] < 0) { dist[j] = dist[i] + 1; q.push(j); } }
+  return dist;
+}
+function navReach(N, from, maxUp) { // every tile reachable from a start tile
+  const { tw } = N, seen = new Uint8Array(N.tw * N.th), q = [from[1] * tw + from[0]]; seen[q[0]] = 1;
+  for (let h = 0; h < q.length; h++) { const i = q[h], x = i % tw, y = (i / tw) | 0; for (const [ex, ey] of navEdges(N, x, y, maxUp)) { const j = ey * tw + ex; if (!seen[j]) { seen[j] = 1; q.push(j); } } }
+  return seen;
+}
+// turn the tile map into as few rectangles as possible
+function tilesToRects(G, tw, th, want, h = RT) {
+  const out = [], used = G.map(r => r.map(() => false));
+  for (let y = 0; y < th; y++) for (let x = 0; x < tw; x++) {
+    if (used[y][x] || !want(G[y][x])) continue;
+    let w = 1; while (x + w < tw && !used[y][x + w] && want(G[y][x + w])) w++;
+    let hh = 1; if (h === RT) while (y + hh < th) { let ok = true; for (let k = 0; k < w; k++) if (used[y + hh][x + k] || !want(G[y + hh][x + k])) { ok = false; break; } if (!ok) break; hh++; }
+    for (let yy = 0; yy < hh; yy++) for (let k = 0; k < w; k++) used[y + yy][x + k] = true;
+    out.push({ x: x * RT, y: y * RT, w: w * RT, h: h === RT ? hh * RT : h });
+  }
+  return out;
+}
 function rgGenLevel(kind) {
-  const R = M.rogue, hard = kind === 'hard', tre = kind === 'treasure', WW = tre ? 2560 : hard ? 4800 : 3840, WH = 1440;
-  const rects = [], bl = [], box = [], pads = [], mv = [], hg = [], surf = [], mobs = [], chests = [], shrines = [];
-  rects.push({ x: 0, y: 0, w: 40, h: WH }, { x: WW - 40, y: 0, w: 40, h: WH }, { x: 40, y: 0, w: WW - 80, h: 36 });
-  // ground: flat start and end, pits in between (they drop into lava)
-  const segs = []; let x = 40, gy = 1240; const SAFE = 720;
-  while (x < WW - 40) {
-    let len, gap = 0;
-    if (x === 40) len = SAFE - 40;
-    else if (x > WW - SAFE - 420) len = WW - 40 - x;
-    else { len = ri(260, 660); if (!tre && Math.random() < .55) gap = ri(110, 190); }
-    len = Math.min(len, WW - 40 - x);
-    segs.push({ x, w: len, y: gy }); rects.push({ x, y: gy, w: len, h: WH - gy }); surf.push({ x, w: len, y: gy, g: true });
-    x += len;
-    if (gap && x + gap < WW - SAFE) { segs.push({ gap: true, x, w: gap }); x += gap; gy = clamp(gy + pick([-40, 0, 0, 40, 80]), 1120, 1320); }
-    else gy = clamp(gy + pick([-80, -40, 0, 0, 40, 80]), 1120, 1320);
+  const R = M.rogue, hard = kind === 'hard', tre = kind === 'treasure';
+  let L, N, dist, spawn, doorT, reach;
+  for (let tries = 0; tries < 40; tries++) {
+    L = rgLayout(kind); N = rgNav(L.G, L.tw, L.th);
+    spawn = [3, RCH - 2]; const dr = L.rooms.find(r => r.door); doorT = [dr.ox + RCW - 4, dr.oy + RCH - 2];
+    if (!N.stand(spawn[0], spawn[1]) || !N.stand(doorT[0], doorT[1])) continue;
+    dist = navField(N, [doorT], 2);
+    if (dist[spawn[1] * L.tw + spawn[0]] < 0) continue;
+    // no traps: anywhere you can get to, you can still get out of
+    const r2 = navReach(N, spawn, 2); let trap = false; for (let i = 0; i < r2.length; i++) if (r2[i] && dist[i] < 0) { trap = true; break; } if (trap && tries < 39) continue;
+    reach = navReach(N, spawn, 3); break;
   }
-  const gAt = px => { for (const s of segs) if (!s.gap && px >= s.x && px < s.x + s.w) return s.y; return null; };
-  // a ragged cave ceiling (solid rock) so the open air above the route isn't empty
-  for (let cx = 40; cx < WW - 40;) { const w = Math.min(ri(90, 220), WW - 40 - cx), g = Math.min(gAt(cx) || 1240, gAt(cx + w - 1) || 1240), h = ri(150, Math.max(170, g - 640));
-    rects.push({ x: cx, y: 36, w, h, fixed: true }); if (Math.random() < .5 && w > 120) rects.push({ x: cx + ri(20, w - 60), y: 36 + h, w: ri(24, 40), h: ri(30, 90), fixed: true }); cx += w; }
-  const plat = (px, py, w, h = 24) => { const r = { x: Math.round(px), y: Math.round(py), w: Math.round(w), h }; rects.push(r); surf.push({ x: r.x, w: r.w, y: r.y }); return r; };
-  // chunks between the safe zones
-  const chunks = [];
-  for (let cx = SAFE; cx < WW - SAFE - 200; cx += ri(520, 640)) chunks.push(cx);
-  const T = tre ? ['ledges', 'upper', 'crates', 'pillar'] : ['ledges', 'pillar', 'overhang', 'upper', 'crates', 'pad', 'ledges', 'pillar'];
-  for (const cx of chunks) {
-    const g = gAt(cx + 200) || gAt(cx + 60) || 1240, t = pick(T);
-    if (t === 'ledges') { const n = ri(2, 3); for (let i = 0; i < n; i++) plat(cx + 40 + i * 170 + rgR(-20, 20), g - 150 - i * rgR(60, 120) - (i & 1) * 40, rgR(140, 230)); }
-    else if (t === 'pillar') { const ph = ri(150, 240), pw = ri(70, 110), px = cx + rgR(120, 360); if (gAt(px) && gAt(px + pw)) { const top = Math.min(gAt(px), gAt(px + pw)); rects.push({ x: px, y: top - ph, w: pw, h: ph }); surf.push({ x: px, w: pw, y: top - ph }); plat(px - 150, top - ph - 120, 180); } }
-    else if (t === 'overhang') { const ow = ri(300, 460), oh = g - 330 - 36; if (oh > 200) rects.push({ x: cx + 60, y: 36, w: ow, h: oh }); plat(cx + 60 + rgR(40, ow - 220), g - 150, rgR(150, 220)); }
-    else if (t === 'upper') { let py = g; for (let i = 0; i < 3; i++) { py -= ri(110, 135); plat(cx + 40 + i * 120, py, 120); } plat(cx + 380, py - 40, ri(260, 380)); }
-    else if (t === 'crates') { const bx = cx + rgR(80, 300), by = gAt(bx); if (by) { for (let i = 0; i < ri(2, 4); i++) box.push([bx + i * 46, by - 44 - (i === 2 ? 44 : 0), 42]); bl.push([bx + 220, by - 96, 40, 96, pick(['b', 'w', 'b', 'c'])]); } plat(cx + 20, g - 200, 170); }
-    else if (t === 'pad') { const px = cx + rgR(60, 200), py = gAt(px); if (py) { pads.push([px, py, 60]); plat(px - 60, py - 470, 260); plat(px + 260, py - 230, 160); } }
+  N.dist = dist; N.door = doorT;
+  const { G, tw, th } = L, WW = tw * RT, WH = th * RT;
+  const rects = tilesToRects(G, tw, th, c => c === '#').map(r => Object.assign(r, { fixed: true }))
+    .concat(tilesToRects(G, tw, th, c => c === '%'))
+    .concat(tilesToRects(G, tw, th, c => c === '=', 20));
+  const bl = tilesToRects(G, tw, th, c => c === 'W').map(r => [r.x, r.y, r.w, r.h, 'w']);
+  const box = []; for (let y = 0; y < th; y++) for (let x = 0; x < tw; x++) if (G[y][x] === 'B') box.push([x * RT + 1, y * RT + 2, 38]);
+  // monsters, chests and shrines from the room markers
+  const nHero = rgHeroes().length, mobs = [], chests = [], shrines = [];
+  const mobChance = (tre ? .22 : hard ? .55 : .44) + (R.act - 1) * .06 + (nHero - 1) * .08;
+  const ok = (x, y) => reach[y * tw + x];
+  // (marker pass) templates put letters straight into the map: read them, then clear them
+  for (let y = 0; y < th; y++) for (let x = 0; x < tw; x++) {
+    const ch = G[y][x]; if (ch !== 'm' && ch !== 'f' && ch !== 'c') continue; G[y][x] = '.';
+    const rm = L.rooms.find(r => x >= r.ox && x < r.ox + RCW && y >= r.oy && y < r.oy + RCH);
+    if (rm.start) continue;
+    const near = Math.abs(x - spawn[0]) < 12 && y < RCH;
+    if (ch === 'c') { if (!N.stand(x, y) || !ok(x, y)) continue; const side = !rm.onRoute;
+      if (tre || Math.random() < (side ? .75 : .38)) chests.push({ kind: tre ? pick(['iron', 'gold', 'wood', 'iron']) : Math.random() < (side ? .45 : .25) ? 'iron' : 'wood', x: (x + .5) * RT, y: (y + 1) * RT, mimic: false }); continue; }
+    if (near || Math.random() > mobChance) continue;
+    if (ch === 'f') { mobs.push({ a: 'fly', elite: false, x: (x + .5) * RT, y: (y + .5) * RT }); continue; }
+    if (!N.stand(x, y)) continue;
+    let a = pick(['walk', 'walk', 'walk', 'cast', 'cast', 'brute']); if (a === 'brute' && (R.row < 1 && R.act === 1) && Math.random() < .6) a = 'walk';
+    mobs.push({ a, elite: false, x: (x + .5) * RT, y: (y + 1) * RT - MOB_ARCH[a].r - 2 });
   }
-  // bridges over the widest pits: a swinging rope platform or a sliding iron one
-  for (const s of segs) if (s.gap && s.w > 150 && Math.random() < .55) { if (Math.random() < .5) mv.push([s.x + s.w / 2 - 50, (gAt(s.x - 10) || 1240) - 30, 100, 18, 90, 0, 3.4, Math.random() * 6]); else hg.push([s.x + s.w / 2, 36, 120, 18, (gAt(s.x - 10) || 1240) - 140, 0, .92]); }
-  // monsters, per chunk
-  const nHero = rgHeroes().length, per = (tre ? .8 : hard ? 2.6 : 1.8) + (R.act - 1) * .45 + Math.max(0, R.row) * .12 + (nHero - 1) * .45;
-  const surfIn = (x0, x1, ground) => surf.filter(s => s.x + s.w > x0 + 30 && s.x < x1 - 30 && s.w >= 70 && (ground === undefined || !!s.g === ground));
-  const onSurf = (s, r) => [clamp(rgR(s.x + r + 8, s.x + s.w - r - 8), s.x + r, s.x + s.w - r), s.y - r - 2];
-  let bruteN = 0;
-  chunks.forEach((cx, ci) => {
-    const n = Math.max(1, Math.round(per + rgR(-.6, .8)));
-    for (let k = 0; k < n; k++) {
-      let a = pick(['walk', 'walk', 'walk', 'fly', 'fly', 'cast', 'cast', 'brute']);
-      if (a === 'brute' && (bruteN > chunks.length / 2 || ci < 1)) a = 'walk'; if (a === 'brute') bruteN++;
-      const A = MOB_ARCH[a], elite = (hard ? .22 : .06 + .04 * (R.act - 1)) > Math.random();
-      if (a === 'fly') { mobs.push({ a, elite, x: cx + rgR(60, 520), y: (gAt(cx + 200) || 1240) - rgR(220, 420) }); continue; }
-      const ss = surfIn(cx, cx + 600, a === 'cast' && Math.random() < .7 ? false : undefined), s = ss.length ? pick(ss) : surfIn(cx, cx + 600)[0];
-      if (!s) continue; const [mx, my] = onSurf(s, A.r * (elite ? 1.15 : 1)); mobs.push({ a, elite, x: mx, y: my });
-    }
-  });
-  // chests: wood along the way, iron up high, gold by the exit of a deep dungeon; vaults are full of them
-  const high = surf.filter(s => !s.g && s.x > SAFE - 100 && s.x < WW - SAFE && s.w >= 90).sort((a, b) => a.y - b.y);
-  const ground = surf.filter(s => s.g && s.x > SAFE - 100 && s.x + s.w < WW - SAFE + 200 && s.w >= 120);
-  const put = (s, kind) => { if (!s) return; const cxp = clamp(rgR(s.x + 30, s.x + s.w - 30), s.x + 20, s.x + s.w - 20); if (chests.some(c => Math.abs(c.x - cxp) < 70 && Math.abs(c.y - s.y) < 40)) return; chests.push({ kind, x: cxp, y: s.y, mimic: kind !== 'wood' && (hard || tre) && Math.random() < (tre ? .3 : .18) }); };
-  if (tre) { for (const s of high.slice(0, 3)) put(s, pick(['iron', 'gold', 'iron'])); for (let i = 0; i < 3; i++) put(pick(ground), i === 0 ? 'gold' : pick(['wood', 'iron'])); }
-  else {
-    for (let i = 0; i < ri(2, 3); i++) put(pick(ground.length ? ground : high), 'wood');
-    for (const s of high.slice(0, hard ? 3 : ri(1, 2))) put(s, Math.random() < .25 ? 'wood' : 'iron');
-    if (hard) chests.push({ kind: 'gold', x: WW - 460, y: segs[segs.length - 1].y, mimic: false });
+  const eliteP = hard ? .16 : .05 + .04 * (R.act - 1); for (const m of mobs) m.elite = Math.random() < eliteP;
+  for (const c of chests) c.mimic = c.kind !== 'wood' && (hard || tre) && Math.random() < (tre ? .3 : .18);
+  if (hard) chests.push({ kind: 'gold', x: (doorT[0] - 5 + .5) * RT, y: (doorT[1] + 1) * RT, mimic: false });
+  if (!tre && Math.random() < .45) { // a shrine somewhere on the route
+    const cand = []; for (let y = 0; y < th; y++) for (let x = 0; x < tw; x++) if (N.stand(x, y) && dist[y * tw + x] > 0 && ok(x, y) && N.stand(x - 1, y) && N.stand(x + 1, y)) cand.push([x, y]);
+    if (cand.length) { const [x, y] = pick(cand.slice(cand.length * .2 | 0, cand.length * .8 | 0) || cand); shrines.push({ x: (x + .5) * RT, y: (y + 1) * RT, used: false }); }
   }
-  if (!tre && Math.random() < .4 && ground.length) { const s = pick(ground); shrines.push({ x: clamp(rgR(s.x + 40, s.x + s.w - 40), s.x + 30, s.x + s.w - 30), y: s.y, used: false }); }
-  const last = segs[segs.length - 1], gy0 = segs[0].y;
-  return { n: RG_NODE[kind].n, a: hexOfPal(PAL[RG_BIOMES[R.biome].pal].acc), rects, bl, box, pads, mv, hg, sp: [[140, gy0 - 20], [210, gy0 - 20]], ww: WW, wh: WH,
-    rg: { mobs, chests, shrines, door: { x: WW - 230, y: last.y }, kind } };
+  return { n: RG_NODE[kind].n, a: hexOfPal(PAL[RG_BIOMES[R.biome].pal].acc), rects, bl, box, pads: [], mv: [], hg: [],
+    sp: [[(spawn[0] + .5) * RT, (spawn[1] + 1) * RT - 20], [(spawn[0] + 2.5) * RT, (spawn[1] + 1) * RT - 20]], ww: WW, wh: WH,
+    rg: { mobs, chests, shrines, door: { x: (doorT[0] + .5) * RT, y: (doorT[1] + 1) * RT }, kind, nav: N } };
 }
 function hexOfPal(c) { return '#' + c.map(v => (v | 0).toString(16).padStart(2, '0')).join(''); }
 function rgBossArena() {
@@ -5624,7 +5723,7 @@ function rgStartLevel(node) {
     p.hp = R.first ? p.st.maxHp : clamp(hp0, 1, p.st.maxHp); p.dead = !!wasDead; applyWand(p);
   });
   R.first = false;
-  const G = map.rg; M.rgL = { door: G.door, chests: G.chests.map(c => Object.assign({ open: false, t: 0 }, c)), shrines: G.shrines, drops: [], graves: [], wallFx: [], quakes: [], boss: null, doorT: 0, kind: G.kind, msgs: [] };
+  const G = map.rg; M.rgL = { door: G.door, chests: G.chests.map(c => Object.assign({ open: false, t: 0 }, c)), shrines: G.shrines, drops: [], graves: [], wallFx: [], quakes: [], boss: null, nav: G.nav || null, doorT: 0, kind: G.kind, msgs: [] };
   for (const h of M.heroes) if (h.dead) M.rgL.graves.push({ pid: h.id, x: h.x + 30, y: h.y - 20, vy: 0 });
   for (const o of G.mobs) makeMob(o.a, o.x, o.y, { elite: o.elite });
   if (G.boss) M.rgL.boss = makeBoss(G.boss.id, G.boss.x, G.boss.y);
@@ -5646,8 +5745,8 @@ function makeMob(arch, x, y, o = {}) {
 }
 const BOSS = {
   golem: { hp: 1100, r: 54, spd: 70, touch: 26, coins: 60 },
-  mycelia: { hp: 950, r: 44, spd: 60, touch: 18, coins: 60, fly: true },
-  king: { hp: 1000, r: 36, spd: 90, touch: 16, coins: 60, fly: true }
+  mycelia: { hp: 800, r: 44, spd: 60, touch: 18, coins: 60, fly: true },
+  king: { hp: 850, r: 36, spd: 90, touch: 16, coins: 60, fly: true }
 };
 function makeBoss(id, x, y) {
   const R = M.rogue, n = rgHeroes().length, D = BOSS[id];
@@ -5694,7 +5793,7 @@ function updateMob(m, dt) {
       else { const tx = tg.x + Math.sin(m.t * 1.3 + m.ph) * 120, ty = tg.y - 130 + Math.sin(m.t * 2.1 + m.ph) * 35;
         m.vx += clamp((tx - m.x) * 2.5 - m.vx, -900, 900) * dt * 2; m.vy += clamp((ty - m.y) * 2.5 - m.vy, -900, 900) * dt * 2;
         const s = Math.hypot(m.vx, m.vy); if (s > sp) { m.vx *= sp / s; m.vy *= sp / s; }
-        if (m.atkT <= 0 && dd < 360) { m.vx = dx / dd * sp * 2.7; m.vy = dy / dd * sp * 2.7; m.dashT = .5; m.atkT = rgR(2.2, 3.4); sfx(700, .12, 'sawtooth', .02, -400, 'dive'); } }
+        if (m.atkT <= 0 && dd < 360) { m.vx = dx / dd * sp * 2.7; m.vy = dy / dd * sp * 2.7; m.dashT = .5; m.atkT = rgR(2.8, 4.2); sfx(700, .12, 'sawtooth', .02, -400, 'dive'); } }
       m.dir = Math.sign(m.vx) || m.dir;
     } else { m.vx *= Math.pow(.2, dt); m.vy = Math.sin(m.t * 2) * 30; }
     if (m.trapT > 0) m.vy = -75;
@@ -5795,7 +5894,7 @@ function rgMobDie(q) {
   puffs(q.x, q.y, q.color, D.boss ? 80 : 22, D.boss ? 500 : 260); puffs(q.x, q.y, '#ffffff', 8, 200);
   sfx(D.boss ? 60 : 140, D.boss ? 1.2 : .25, 'sawtooth', .05, -60); noise(D.boss ? .6 : .15, D.boss ? .12 : .05);
   const k = q.lastBy !== undefined ? M.players[q.lastBy] : null; if (k && !k.mob) coin(k.id, D.boss ? 0 : 2, 'Kills', q.x, q.y - 30);
-  const coins = Math.round((D.coins || 2) * (D.elite ? 2.5 : 1) * (1 + .25 * (R.act - 1)));
+  const coins = Math.round((D.coins || 2) * (D.elite ? 2.5 : 1) * (1 + .1 * (R.act - 1)));
   rgSpill(q.x, q.y, coins, D.boss ? 14 : D.elite ? 5 : Math.min(4, coins));
   if (D.elite && Math.random() < .45) rgDrop(q.x, q.y, Math.random() < .3 ? 'elixir' : 'heart');
   else if (!D.boss && Math.random() < .08) rgDrop(q.x, q.y, 'heart');
@@ -5808,9 +5907,9 @@ function rgDrop(x, y, kind, o = {}) { M.rgL.drops.push(Object.assign({ kind, x, 
 function rgSpill(x, y, total, n) { n = Math.max(1, Math.min(n, total)); let left = total; for (let i = 0; i < n; i++) { const v = i === n - 1 ? left : Math.max(1, Math.round(total / n)); left -= v; if (v > 0) rgDrop(x, y, 'coin', { v }); } }
 function rgChestLoot(c) {
   const R = M.rogue, x = c.x, y = c.y - 14; R.chests++;
-  if (c.kind === 'wood') { rgSpill(x, y, ri(6, 11) + R.act * 2, 4); if (Math.random() < .35) rgDrop(x, y, 'heart'); if (Math.random() < .12) rgDrop(x, y, 'elixir'); if (Math.random() < .25) rgDrop(x, y, 'scroll', { id: rgScrollCard(0) }); }
-  else if (c.kind === 'iron') { rgDrop(x, y, 'armor', { id: rgArmorRoll() }); rgSpill(x, y, ri(8, 13) + R.act * 3, 4); if (Math.random() < .22) rgDrop(x, y, 'feather'); if (Math.random() < .3) rgDrop(x, y, 'scroll', { id: rgScrollCard(1) }); }
-  else { rgDrop(x, y, 'scroll', { id: rgScrollCard(2) }); rgSpill(x, y, ri(14, 20) + R.act * 4, 6); rgDrop(x, y, Math.random() < .2 ? 'ankh' : Math.random() < .55 ? 'feather' : 'elixir'); if (Math.random() < .5) rgDrop(x, y, 'armor', { id: rgArmorRoll() }); }
+  if (c.kind === 'wood') { rgSpill(x, y, ri(5, 9) + R.act, 4); if (Math.random() < .35) rgDrop(x, y, 'heart'); if (Math.random() < .12) rgDrop(x, y, 'elixir'); if (Math.random() < .25) rgDrop(x, y, 'scroll', { id: rgScrollCard(0) }); }
+  else if (c.kind === 'iron') { rgDrop(x, y, 'armor', { id: rgArmorRoll() }); rgSpill(x, y, ri(6, 10) + R.act * 2, 4); if (Math.random() < .22) rgDrop(x, y, 'feather'); if (Math.random() < .3) rgDrop(x, y, 'scroll', { id: rgScrollCard(1) }); }
+  else { rgDrop(x, y, 'scroll', { id: rgScrollCard(2) }); rgSpill(x, y, ri(10, 15) + R.act * 3, 6); rgDrop(x, y, Math.random() < .2 ? 'ankh' : Math.random() < .55 ? 'feather' : 'elixir'); if (Math.random() < .5) rgDrop(x, y, 'armor', { id: rgArmorRoll() }); }
 }
 function rgArmorRoll() { return pick(ARMOR_LIST.filter(id => id !== 'sombrero' || Math.random() < .5)); }
 // a spell card: rare+ for gold chests; elemental wands get their own element's cards
@@ -5916,7 +6015,7 @@ function rogueStep(dt, prev) {
   }
   // the door: everyone still standing has to be in it
   if (L.door && M.phase === 'play') {
-    const A = rgAlive(), inD = A.filter(h => Math.abs(h.x - L.door.x) < 46 && h.y > L.door.y - 150 && h.y < L.door.y + 10);
+    const A = rgAlive(), inD = A.filter(h => Math.abs(h.x - L.door.x) < 58 && h.y > L.door.y - 150 && h.y < L.door.y + 10);
     L.atDoor = inD.length; if (A.length && inD.length === A.length) { L.doorT += dt; if (L.doorT > .5) { M.phase = 'end'; M.t = .9; M.rgEnd = 'clear'; sfx(330, .3, 'triangle', .04, 300); setTimeout(() => sfx(660, .4, 'triangle', .04, 300), 140); } } else L.doorT = 0;
   }
   if (M.phase === 'play' && L.boss && L.boss.dead) { M.phase = 'end'; M.t = 3; M.rgEnd = 'boss'; R.bosses++; }
@@ -5932,7 +6031,9 @@ function rgEndPhase() {
 function rgQueue(q, done) { const next = () => { if (!M) return; const f = q.shift(); if (!f) return done(); f(next); }; next(); }
 function rgLevelDone(boss) {
   const R = M.rogue, kind = R.kind; M.players = M.heroes.slice();
-  for (const h of M.heroes) if (!h.dead) { heal(h, h.st.maxHp * (boss ? 1 : .35)); if (kind === 'hard') coin(h.id, 25, 'Deep dungeon'); }
+  for (const h of M.heroes) if (!h.dead) { heal(h, h.st.maxHp * (boss ? 1 : .35)); if (kind === 'hard') coin(h.id, 15, 'Deep dungeon'); }
+  R.note = ''; for (const h of M.heroes) if (h.dead) { h.dead = false; h.hp = h.st.maxHp * .3; R.revives++; R.note += (R.note ? ' ' : '') + h.nick + ' was revived at 30% health.'; }
+  if (M.rgL) M.rgL.graves = [];
   const q = [];
   M.heroes.forEach(h => { const S = R.satchel[h.id]; while (S.length) { const id = S.shift(); q.push(next => { const res = grantCard(h, id); R.log.push(h.nick + ' read ' + CARDS[id].name); if (res === 'edit') return openWandEditor(h, id, next); next(); }); } });
   if (kind === 'dungeon' || kind === 'hard' || boss) for (const h of M.heroes) if (!h.dead) q.push(next => { M.afterPick = next; beginPick(h.id); });
@@ -5967,7 +6068,7 @@ function rgVoteTurn() {
   setTimeout(() => { if (!M || !M.rogue || M.rogue.vote !== V || V.tk !== tk || V.done) return;
     // bots like dungeons and treasure; the merchant when rich; a campfire when hurt or a friend is down
     let best = 0, bs = -1e9; V.opts.forEach((n, i) => { let s = Math.random() * 2; const hp = p.hp / p.st.maxHp, rich = M.run.coins[p.id] > 70, down = M.heroes.some(h => h.dead);
-      s += { dungeon: 2, hard: hp > .7 ? 2.4 : 0, treasure: 2.6, merchant: rich ? 3 : .5, camp: hp < .5 || down ? 4 : .8, boss: 2 }[n.kind];
+      s += { dungeon: 2, hard: hp > .8 ? 1.2 : 0, treasure: 2.6, merchant: rich ? 3 : .5, camp: hp < .5 || down ? 4 : .8, boss: 2 }[n.kind];
       const hv = Object.values(V.votes); if (hv.length && hv[0] === i) s += 1.5; if (s > bs) { bs = s; best = i; } });
     rgVote(best, true); }, 1100);
 }
@@ -6027,7 +6128,7 @@ function renderRPath() {
     <div class="pickhead" style="font-size:1.25em;margin:.3em 0 .4em;color:${p ? p.color : '#ffe9b8'}">${head}</div>
     <div class="rchoices">${V.opts.map(opt).join('')}</div>
     <div class="rheroes">${M.heroes.map(rgHeroLine).join('')}</div>
-    <div class="hint">${V.order.length > 1 ? 'Each wizard votes in turn. A split vote picks one of the voted paths at random.' : ''}</div>`;
+    <div class="hint">${R.note ? `<b style="color:#ffd23d">${R.note}</b> ` : ''}${V.order.length > 1 ? 'Each wizard votes in turn. A split vote picks one of the voted paths at random.' : ''}</div>`;
   rgDrawMap($('rmap')); $('rpath').querySelectorAll('.ric').forEach(cv => { const c = cv.getContext('2d'); rgDrawIcon(c, cv.dataset.k, 0, 0, 2, false); });
 }
 
@@ -6079,12 +6180,29 @@ function rgFireAnim() {
 }
 
 /* ---------- the merchant, Delve edition: also sells feathers and draughts ---------- */
+// Delve prices follow the run (x1 in act 1, x1.7 in act 2, x2.6 in act 3, creeping up along each act), and every
+// purchase makes that wizard's remaining goods 20% dearer for the rest of the visit (and the whole run 3% dearer).
+function rgPriceK() { const R = M.rogue; return [1, 1.7, 2.6][R.act - 1] * (1 + .05 * Math.max(0, R.row)) * (R.infl || 1); }
+const r5 = v => Math.max(5, Math.round(v / 5) * 5);
+function rgStock(p) {
+  const items = shopStock(p); items.push({ special: 'feather', price: 55, sold: false }, { special: 'draught', price: 25, sold: false });
+  for (const it of items) it.base = it.price; return items;
+}
+function rgReprice(st) {
+  const k = rgPriceK() * Math.pow(1.2, st.bought || 0);
+  for (const it of st.items) if (!it.sold) it.price = r5(it.base * k);
+  if (st.armor && !st.armor.sold) st.armor.price = r5(ARMOR[st.armor.id].price * k);
+  st.reroll = r5((10 + 5 * (st.rerolls || 0)) * rgPriceK());
+}
+function rgAfterBuy(p) {
+  const st = SHOP.st[p.id]; st.items = SHOP.items; st.armor = SHOP.armor; st.bought = (st.bought || 0) + 1; M.rogue.infl = (M.rogue.infl || 1) * 1.03;
+  rgReprice(st); SHOP.reroll = st.reroll;
+}
 function openRogueMerchant() {
   const order = M.heroes.filter(h => !h.dead).map(h => h.id);
   SHOP = { order, turn: 0, st: {}, log: [], notes: [], tk: 0, rogue: true };
-  for (const pid of order) { const p = M.players[pid], pool = ARMOR_LIST.filter(id => !(p.gear && p.gear[ARMOR[id].slot] && p.gear[ARMOR[id].slot].id === id)), items = shopStock(p);
-    items.push({ special: 'feather', price: 55 + 10 * M.rogue.act, sold: false }); items.push({ special: 'draught', price: 25, sold: false });
-    SHOP.st[pid] = { items, armor: { id: pick(pool), sold: false }, reroll: 10, done: false }; }
+  for (const pid of order) { const p = M.players[pid], pool = ARMOR_LIST.filter(id => !(p.gear && p.gear[ARMOR[id].slot] && p.gear[ARMOR[id].slot].id === id));
+    const st = SHOP.st[pid] = { items: rgStock(p), armor: { id: pick(pool), sold: false }, reroll: 10, rerolls: 0, bought: 0, done: false }; rgReprice(st); }
   sfx(220, .5, 'triangle', .04, -60); setTimeout(() => sfx(330, .5, 'triangle', .035, -80), 180);
   app = 'shop'; wrap.classList.remove('play'); setTurn(0);
 }
@@ -6202,8 +6320,9 @@ function drawRogueWorldUI() {
       ctx.fillStyle = '#000'; ctx.fillRect(x0 - 2, y0 - 2, bw + 4, 6); ctx.fillStyle = '#3a1418'; ctx.fillRect(x0, y0, bw, 2); ctx.fillStyle = m.mob.elite ? '#ffd23d' : '#e04040'; ctx.fillRect(x0, y0, snap(bw * fr), 2); }
     if (m.mob.elite) txt(m.nick.toUpperCase(), m.x, m.y - m.r - 24, '#ffd23d', 7); }
   for (const d of M.rgL.drops) if (d.kind !== 'coin' && d.rest) txt(d.kind === 'armor' ? ARMOR[d.id].n.toUpperCase() : d.kind === 'scroll' ? 'SCROLL' : RG_ITEMS[d.kind].n.toUpperCase(), d.x, d.y - 16, d.kind === 'armor' ? '#c8ccd8' : '#ffe9b0', 7);
-  for (const g of M.rgL.graves) { const p = M.players[g.pid], any = rgAlive().some(h => h.inv && (h.inv.feather || h.inv.ankh)); txt(p.nick.toUpperCase(), g.x, g.y - 34, p.color, 7); txt(any ? 'TOUCH TO REVIVE' : 'NEEDS A PHOENIX FEATHER', g.x, g.y - 46, any ? '#ffd23d' : '#8a7a6a', 6); }
+  for (const g of M.rgL.graves) { const p = M.players[g.pid], any = rgAlive().some(h => h.inv && (h.inv.feather || h.inv.ankh)); txt(p.nick.toUpperCase(), g.x, g.y - 34, p.color, 7); txt(any ? 'TOUCH TO REVIVE' : 'RETURNS AT THE DOOR', g.x, g.y - 46, any ? '#ffd23d' : '#c8a8ff', 6); }
   if (M.rgL.door && M.rgL.atDoor > 0 && M.rgL.atDoor < rgAlive().length) txt('WAITING FOR EVERYONE', M.rgL.door.x, M.rgL.door.y - 170, '#c8a8ff', 9);
+  else if (M.rgL.door && M.rgL.graves.length) txt('REACH THE DOOR TO REVIVE', M.rgL.door.x, M.rgL.door.y - 170, '#c8a8ff', 8);
   for (const n of M.nums) { const v = parseFloat(n.v) || 30, sz = Math.round(8 + Math.min(8, v / 10)); ctx.globalAlpha = clamp(n.t * 2, 0, 1); txt(String(n.v), snap(n.x), snap(n.y), n.col, sz); } ctx.globalAlpha = 1;
 }
 function drawRogueHUD() {
@@ -6234,34 +6353,100 @@ function rgEndHTML() {
     <div style="height:1.4em"></div><button class="btn" data-act="rematch">New run</button><button class="btn" data-act="go" data-v="title">Main Menu</button>`;
 }
 
-/* ---------- a co-op bot for Delve: heads for the door, keeps near its friend, shoots what it sees, grabs loot ---------- */
+/* ---------- a co-op bot for Delve ----------
+   Moves along the level's navigation map towards the door (so walls and ledges don't trap it), holds back and
+   shoots when monsters are in sight, backs away from anything in melee range, plays it safe when hurt, waits for
+   a friend who has fallen behind, and grabs hearts and loot when it's close. */
+function rgThreat(p, r) { let best = null, bd = r; for (const m of M.players) { if (!m.mob || m.dead || m.sleep) continue; const melee = m.mob.arch === 'walk' || m.mob.arch === 'brute' || m.mob.mimic || m.dashT > 0 || m.mob.boss === 'golem'; const d = Math.hypot(m.x - p.x, m.y - p.y) - m.r; if (melee && d < bd && Math.abs(m.y - p.y) < 140 && los(p, m, M.solids)) { bd = d; best = m; } } return best; }
+function navCellOf(N, p) {
+  const x = Math.floor(p.x / RT), y = Math.floor((p.y + p.r - 3) / RT);
+  if (N.stand(x, y)) return [x, y];
+  for (const [dx, dy] of [[-1, 0], [1, 0], [0, 1], [0, -1]]) if (N.stand(x + dx, y + dy)) return [x + dx, y + dy];
+  return null;
+}
+const navD = (N, c) => c ? N.dist[c[1] * N.tw + c[0]] : -1;
 function rogueBot(p) {
   const o = { mx: 0, jump: false, shoot: false, block: false, aim: p.aim, aimPt: { x: p.x + Math.cos(p.aim) * 200, y: p.y + Math.sin(p.aim) * 200 } }, L = M.rgL; if (!L) return o;
-  const B = p.rb || (p.rb = { t: 0, tg: null, jt: 0, sx: p.x, st: 0, goal: null });
+  const B = p.rb || (p.rb = { t: 0, tg: null, jt: 0, plan: null, bad: {}, stuck: 0, lx: p.x, skip: new Set() });
   B.t -= DT; B.jt -= DT;
-  if (B.t <= 0) { B.t = .18 + Math.random() * .08;
-    let best = null, bd = 1e9; for (const m of M.players) { if (!m.mob || m.dead || m.sleep) continue; const d = Math.hypot(m.x - p.x, m.y - p.y) - (m.mob.boss ? 300 : 0); if (d < 760 && d < bd && los(p, m, M.solids)) { bd = d; best = m; } } B.tg = best;
-    const ally = M.heroes.find(h => h !== p && !h.dead), grave = L.graves.find(g => g.pid !== p.id), inv = p.inv && (p.inv.feather || p.inv.ankh);
-    let gx = L.door ? L.door.x : (B.tg ? B.tg.x + (p.x < B.tg.x ? -320 : 320) : p.x);
-    if (L.door && ally && ally.x < p.x - 260) gx = ally.x + 60; // don't run off ahead of a friend
-    if (grave && inv) gx = grave.x;
-    B.skip = B.skip || new Set();
-    const loot = L.drops.filter(d => d.kind !== 'coin' && d.rest && !B.skip.has(d) && rgWants(p, d) && Math.abs(d.x - p.x) < 320 && Math.abs(d.y - p.y) < 160).concat(L.chests.filter(c => !c.open && !B.skip.has(c) && Math.abs(c.x - p.x) < 380 && Math.abs(c.y - p.y) < 170)).sort((a, b) => Math.abs(a.x - p.x) - Math.abs(b.x - p.x))[0];
-    if (loot && !(grave && inv)) { gx = loot.x; if (B.lt === loot) { B.lc += .2; if (B.lc > 3) { B.skip.add(loot); B.lc = 0; } } else { B.lt = loot; B.lc = 0; } }
-    if (!L.door && B.tg) { gx = clamp(gx, 80, W - 80); if (Math.abs(gx - p.x) < 40) gx = p.x + (Math.random() < .5 ? -200 : 200); }
-    B.goal = { x: gx, y: loot ? loot.y : grave && inv ? grave.y : null };
-    if (Math.abs(p.x - B.sx) < 6 && Math.abs(B.goal.x - p.x) > 60) B.st += .2; else B.st = 0; B.sx = p.x;
+  const hpF = p.hp / p.st.maxHp, hurt = hpF < .4, N = L.nav, rng = clamp(buildRange(p.st) || 400, 200, 620);
+  const ally = M.heroes.find(h => h !== p && !h.dead);
+  // targeting (re-checked a few times a second)
+  if (B.t <= 0) { B.t = .15 + Math.random() * .08;
+    let best = null, bd = 1e9; for (const m of M.players) { if (!m.mob || m.dead || m.sleep) continue; const d = Math.hypot(m.x - p.x, m.y - p.y) - (m.mob.boss ? 400 : 0); if (d < 760 && d < bd && los(p, m, M.solids)) { bd = d; best = m; } } B.tg = best; }
+  const tg = B.tg && !B.tg.dead ? B.tg : null;
+  if (tg) { // lead the target and allow for the bolt's drop
+    const st = p.st, spd = BSPD * (st.spd || 1) * (st.tscale || 1), d = Math.hypot(tg.x - p.x, tg.y - p.y), t = d / Math.max(200, spd);
+    const ax = tg.x + (tg.vx || 0) * t * .7, ay = tg.y + (tg.vy || 0) * t * .3 - (st.grav ? .5 * BGRAV * st.grav * (st.tscale || 1) ** 2 * t * t : 0) + (st.rocket || st.explode ? 10 : 0);
+    o.aim = Math.atan2(ay - p.y, ax - p.x) + rnd(-.04, .04); o.aimPt = { x: ax, y: ay }; o.shoot = !((st.rad || st.selfBlast || st.explode) && d < 120); } // no point-blank blasts
+  // defence: ward against incoming bolts and diving flyers
+  if (p.blockCd <= 0) { for (const b of M.bullets) if (b.mob && Math.hypot(b.x - p.x, b.y - p.y) < 75 && (b.vx * (p.x - b.x) + b.vy * (p.y - b.y)) > 0 && Math.random() < .55) { o.block = true; break; }
+    for (const m of M.players) if (m.mob && !m.dead && (m.dashT > 0 || m.casting && m.mob.arch === 'brute') && Math.hypot(m.x - p.x, m.y - p.y) < m.r + 70) o.block = true; }
+  // the boss arena has no map: keep a healthy distance, keep moving, hop over anything that corners you
+  if (!N) {
+    const boss = L.boss && !L.boss.dead ? L.boss : null, th = rgThreat(p, 230), cornered = p.x < 130 || p.x > W - 130;
+    let want = 0;
+    if (th) { want = -Math.sign(th.x - p.x) || 1; if (cornered && Math.sign(th.x - p.x) === -want * -1) want = Math.sign(th.x - p.x);
+      if (cornered || Math.abs(th.x - p.x) < th.r + 40) { want = Math.sign(th.x - p.x) || 1; if (p.onGround) B.jt = .45; } } // jump over it
+    else if (boss) { const dx = boss.x - p.x, dy = boss.y - p.y, reach = Math.sqrt(Math.max(0, (rng * .85) ** 2 - dy * dy)), keep = Math.min(hurt ? 480 : 330, Math.max(60, reach - 60)); want = Math.abs(dx) < keep ? -Math.sign(dx) : Math.abs(dx) > keep + 180 ? Math.sign(dx) : (B.strafe || 1);
+      if (Math.abs(dx) >= keep && Math.abs(dx) <= keep + 180 && Math.random() < .01) B.strafe = -(B.strafe || 1);
+      if ((p.x < 110 && want < 0) || (p.x > W - 110 && want > 0)) want = 0; }
+    o.mx = want; if (p.onGround && (p.wall && want || Math.random() < .015)) B.jt = .4;
+    o.jump = B.jt > 0; return o;
   }
-  if (B.tg && !B.tg.dead) { const m = B.tg, d = Math.hypot(m.x - p.x, m.y - p.y), lead = d / 700; const ax = m.x + (m.vx || 0) * lead * .6, ay = m.y + (m.vy || 0) * lead * .3; o.aim = Math.atan2(ay - p.y, ax - p.x); o.aimPt = { x: ax, y: ay }; o.shoot = true; }
-  const gx = B.goal ? B.goal.x : p.x, dx = gx - p.x; o.mx = Math.abs(dx) > 24 ? Math.sign(dx) : 0;
-  const dir = o.mx || Math.sign(Math.cos(o.aim)) || 1;
-  const gapAhead = p.onGround && o.mx && !solidAt(p.x + dir * 46, p.y + p.r + 30, M.solids) && !solidAt(p.x + dir * 46, p.y + p.r + 180, M.solids);
-  const wantUp = B.goal && B.goal.y !== null && B.goal.y < p.y - 70 && Math.abs(dx) < 260;
-  if ((p.onGround && (p.wall && o.mx || gapAhead || wantUp || B.st > .5)) || (!p.onGround && p.wall && o.mx && p.vy > 0)) { B.jt = .4; B.st = 0; }
-  if (B.tg && B.tg.mob.boss && p.onGround && Math.random() < .015) B.jt = .35;
+  // where am I on the map, and how far from the door?
+  const cell = p.onGround ? navCellOf(N, p) : null, myD = cell ? navD(N, cell) : (B.lastD ?? 9999);
+  if (cell) B.lastD = myD;
+  const threat = rgThreat(p, hurt ? 300 : 170);
+  let mode = 'go';
+  if (threat) mode = 'flee';
+  else if (tg && Math.hypot(tg.x - p.x, tg.y - p.y) < Math.min(rng * .9, hurt ? 560 : 430)) mode = 'hold';
+  if (ally && mode === 'go') { const ac = ally.onGround ? navCellOf(N, ally) : null, aD = ac ? navD(N, ac) : (ally.rb && ally.rb.lastD) ?? -1;
+    if (aD >= 0 && myD >= 0 && myD + (hurt ? 0 : 14) < aD) mode = 'wait'; }
+  // close-by loot: hearts when hurt, armor and scrolls, unopened chests
+  let loot = null;
+  if (mode !== 'flee') { const near = (x, y, r) => Math.abs(x - p.x) < r && Math.abs(y - p.y) < 130;
+    loot = L.drops.filter(d => d.kind !== 'coin' && d.rest && !B.skip.has(d) && rgWants(p, d) && (d.kind !== 'heart' || hpF < .8) && near(d.x, d.y, d.kind === 'heart' && hurt ? 420 : 260))
+      .concat(L.chests.filter(c => !c.open && !B.skip.has(c) && near(c.x, c.y - 14, 300)))
+      .concat(L.graves.filter(g => p.inv && (p.inv.feather || p.inv.ankh) && near(g.x, g.y, 500)))
+      .sort((a, b) => Math.abs(a.x - p.x) - Math.abs(b.x - p.x))[0] || null; }
+  if (loot) { if (B.lt === loot) { B.lc += DT; if (B.lc > 3) { B.skip.add(loot); B.lc = 0; } } else { B.lt = loot; B.lc = 0; } }
+  // pick a move from the map
+  if (p.onGround && cell && (!B.plan || B.plan.done || (B.plan.jumped && B.plan.t > .25))) {
+    const P0 = B.plan; if (P0 && !P0.done) { const k = P0.tx + ',' + P0.ty + ',' + P0.from[0] + ',' + P0.from[1]; B.fails = B.fails || {}; B.fails[k] = (B.fails[k] || 0) + 1; if (B.fails[k] >= 2) B.bad[k] = 1; }
+    const edges = navEdges(N, cell[0], cell[1], 2).filter(e => !B.bad[e[0] + ',' + e[1] + ',' + cell[0] + ',' + cell[1]]);
+    const val = e => N.dist[e[1] * N.tw + e[0]];
+    let pickE = null;
+    if (mode === 'go' || mode === 'hold' || mode === 'wait') { let bv = myD >= 0 ? myD : 1e9; for (const e of edges) { const v = val(e); if (v >= 0 && v < bv) { bv = v; pickE = e; } }
+      if (!pickE && myD < 0 && edges.length) pickE = edges.sort((a, b) => Math.abs((a[0] + .5) * RT - L.door.x) - Math.abs((b[0] + .5) * RT - L.door.x))[0]; }
+    else if (mode === 'flee') { // step to whichever neighbouring tile is furthest from the threat (and not a long drop into it)
+      let bv = Math.hypot(threat.x - p.x, threat.y - p.y); for (const e of edges) { const ex = (e[0] + .5) * RT, ey = (e[1] + .5) * RT, v = Math.hypot(threat.x - ex, threat.y - ey) - (e[2] === 2 ? 60 : 0); if (v > bv + 8) { bv = v; pickE = e; } } }
+    if (!pickE && mode === 'flee') { mode = 'hold'; if (Math.abs(threat.x - p.x) < threat.r + 70 && threat.r < 30) { B.jt = .45; B.over = Math.sign(threat.x - p.x) || 1; } } // cornered: hop over it
+    B.plan = pickE ? { tx: pickE[0], ty: pickE[1], type: pickE[2], from: cell, t: 0, jumped: false, done: false } : null;
+  }
+  if (loot && mode !== 'flee') { // walk straight at nearby loot, hopping over small steps
+    const dx = loot.x - p.x; o.mx = Math.abs(dx) > 10 ? Math.sign(dx) : 0;
+    if (p.onGround && (p.wall && o.mx || (loot.y < p.y - 50 && Math.abs(dx) < 120))) B.jt = .4;
+  } else if (B.plan && !B.plan.done && (mode === 'go' || mode === 'flee' || !p.onGround || (B.holdT || 0) >= 7)) {
+    const P = B.plan, txw = (P.tx + .5) * RT, dx = txw - p.x; P.t += DT;
+    o.mx = Math.abs(dx) > 5 ? Math.sign(dx) : 0;
+    if (P.type === 1 && !P.jumped && p.onGround) { const dir = Math.sign(P.tx - P.from[0]), far = Math.abs(P.tx - P.from[0]) >= 2, edge = dir > 0 ? p.x > (P.from[0] + 1) * RT - 14 : p.x < P.from[0] * RT + 14;
+      if (!far || edge || p.wall) { B.jt = .45; P.jumped = true; P.t = 0; } }
+    if (P.type === 2 && !p.onGround) P.jumped = true;
+    const here = p.onGround && cell && cell[0] === P.tx && cell[1] === P.ty;
+    if (here || (p.onGround && cell && P.jumped && navD(N, cell) >= 0 && navD(N, cell) < navD(N, P.from))) P.done = true;
+    if (P.t > 2.2) { B.bad[P.tx + ',' + P.ty + ',' + P.from[0] + ',' + P.from[1]] = 1; P.done = true; } // that move isn't working: try another
+  }
+  if (myD === 0 && !loot) o.mx = Math.abs(L.door.x - p.x) > 8 ? Math.sign(L.door.x - p.x) : 0; // in the doorway
+  // lost the map (standing on a crate, rubble…): head for the door and hop
+  if ((!B.plan || B.plan.done || (p.onGround && !cell)) && !loot && mode !== 'flee' && myD !== 0) { B.lost = (B.lost || 0) + DT; if (B.lost > .5) { o.mx = Math.sign(L.door.x - p.x) || 1; if (p.onGround && Math.random() < .05) B.jt = .4; } } else B.lost = 0;
+  if (B.over) { if (p.onGround && B.jt <= 0) B.over = 0; else o.mx = B.over; }
+  if (mode === 'hold' || mode === 'wait') { B.holdT = (B.holdT || 0) + DT; if (p.onGround && !loot && B.holdT < 7 && !B.over) o.mx = 0; } else B.holdT = Math.max(0, (B.holdT || 0) - DT * 2);
+  // unstick: pushing into a wall without moving
+  if (o.mx && Math.abs(p.x - B.lx) < 1.5 && p.onGround) { B.stuck += DT; if (B.stuck > .4) { B.jt = .45; B.stuck = 0; } } else B.stuck = 0;
+  if (!p.onGround && p.wall && o.mx === p.wall && p.vy > 0 && B.plan && B.plan.ty < (B.plan.from || [0, 99])[1]) B.jt = .3; // wall-jump onto a ledge
+  B.lx = p.x;
   o.jump = B.jt > 0;
-  for (const b of M.bullets) if (b.mob && Math.hypot(b.x - p.x, b.y - p.y) < 70 && (b.vx * (p.x - b.x) + b.vy * (p.y - b.y)) > 0 && p.blockCd <= 0 && Math.random() < .35) { o.block = true; break; }
-  for (const m of M.players) if (m.mob && !m.dead && m.dashT > 0 && Math.hypot(m.x - p.x, m.y - p.y) < 80 && p.blockCd <= 0) o.block = true;
   return o;
 }
 
