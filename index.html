@@ -2466,6 +2466,7 @@ function knock(q, x, y, force) { if (q.dead) return; const dx = q.x - x, dy = q.
 function damage(q, amt, src, o = {}) {
   if (q.dead || amt <= 0 || q.invT > 0) return;
   if (src && allyOf(q, src)) return; // no friendly fire
+  if (q.ai && !q.mob.boss && (amt = mobHurt(q, amt, src)) <= 0) return;
   if (src && src !== q) q.lastBy = src.id;
   const f = q.st.f;
   if (f.slowburn && !o.decayed && !o.edge) { q.dots.push({ dps: amt / 4, t: 4, src: src ? src.id : null, decay: true }); return; }
@@ -2561,8 +2562,8 @@ function updateBullets(dt) {
       if (b.x < -80 || b.x > W + 80 || b.y > H + 80 || b.y < -1200 || b.age > 6) { if (b.kind === 'rocket' && b.x > -20 && b.x < W + 20 && b.y < H + 20) explodeAt(b, null); b.dead = true; break; }
       // players
       for (const q of M.players) {
-        if (q.dead || allyOf(q, M.players[b.owner])) continue; // bolts pass through teammates
-        if (q.id === b.owner && b.age < .35 && !b.bounced) continue;
+        if (q.dead || q.under || allyOf(q, M.players[b.owner])) continue; // bolts pass through teammates (and burrowed things)
+        if (q.id === b.owner && !b.bounced && (b.age < .35 || M.rogue)) continue; // in Delve your own bolt only bites if it ricocheted
         if (q.id === b.owner && (b.pulse || b.frag || b.kind !== 'bullet')) continue;
         if (q.id !== b.owner && hasSomb(q) && !b.pulse && b.vy > -250 && inBrim(q, b.x, b.y)) { hatHit(q, b.dmg, b.x, b.y); if (b.kind === 'rocket') explodeAt(b, null); else impact(b, null, true); b.dead = true; break; }
         if (Math.hypot(q.x - b.x, q.y - b.y) < q.r + b.hitR) { if (hitPlayer(q, b) !== false) b.dead = true; break; }
@@ -2674,6 +2675,9 @@ function hitPlayer(q, b) {
     if (b.kind === 'rocket' || b.kind === 'grenade') explodeAt(b, null); else impact(b, null, true);
     if (sh.dur <= 0) breakGear(q, 'hand'); return;
   }
+  if (q.guard && !b.pulse && (b.x - q.x) * q.dir > 0 && b.y > q.y - q.r * .7) {
+    puffs(b.x, b.y, '#d8d0b0', 7, 150); if (b.kind !== 'flame') sfx(1400, .05, 'square', .03, -900, 'clang'); q.guardT = .15;
+    if (b.kind === 'rocket' || b.kind === 'grenade') explodeAt(b, null); else impact(b, null, true); return; }
   if (b.pulse) { damage(q, b.dmg, src); slowP(q, .5, 1.5); return; }
   if (b.frag) { damage(q, b.dmg, src); const s0 = Math.hypot(b.vx, b.vy) || 1; q.vx = clamp(q.vx + b.vx / s0 * 90, -1000, 1000); q.vy = clamp(q.vy + b.vy / s0 * 60, -1000, 1000); puffs(b.x, b.y, b.col, 4, 120); return; }
   if (b.kind === 'grenade' && st.stickyG) { b.stuckQ = q; b.ox = b.x - q.x; b.oy = b.y - q.y; b.vx = b.vy = 0; sfx(300, .06, 'square', .03, -100); return false; }
@@ -3903,7 +3907,7 @@ function drawMatchSprites() {
   for (const pd of M.pads) { const c = RX.pal.acc, x0 = Math.round(pd.x / SC), y0 = Math.round(pd.y / SC) - 1, w = Math.round(pd.w / SC); for (let x = 0; x < w; x++) pE(x0 + x, y0, c[0] * .8, c[1] * .8, c[2] * .8); for (let k = 0; k < 3; k++) { const ph = ((t * 14 + k * 4) % 12), cx = x0 + w / 2, yy = y0 - 2 - ph, a = 1 - ph / 12; for (let d = -3; d <= 3; d++) pE(cx + d, yy + Math.abs(d), c[0] * a, c[1] * a, c[2] * a); } addLight(pd.x + pd.w / 2, pd.y, 110, c[0], c[1], c[2], .45); }
   // bombs
   for (const bm of M.bombs) { const x = bm.x / SC, y = bm.y / SC; pA(x, y, packC(40, 36, 46)); pA(x + 1, y, packC(40, 36, 46)); pA(x, y - 1, packC(60, 56, 66)); if (Math.floor(bm.t * (bm.t < .3 ? 30 : 8)) % 2) pEh(x, y - 1, M.players[bm.owner].color); }
-  if (M.rogue) drawRogueSprites();
+  if (M.rogue) { drawRogueSprites(); drawRogueMarks(); }
   // players
   for (const p of M.players) {
     if (p.dead) continue;
@@ -4446,7 +4450,7 @@ const $ = id => document.getElementById(id);
 const PANELS = ['title', 'setup', 'pick', 'end', 'library', 'settings', 'maps', 'online', 'lobby', 'help', 'pause', 'custom', 'controls', 'wpick', 'wand', 'shop', 'rpath', 'rcamp'];
 let focusIdx = 0;
 // shown under the title logo; bump with each published update (MAKE-UPDATE uses the same number)
-const GAME_VERSION = '1.5.1';
+const GAME_VERSION = '1.5.2';
 function drawMapPreviews() {
   document.querySelectorAll('#maps canvas[data-m]').forEach(cv => {
     const m = MAPS[+cv.dataset.m], c = cv.getContext('2d'), k = cv.width / SW; c.imageSmoothingEnabled = false;
@@ -5461,13 +5465,6 @@ const RG_BIOMES = [
   { pal: 5, n: 'The Crimson Vault', boss: 'king', bn: 'The Hollow King', mob: ['Skeleton', 'Ghost', 'Lich Acolyte', 'Stone Knight'], bolt: 'skull' }
 ];
 const RG_ACTS = [[0, 1], [2, 3], [4, 5]]; // each act draws its biome from a pair
-const MOB_ARCH = {
-  walk: { hp: 55, r: 12, spd: 125, touch: 8, coins: 2 },
-  fly: { hp: 34, r: 10, spd: 160, touch: 6, coins: 2, fly: true },
-  cast: { hp: 52, r: 12, spd: 80, touch: 6, coins: 4, cd: 2.5 },
-  brute: { hp: 200, r: 20, spd: 78, touch: 14, coins: 8, slam: 16 }
-};
-const MOB_ORDER = ['walk', 'fly', 'cast', 'brute'];
 // biome bolts: what the casters (and bosses) throw
 const RG_BOLT = {
   rock: { spd: 480, g: .9, r: 5, col: '#d0a070', dmg: 1.15 },
@@ -5492,6 +5489,424 @@ const RG_ITEMS = {
   heart: { n: 'Heart', d: 'Heals 30% of your health.', col: '#ff4a5a' },
   draught: { n: 'Healing Draught', d: 'Drink at once: heals 60% of your health.', col: '#ff6a8a' }
 };
+
+/* ---------- monsters: kinds, rosters and movesets ----------
+   Every attack has three beats: a windup you can read (pose, glint, a coloured outline in its last instant),
+   a short active window, and a recovery you can punish (+25% damage taken). Hitting a monster hard enough during
+   its windup staggers it. Monsters share attack tokens per wizard (Doom-style), so only a couple can swing at you at
+   once; the rest circle, waiting their turn. They notice you (!), call their friends, and path through the level. */
+const MK = {
+  grunt: { hp: 58, r: 16, spd: 122, touch: 3, coins: 2, sight: 560, moves: ['swipe', 'lunge'], stag: .28, role: 'melee' },
+  bat: { hp: 34, r: 12, spd: 165, touch: 3, coins: 2, sight: 620, moves: ['dive'], stag: .3, fly: true, role: 'fly' },
+  caster: { hp: 52, r: 16, spd: 84, touch: 3, coins: 4, sight: 720, keep: 320, moves: ['bolt', 'volley', 'blink'], stag: .22, role: 'ranged' },
+  brute: { hp: 205, r: 22, spd: 80, touch: 5, coins: 8, sight: 560, moves: ['swing', 'slam', 'charge'], stag: .38, heavy: true, role: 'melee', slam: 16 },
+  bomber: { hp: 28, r: 14, spd: 178, touch: 0, coins: 3, sight: 640, moves: ['fuse'], stag: 2, role: 'melee' },
+  shield: { hp: 120, r: 17, spd: 72, touch: 4, coins: 6, sight: 560, moves: ['bash', 'thrust'], stag: .35, shield: true, role: 'melee' },
+  sniper: { hp: 42, r: 15, spd: 96, touch: 3, coins: 5, sight: 960, keep: 480, moves: ['snipe', 'hop'], stag: .25, role: 'ranged' },
+  burrow: { hp: 76, r: 16, spd: 200, touch: 4, coins: 5, sight: 620, moves: ['erupt', 'swipe', 'dig'], stag: .3, role: 'melee', burrow: true },
+  turret: { hp: 86, r: 17, spd: 0, touch: 3, coins: 4, sight: 640, moves: ['spray', 'ring'], stag: .5, fixed: true, role: 'ranged' },
+  leaper: { hp: 40, r: 13, spd: 140, touch: 3, coins: 3, sight: 560, moves: ['pounce', 'web'], stag: .3, role: 'melee' },
+  slime: { hp: 78, r: 15, spd: 105, touch: 4, coins: 3, sight: 520, moves: ['splash'], stag: .3, hop: true, split: 2, role: 'melee' },
+  mimic: { hp: 260, r: 17, spd: 115, touch: 5, coins: 14, sight: 900, moves: ['chomp', 'lunge'], stag: .3, role: 'melee' }
+};
+// per biome: who lives there, what they look like, what they throw. w = weight, from = earliest row (act 1 only), ceil = hangs from ceilings
+const RG_ROSTER = [
+  [{ k: 'grunt', n: 'Kobold', w: 4, hat: 'miner', p: ['b86e3c', '784224', 'e2aa46', 'ffdc5a', 'e6dcc8'] },
+   { k: 'bat', n: 'Cave Bat', fly: 1, p: ['604656', '3c283a', '8c6478', 'ff5050', 'dcc8c8'] },
+   { k: 'caster', n: 'Geomancer', w: 2, p: ['78604a', '503c2c', 'a87c4a', 'ffb43c', 'd8c8a0'] },
+   { k: 'brute', n: 'Golemling', w: 1.1, from: 1, p: ['8c7864', '5c4e40', 'e0a040', 'ffaa3c', 'c8beaa'] },
+   { k: 'bomber', n: 'Kobold Sapper', w: 1.4, from: 1, p: ['b86e3c', '784224', '4a4a56', 'ff7a2a', 'e6dcc8'] },
+   { k: 'leaper', n: 'Cave Spider', ceil: 1, w: .8, p: ['5a4a44', '3a2e2a', '8a6a5a', 'ff4040', 'd8d0c0'] }],
+  [{ k: 'grunt', n: 'Sporeling', w: 3.5, hat: 'cap', p: ['c878dc', '804a96', 'f0a0ff', 'ffffb0', 'e8d0f0'] },
+   { k: 'bat', n: 'Spore Moth', fly: 1, moves: ['dive', 'spit'], p: ['b0a0d0', '6a5a90', 'e0c0ff', 'ff80ff', 'ffffff'] },
+   { k: 'caster', n: 'Mycomancer', w: 1.8, moves: ['bolt', 'volley', 'blink', 'summon'], p: ['5a4a7a', '3a2e54', '8a5ab0', 'e0a0ff', 'b0a0c0'] },
+   { k: 'brute', n: 'Shroom Brute', w: 1, from: 1, hat: 'bigcap', p: ['a05ab4', '6a3a7a', 'e080ff', 'ffff80', 'f0d0ff'] },
+   { k: 'turret', n: 'Puffcap', w: 1.3, p: ['8a6a9a', '5a4068', 'd070ff', 'ffe060', 'f0d0ff'] },
+   { k: 'slime', n: 'Fungal Ooze', w: 1.4, p: ['9a60c0', '6a3a8a', 'c890f0', 'ffff90', 'ffffff'] },
+   { k: 'burrow', n: 'Burrowing Grub', w: 1, from: 2, p: ['e0d0b0', 'a89070', 'c870ff', 'ff60a0', 'ffffff'] }],
+  [{ k: 'grunt', n: 'Frost Imp', w: 3.5, hat: 'horns', p: ['8cb4dc', '5a7a9c', 'dcf0ff', 'a0ffff', 'ffffff'] },
+   { k: 'bat', n: 'Ice Wisp', fly: 1, moves: ['dive', 'spit'], p: ['b4e6ff', '6eaad2', 'ffffff', '40c0ff', 'ffffff'] },
+   { k: 'caster', n: 'Frost Witch', w: 1.8, hat: 'witch', p: ['4a6a9a', '2e4466', '6a8ac0', '80e0ff', 'dce8f8'] },
+   { k: 'brute', n: 'Yeti', w: 1.1, hat: 'horns', p: ['dce6f0', 'a0aec0', '8aa0c0', '60c0ff', 'ffffff'] },
+   { k: 'sniper', n: 'Ice Archer', w: 1.4, p: ['8cb4dc', '5a7a9c', '4a6a9a', 'a0ffff', 'ffffff'] },
+   { k: 'shield', n: 'Frost Guard', w: 1.3, p: ['a0b4c8', '6a7a90', '5a7aa8', '80e0ff', 'ffffff'] }],
+  [{ k: 'grunt', n: 'Lizardman', w: 3.5, hat: 'crest', p: ['5a9a44', '3a6a2a', 'c05030', 'ffe040', 'd8e8b0'] },
+   { k: 'bat', n: 'Venom Wasp', fly: 1, moves: ['dive', 'spit'], p: ['e8c040', '8a6a1a', '302010', 'ff4040', 'fff0b0'] },
+   { k: 'caster', n: 'Shaman', w: 1.8, hat: 'feather', p: ['7a5a3a', '4e3a24', 'a07040', 'c0ff60', 'e0d0a0'] },
+   { k: 'brute', n: 'Croc Brute', w: 1.1, p: ['4a7a4a', '2e4e2e', '7aa060', 'ffcc40', 'e8e0b0'] },
+   { k: 'turret', n: 'Spitter Plant', w: 1.3, p: ['3a8a3a', '24602a', 'e04060', 'ffe040', 'f0f0c0'] },
+   { k: 'leaper', n: 'Jungle Spider', ceil: 1, w: 1, p: ['3a3a2a', '22221a', 'e0c040', 'ff3030', 'e8e0b0'] },
+   { k: 'slime', n: 'Bog Slime', w: 1.2, p: ['5a8a4a', '3a5a30', '8ab060', 'ffe060', 'd8f0c0'] }],
+  [{ k: 'grunt', n: 'Sand Ghoul', w: 3.5, hat: 'wrap', p: ['a8906a', '70603e', 'e8dcc0', 'ff8040', 'f8f0e0'] },
+   { k: 'bat', n: 'Vulture', fly: 1, p: ['7a5a44', '4e3a2a', 'e8dcd0', 'ff6040', 'e0d0c0'] },
+   { k: 'caster', n: 'Sand Sorcerer', w: 1.8, p: ['c8a060', '8a6a3a', 'c84040', 'ffe080', 'f0e0b0'] },
+   { k: 'brute', n: 'Mummy', w: 1.1, hat: 'wrap', p: ['d8ccaa', 'a89a7a', 'ece2c8', 'ff7040', 'f8f0e0'] },
+   { k: 'burrow', n: 'Sandworm', w: 1.4, p: ['c8a870', '8a6a40', 'e8d0a0', 'ff5030', 'fff0d0'] },
+   { k: 'sniper', n: 'Tomb Archer', w: 1.3, p: ['a8906a', '70603e', '3a7aa0', 'ffe080', 'f0e8d0'] },
+   { k: 'bomber', n: 'Bombardier Beetle', w: 1.2, p: ['3a5a7a', '243a50', 'e0a030', 'ffe060', '9ac0d0'] }],
+  [{ k: 'grunt', n: 'Skeleton', w: 3.5, hat: 'helm', p: ['dcd6c8', 'a09a8c', '8a8478', 'ff5040', 'ffffff'] },
+   { k: 'bat', n: 'Ghost', fly: 1, phase: 1, moves: ['dive', 'spit'], p: ['c8d8f0', '8aa0c0', 'e8f0ff', '60ffd0', 'ffffff'] },
+   { k: 'caster', n: 'Lich Acolyte', w: 1.8, hat: 'crown', moves: ['bolt', 'summon', 'nova', 'blink'], p: ['5a2a4a', '3a1a30', '7a3060', 'ff60c0', 'e0d0d8'] },
+   { k: 'brute', n: 'Stone Knight', w: 1, hat: 'helm', p: ['8a8c98', '5a5c68', 'b0b4c0', 'ff4040', 'd0d4dc'] },
+   { k: 'shield', n: 'Bone Guard', w: 1.3, p: ['dcd6c8', 'a09a8c', '6a2040', 'ff4040', 'ffffff'] },
+   { k: 'sniper', n: 'Bone Archer', w: 1.2, p: ['dcd6c8', 'a09a8c', '5a2a4a', 'ff5040', 'ffffff'] },
+   { k: 'bomber', n: 'Blood Imp', w: 1.1, p: ['a03030', '6a1a1a', '4a2030', 'ffd040', 'f0c0c0'] }]
+];
+const MIMIC_PAL = ['a0703a', '6a4422', 'c89a50', 'ff3d4a', 'f0e0c0'];
+function rgRosterOf(k, biome = M.rogue.biome) { return RG_ROSTER[biome].find(e => e.k === k) || RG_ROSTER[biome][0]; }
+function rgPickMob(spot) { // spot: 'ground' | 'fly' | 'ceil'
+  const R = M.rogue, L = RG_ROSTER[R.biome], early = R.act === 1 ? Math.max(0, R.row) : 9;
+  const pool = spot === 'fly' ? L.filter(e => e.fly) : spot === 'ceil' ? L.filter(e => e.ceil) : L.filter(e => !e.fly && !e.ceil && (e.from || 0) <= early);
+  if (!pool.length) return null; let t = Math.random() * pool.reduce((a, e) => a + (e.w || 1), 0);
+  for (const e of pool) { t -= e.w || 1; if (t <= 0) return e; } return pool[0];
+}
+
+/* ---------- the moves ----------
+   tok: which attack token it needs (melee/ranged) · cd: cooldown range · wind/act/rec: the three beats (s)
+   can(m, g): is it a good idea right now? · go(m, g): the active beat starts · tick(m, g, dt, at): during it (at = time into it)
+   tel: what the windup looks like to a reader (and to the bots): 'front' 'leap' 'line' 'ground' 'col' 'blast' 'shot' */
+const MV = {
+  swipe: { tok: 'melee', cd: [1.1, 1.7], wind: .36, act: .14, rec: .42, tel: 'front', reach: 46,
+    can: (m, g) => g.see && g.adx < m.r + 48 && g.ady < 42 && !m.under, go: m => mobHB(m, { ox: m.r + 12, oy: -2, r: 22, dmg: 9, kb: 380, kv: 220 }), snd: [520, 'square'] },
+  chomp: { tok: 'melee', cd: [1, 1.5], wind: .32, act: .14, rec: .38, tel: 'front', reach: 50,
+    can: (m, g) => g.adx < m.r + 46 && g.ady < 46, go: m => mobHB(m, { ox: m.r + 8, oy: 0, r: 26, dmg: 14, kb: 420, kv: 260 }), snd: [180, 'sawtooth'] },
+  lunge: { tok: 'melee', cd: [2, 3], wind: .5, act: .8, rec: .55, tel: 'leap', reach: 240,
+    can: (m, g) => g.see && m.onGround && g.adx > 70 && g.adx < 240 && g.ady < 50 && groundAhead(m, Math.sign(g.dx)),
+    go: (m, g) => { m.vx = m.dir * Math.min(620, g.adx * 2.4 + 90); m.vy = -320; m.onGround = false; m.leap = { vx: m.vx, t: 0 }; mobHB(m, { ox: 6, oy: 0, r: m.r + 6, dmg: 11, kb: 440, kv: 260 }); },
+    tick: (m, g, dt, at) => at > .12 && m.onGround }, // ends on landing
+  dive: { tok: 'melee', cd: [3.2, 4.4], wind: .7, act: .6, rec: .85, tel: 'line', reach: 380, lock: .22,
+    can: (m, g) => g.see && g.dd < 380 && g.dd > 60, aim: (m, g) => Math.atan2(g.tg.y - m.y, g.tg.x + (g.tg.vx || 0) * .25 - m.x),
+    wtick: (m, g, dt) => { m.vy = -95; m.vx *= Math.pow(.05, dt); },
+    go: m => { const a = m.ai.ang; m.vx = Math.cos(a) * 580; m.vy = Math.sin(a) * 580; mobHB(m, { ox: 0, oy: 0, r: m.r + 5, dmg: 7, kb: 360, kv: 200 }); },
+    tick: (m, g, dt, at) => { const a = m.ai.ang; m.vx = Math.cos(a) * 580; m.vy = Math.sin(a) * 580; return at > .1 && (m.wall || m.onGround || m.hb && m.hb.hit.length); } },
+  spit: { tok: 'ranged', cd: [2.4, 3.4], wind: .45, act: .05, rec: .3, tel: 'shot', can: (m, g) => g.see && g.dd < 440, go: (m, g) => mobShoot(m, g.tg, 1) },
+  bolt: { tok: 'ranged', cd: [2, 2.8], wind: .58, act: .05, rec: .4, tel: 'shot', can: (m, g) => g.see && g.dd < 720, go: (m, g) => mobShoot(m, g.tg, 1) },
+  volley: { tok: 'ranged', cd: [4, 5.5], wind: .8, act: .46, rec: .5, tel: 'shot', can: (m, g) => g.see && g.dd < 620,
+    tick: (m, g, dt, at) => { const n = Math.floor(at / .15); if (n > (m.ai.shot || 0) - 1 && (m.ai.shot || 0) < 3) { m.ai.shot = (m.ai.shot || 0) + 1; mobShoot(m, g.tg, .8); } } },
+  nova: { tok: 'ranged', cd: [6, 8], wind: 1, act: .05, rec: .6, tel: 'blast', can: (m, g) => g.dd < 320,
+    go: m => { const k = RG_BIOMES[m.mob.biome].bolt, n = m.mob.elite ? 12 : 9, a0 = Math.random() * TAU; for (let i = 0; i < n; i++) mobBolt(m, a0 + i * TAU / n, k, .8, { spd: 260, g: 0 }); sfx(380, .3, 'triangle', .04, -200, 'nova'); } },
+  summon: { tok: null, cd: [9, 12], wind: 1.1, act: .05, rec: .6, tel: 'blast', can: (m, g) => g.see && mobKids(m) < 2 && rgLiveMobs() < 26,
+    go: m => { const e = rgRosterOf('grunt', m.mob.biome); for (let i = 0; i < (m.mob.elite ? 2 : 1 + (Math.random() < .5)); i++) { const c = makeMob('grunt', m.x + rgR(-50, 50), m.y - 10, { awake: true, ros: e, kid: m.id }); c.vy = -360; c.vx = rgR(-160, 160); c.ai.st = 'chase'; c.coinsK = .3; }
+      puffs(m.x, m.y, '#' + m.mob.p[3], 22, 220); sfx(160, .5, 'sawtooth', .04, 60, 'summon'); } },
+  blink: { tok: null, cd: [4.5, 6.5], wind: .32, act: .05, rec: .25, tel: null, can: (m, g) => g.dd < 170 && !!M.rgL.nav,
+    go: (m, g) => { const c = mobBlinkSpot(m, g.tg); if (!c) return; puffs(m.x, m.y, '#' + m.mob.p[3], 16, 200); m.x = c[0]; m.y = c[1]; m.vx = m.vy = 0; puffs(m.x, m.y, '#' + m.mob.p[3], 16, 200); sfx(900, .2, 'sine', .04, -600, 'blink'); } },
+  swing: { tok: 'melee', cd: [1.6, 2.2], wind: .58, act: .2, rec: .7, tel: 'front', reach: 56,
+    can: (m, g) => g.adx < m.r + 56 && g.ady < 50, go: m => mobHB(m, { ox: m.r + 16, oy: -4, r: 34, dmg: 16, kb: 640, kv: 320 }), snd: [140, 'sawtooth'] },
+  slam: { tok: 'melee', cd: [2.8, 3.6], wind: .72, act: .05, rec: .9, tel: 'ground', reach: 230,
+    can: (m, g) => m.onGround && g.adx < 190 && g.ady < 60, go: m => mobSlam(m) },
+  charge: { tok: 'melee', cd: [5, 7], wind: .85, act: 1.5, rec: .6, tel: 'charge', reach: 520,
+    can: (m, g) => g.see && m.onGround && g.adx > 170 && g.adx < 520 && g.ady < 40 && groundAhead(m, Math.sign(g.dx)),
+    wtick: (m, g, dt) => { if (Math.random() < dt * 14) puffs(m.x - m.dir * m.r, m.y + m.r - 2, '#c8b090', 1, 120); },
+    go: m => { m.ai.cdir = m.dir; mobHB(m, { ox: 6, oy: 0, r: m.r + 6, dmg: 18, kb: 700, kv: 360 }); sfx(90, .5, 'sawtooth', .05, 40, 'charge'); },
+    tick: (m, g, dt, at) => { m.dir = m.ai.cdir; m.vx = m.dir * m.mob.spd * 3.3; if (Math.random() < dt * 20) puffs(m.x - m.dir * m.r, m.y + m.r - 2, '#c8b090', 1, 100);
+      if (m.wall === m.dir && at > .05) { mobStagger(m, 1.5, 'STUNNED'); M.shake = Math.max(M.shake, 10); puffs(m.x + m.dir * m.r, m.y, '#c8b090', 16, 260); sfx(70, .4, 'sawtooth', .07, -30, 'bonk'); return 'stag'; }
+      return !groundAhead(m, m.dir) || (Math.sign(g.tg.x - m.x) !== m.dir && Math.abs(g.tg.x - m.x) > 140); } },
+  fuse: { tok: null, cd: [0, 0], wind: .95, act: .05, rec: 0, tel: 'blast', reach: 85, move: 1.05,
+    can: (m, g) => g.dd < 95, go: m => mobExplode(m) },
+  bash: { tok: 'melee', cd: [1.6, 2.2], wind: .4, act: .15, rec: .6, tel: 'front', reach: 40,
+    can: (m, g) => g.adx < m.r + 42 && g.ady < 40, go: m => mobHB(m, { ox: m.r + 8, oy: 0, r: 26, dmg: 8, kb: 700, kv: 280, stun: .35 }), snd: [300, 'square'] },
+  thrust: { tok: 'melee', cd: [2.2, 3], wind: .5, act: .18, rec: .6, tel: 'front', reach: 110,
+    can: (m, g) => g.adx > m.r + 24 && g.adx < m.r + 104 && g.ady < 32, go: m => mobHB(m, { ox: m.r, oy: -8, len: 92, r: 9, dmg: 12, kb: 420, kv: 180 }), snd: [900, 'square'] },
+  snipe: { tok: 'ranged', cd: [3, 4.2], wind: 1.15, act: .05, rec: .5, tel: 'line', lock: .3,
+    can: (m, g) => g.see && g.dd > 180 && g.dd < 960, aim: (m, g) => Math.atan2(g.tg.y - m.y, g.tg.x - m.x),
+    go: m => { const k = RG_BIOMES[m.mob.biome].bolt; mobBolt(m, m.ai.ang, k, 1.7, { spd: 1150, g: 0, r: 4, life: 1.6 }); sfx(1400, .12, 'square', .05, -900, 'snipe'); } },
+  hop: { tok: null, cd: [2.2, 3], wind: .12, act: .9, rec: .1, tel: null,
+    can: (m, g) => m.onGround && g.adx < 190 && groundAhead(m, -Math.sign(g.dx)),
+    go: (m, g) => { const s = -Math.sign(g.dx) || -m.dir; m.vx = s * 330; m.vy = -520; m.onGround = false; m.leap = { vx: m.vx, t: 0 }; }, tick: (m, g, dt, at) => at > .1 && m.onGround },
+  erupt: { tok: 'melee', cd: [0, 0], wind: .75, act: .25, rec: .7, tel: 'col', reach: 34,
+    can: (m, g) => m.under && ((g.adx < 26 && g.dy < 10 && g.dy > -200) || m.ai.ut > 4.5),
+    wtick: (m, g, dt) => { m.vx = 0; if (Math.random() < dt * 25) puffs(m.x + rgR(-18, 18), m.y + m.r - 2, '#' + m.mob.p[0], 1, 140); },
+    go: m => { m.under = false; m.ai.surf = rgR(2.5, 3.6); m.vy = -380; mobHB(m, { ox: 0, oy: -20, r: 30, dmg: 14, kb: 200, kv: 720 }); puffs(m.x, m.y + m.r, '#' + m.mob.p[0], 20, 300); sfx(110, .4, 'sawtooth', .05, 80, 'erupt'); M.shake = Math.max(M.shake, 5); } },
+  dig: { tok: null, cd: [0, 0], wind: .5, act: .05, rec: 0, tel: null,
+    can: (m, g) => !m.under && m.onGround && m.ai.surf <= 0, go: m => { m.under = true; m.ai.ut = 0; puffs(m.x, m.y + m.r, '#' + m.mob.p[0], 14, 200); } },
+  spray: { tok: 'ranged', cd: [1.8, 2.5], wind: .5, act: .42, rec: .4, tel: 'shot', can: (m, g) => g.see && g.dd < 620,
+    tick: (m, g, dt, at) => { const n = Math.floor(at / .13); if ((m.ai.shot || 0) <= n && (m.ai.shot || 0) < 3) { m.ai.shot = (m.ai.shot || 0) + 1; mobShoot(m, g.tg, .75); } } },
+  ring: { tok: 'ranged', cd: [2.6, 3.4], wind: .75, act: .05, rec: .5, tel: 'blast', can: (m, g) => g.see && g.dd < 560,
+    go: m => { const k = RG_BIOMES[m.mob.biome].bolt, n = m.mob.elite ? 12 : 8; m.ai.rot = (m.ai.rot || 0) + .39; for (let i = 0; i < n; i++) mobBolt(m, m.ai.rot + i * TAU / n, k, .75, { spd: 230, g: 0 }); sfx(420, .25, 'triangle', .04, -200, 'ring'); } },
+  pounce: { tok: 'melee', cd: [1.8, 2.6], wind: .38, act: 1.2, rec: .5, tel: 'leap', reach: 300,
+    can: (m, g) => g.see && m.onGround && g.adx > 50 && g.adx < 300 && g.ady < 160,
+    go: (m, g) => { mobLeap(m, g.tg.x + (g.tg.vx || 0) * .2, g.tg.y + g.tg.r - m.r, 70); mobHB(m, { ox: 0, oy: 0, r: m.r + 6, dmg: 10, kb: 360, kv: 220 }); sfx(700, .12, 'square', .03, -200, 'pounce'); },
+    tick: (m, g, dt, at) => at > .12 && m.onGround },
+  web: { tok: 'ranged', cd: [4, 5], wind: .45, act: .05, rec: .3, tel: 'shot', can: (m, g) => g.see && g.dd < 430 && g.dd > 90,
+    go: (m, g) => { mobBolt(m, lobAng(g.dx, g.dy, 430, .4), 'web', .5, { spd: 430, g: .4, r: 5 }); sfx(300, .15, 'triangle', .03, -100, 'web'); } },
+  splash: { tok: 'melee', cd: [2.4, 3.4], wind: .55, act: 1.4, rec: .55, tel: 'leap', reach: 260,
+    can: (m, g) => g.see && m.onGround && g.adx < 260 && g.ady < 150,
+    go: (m, g) => { mobLeap(m, g.tg.x, g.tg.y + g.tg.r - m.r, 140); mobHB(m, { ox: 0, oy: 0, r: m.r + 5, dmg: 10, kb: 300, kv: 260 }); sfx(300, .2, 'sine', .04, 300, 'splash'); },
+    tick: (m, g, dt, at) => { if (at > .12 && m.onGround) { M.rgL.quakes.push({ x: m.x, y: m.y + m.r, r: 0, max: 110, owner: m.id, dmg: 9 * m.dmgK, hit: [] }); puffs(m.x, m.y + m.r, '#' + m.mob.p[0], 16, 240); sfx(120, .2, 'sine', .05, -60, 'splat'); return true; } } }
+};
+for (const k in MV) MV[k].id = k;
+RG_BOLT.web = { spd: 430, slowHit: .55, r: 5, col: '#e8e8e8', dmg: .5 };
+
+/* ---------- helpers ---------- */
+const rgLiveMobs = () => M.players.reduce((n, q) => n + (q.mob && !q.dead && !q.mob.boss ? 1 : 0), 0);
+const mobKids = m => M.players.reduce((n, q) => n + (q.mob && !q.dead && q.mob.kid === m.id ? 1 : 0), 0);
+function mobHB(m, o) { m.hb = Object.assign({ hit: [] }, o); }
+function mobLeap(m, tx, ty, over = 34) { // a ballistic hop that lands on (tx, ty)
+  const h = m.y - ty, H1 = Math.max(0, h) + over, vy0 = -Math.sqrt(2 * GRAV * H1), T = -vy0 / GRAV + Math.sqrt(2 * Math.max(1, H1 - h) / GRAV);
+  m.vy = vy0; m.vx = clamp((tx - m.x) / T, -600, 600); m.leap = { vx: m.vx, t: 0 }; m.onGround = false; if (Math.abs(m.vx) > 5) m.dir = Math.sign(m.vx);
+}
+function mobBlinkSpot(m, tg) {
+  const N = M.rgL.nav; if (!N) return null; const c0 = navCellOf(N, m); if (!c0) return null; const cand = [];
+  for (let y = c0[1] - 6; y <= c0[1] + 6; y++) for (let x = c0[0] - 12; x <= c0[0] + 12; x++) { if (!N.stand(x, y)) continue; const px = (x + .5) * RT, py = (y + 1) * RT - m.r - 2, d = Math.hypot(px - tg.x, py - tg.y);
+    if (d > 260 && d < 460 && los({ x: px, y: py }, tg, M.solids)) cand.push([px, py]); }
+  return cand.length ? pick(cand) : null;
+}
+function mobExplode(m) {
+  if (m.boomed) return; m.boomed = true; const R = 88, dmg = 22 * m.dmgK;
+  for (const q of M.players) { if (q.dead || q === m) continue; const d = Math.hypot(q.x - m.x, q.y - m.y); if (d > R + q.r) continue;
+    const k = 1 - .45 * clamp(d / R, 0, 1);
+    if (!q.mob) { if (q.blockT > 0) { ringFx(q.x, q.y, '#ffffff'); continue; } damage(q, dmg * k, m); } else damage(q, dmg * k * 1.5, null, { quiet: false });
+    const s = Math.sign(q.x - m.x) || 1; q.vx = clamp(q.vx + s * 520 * k, -1000, 1000); q.vy = Math.min(q.vy, -380 * k); }
+  M.rings.push({ x: m.x, y: m.y, r: 10, max: R, owner: -1, dmg: 0, hit: [], col: '#ffb347', fx: true });
+  puffs(m.x, m.y, '#ffb347', 30, 420); puffs(m.x, m.y, '#ffffff', 12, 300); M.shake = Math.max(M.shake, 12); sfx(60, .5, 'sawtooth', .08, -30, 'boom'); noise(.35, .1);
+  for (let i = 0; i < 14; i++) kickPowder(m.x + rgR(-30, 30), m.y + rgR(-20, 20), rgR(-3, 3), rgR(-4, 0));
+  if (!m.dead) { m.lastBy = undefined; m.noLoot = true; damage(m, 9999, null, { quiet: true }); }
+}
+function mobStagger(m, t, label) {
+  const A = m.ai; if (!A) return; mobDropTok(m); A.st = 'stag'; A.t = t; A.mv = null; m.hb = null; m.leap = null; m.vx *= .3;
+  if (SET.nums) M.nums.push({ x: m.x, y: m.y - m.r - 26, v: label || 'STAGGERED', t: .9, col: '#ffe9b0' });
+  sfx(240, .12, 'square', .04, -160, 'stag');
+}
+function mobDropTok(m) { if (m.ai) m.ai.tok = null; }
+function tokFree(tg, kind) {
+  if (!kind) return true; const R = M.rogue, lim = kind === 'melee' ? 2 : 2 + (R.kind === 'hard' ? 1 : 0) + (R.act >= 3 ? 1 : 0); let n = 0;
+  for (const q of M.players) if (q.ai && !q.dead && q.ai.tok && q.ai.tok.h === tg.id && q.ai.tok.k === kind) n++;
+  return n < lim;
+}
+// damage taken by a monster: wakes it, punishes recovery, staggers a windup
+function mobHurt(q, amt, src) {
+  const A = q.ai; if (q.under) return 0;
+  if (src && !src.mob && (A.st === 'idle' || A.st === 'hang')) { A.tg = src; mobAlert(q, true); }
+  if (A.st === 'rec') amt *= 1.25;
+  if (A.st === 'wind' && !q.mob.elite && A.mv && A.mv.id !== 'fuse') { A.stag += amt; if (A.stag >= q.mob.stag * q.st.maxHp) { mobStagger(q, q.mob.heavy ? .7 : .9); A.cd[A.mvId] = 1.2; } }
+  return amt;
+}
+function mobAlert(m, quiet) {
+  const A = m.ai; if (A.st !== 'idle' && A.st !== 'hang') return;
+  if (A.st === 'hang') { A.st = 'drop'; return; }
+  A.st = 'alert'; A.t = rgR(.35, .55); A.bang = .8; if (m.onGround && !m.mob.fixed && !m.under) m.vy = -220;
+  if (!quiet) sfx(640 + Math.random() * 200, .08, 'square', .03, 300, 'alert');
+  // call the pack
+  for (const q of M.players) if (q.ai && !q.dead && q !== m && q.ai.st === 'idle' && Math.hypot(q.x - m.x, q.y - m.y) < 380) M.timers.push({ t: rgR(.15, .45), fn: () => { if (!q.dead && q.ai.st === 'idle') { q.ai.tg = m.ai.tg; mobAlert(q, true); } } });
+}
+
+/* ---------- making one ---------- */
+function makeMob(kind, x, y, o = {}) {
+  const R = M.rogue, K = MK[kind], ros = o.ros || (kind === 'mimic' ? { n: 'Mimic', p: MIMIC_PAL } : rgRosterOf(kind)), k = rgScale(R.kind === 'hard'), el = !!o.elite;
+  const m = newPlayer(0, { mob: true }); m.id = M.players.length;
+  m.mob = Object.assign({ kind, arch: kind, name: o.name || ros.n, biome: R.biome, elite: el, p: ros.p, hat: ros.hat, phase: ros.phase, moves: ros.moves || K.moves, kid: o.kid }, K, o.extra || {});
+  m.team = 'mobs'; m.color = el ? '#ffd23d' : '#' + ros.p[2]; m.nick = m.mob.name; m.cards = []; m.look = null;
+  m.st = calcStats([], null); m.st.maxHp = Math.round((o.hp || K.hp) * k.hp * (el ? 2.4 : 1) * (o.small ? .35 : 1) * (o.minion ? .6 : 1)); m.r = (o.r || K.r) * (el ? 1.15 : 1) * (o.small ? .7 : 1);
+  Object.assign(m, rgFresh(m, x, y)); m.hp = m.st.maxHp; m.dmgK = k.dmg * (el ? 1.35 : 1) * (o.small ? .7 : 1) * (o.minion ? .75 : 1); if (o.minion) m.coinsK = .3;
+  m.sleep = !o.awake; m.dir = Math.random() < .5 ? -1 : 1; m.t = Math.random() * 9; m.ph = Math.random() * 9; m.touchT = 0; m.small = !!o.small;
+  m.ai = { st: o.hang ? 'hang' : o.awake ? 'chase' : 'idle', t: 0, mv: null, cd: {}, tok: null, tg: null, stag: 0, lost: 0, think: rgR(.2, .6), pause: 0, bang: 0, surf: 0, ut: 0, hop: 0, turn: 0 };
+  for (const id of m.mob.moves) m.ai.cd[id] = rgR(.3, 1.2) * (MV[id].cd[1] || 0) * .5;
+  if (o.hang) m.hang = { y0: o.hang };
+  if (kind === 'burrow') m.under = !o.awake;
+  M.players.push(m); return m;
+}
+
+/* ---------- navigation for monsters: a reverse graph built once, distance fields per wizard ---------- */
+function navRev(N) {
+  if (N.rev) return N.rev; const { tw, th } = N, rev = new Array(tw * th), ed = new Array(tw * th);
+  for (let y = 0; y < th; y++) for (let x = 0; x < tw; x++) if (N.stand(x, y)) { const E = ed[y * tw + x] = navEdges(N, x, y, 2); for (const [ex, ey] of E) { const j = ey * tw + ex; (rev[j] || (rev[j] = [])).push(y * tw + x); } }
+  N.ed = ed; return N.rev = rev;
+}
+function navBFS(N, gx, gy) { const rev = navRev(N), { tw, th } = N, d = new Int16Array(tw * th).fill(-1), q = [gy * tw + gx]; d[q[0]] = 0;
+  for (let h = 0; h < q.length; h++) { const i = q[h]; for (const j of rev[i] || []) if (d[j] < 0) { d[j] = d[i] + 1; q.push(j); } } return d; }
+function flyBFS(N, gx, gy) { const { tw, th } = N, d = new Int16Array(tw * th).fill(-1), q = [gy * tw + gx]; if (!N.free(gx, gy)) return d; d[q[0]] = 0;
+  for (let h = 0; h < q.length; h++) { const i = q[h], x = i % tw, y = (i / tw) | 0; for (const [ax, ay] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const nx = x + ax, ny = y + ay; if (N.free(nx, ny) && d[ny * tw + nx] < 0) { d[ny * tw + nx] = d[i] + 1; q.push(ny * tw + nx); } } } return d; }
+function heroCell(N, h) { // the tile a wizard stands on (or will land on)
+  const c = h.onGround ? navCellOf(N, h) : null; if (c) return c;
+  const x = Math.floor(h.x / RT); for (let y = Math.floor(h.y / RT); y < Math.min(N.th - 1, Math.floor(h.y / RT) + 8); y++) if (N.stand(x, y)) return [x, y];
+  return null;
+}
+function heroField(h, fly) {
+  const L = M.rgL, N = L.nav; if (!N) return null; const F = L.hf || (L.hf = {}), key = h.id + (fly ? 'f' : ''); let f = F[key];
+  if (!f) f = F[key] = { at: -9, d: null, c: null };
+  if (M.playT - f.at > .35) { f.at = M.playT;
+    const c = fly ? [clamp(Math.floor(h.x / RT), 0, N.tw - 1), clamp(Math.floor(h.y / RT), 0, N.th - 1)] : heroCell(N, h);
+    if (c && (!f.c || c[0] !== f.c[0] || c[1] !== f.c[1])) { f.c = c; f.d = fly ? flyBFS(N, c[0], c[1]) : navBFS(N, c[0], c[1]); } }
+  return f.d;
+}
+// which way to walk to get to a wizard along the map; leaps when the next move is a jump
+function mobPathDir(m, tg) {
+  const N = M.rgL.nav, A = m.ai; if (!N) return Math.sign(tg.x - m.x);
+  if (!m.onGround) return A.pmx || 0;
+  const c = navCellOf(N, m); if (!c) return A.pmx = Math.sign(tg.x - m.x);
+  const F = heroField(tg); if (!F) return A.pmx = Math.sign(tg.x - m.x);
+  const i = c[1] * N.tw + c[0], myD = F[i]; navRev(N); A.pd = myD;
+  if (myD === 0) return A.pmx = Math.abs(tg.x - m.x) > 6 ? Math.sign(tg.x - m.x) : 0;
+  let best = null, bv = myD >= 0 ? myD : 1e9;
+  for (const e of N.ed[i] || []) { if (m.under && e[2] === 1) continue; const v = F[e[1] * N.tw + e[0]]; if (v >= 0 && v < bv) { bv = v; best = e; } }
+  if (!best) { if (m.under && myD > 0) { A.wantUp = 1; return 0; } return A.pmx = myD < 0 ? Math.sign(tg.x - m.x) : 0; }
+  const tx = (best[0] + .5) * RT;
+  if (best[2] === 1) { const fx = (c[0] + .5) * RT;
+    if (Math.abs(m.x - fx) < 9 || (m.wall && m.wall === Math.sign(tx - m.x))) { mobLeap(m, tx, (best[1] + 1) * RT - m.r - 1, best[1] < c[1] ? 30 : 24); return A.pmx = Math.sign(tx - m.x); }
+    return A.pmx = Math.sign(fx - m.x) || Math.sign(tx - m.x); }
+  return A.pmx = Math.sign(tx - m.x);
+}
+function mobFlyDir(m, tg) { // flyers route around rock when they lose sight
+  const N = M.rgL.nav; if (!N) return null; const F = heroField(tg, true); if (!F) return null;
+  const x = Math.floor(m.x / RT), y = Math.floor(m.y / RT); let best = null, bv = F[y * N.tw + x] >= 0 ? F[y * N.tw + x] : 1e9;
+  for (const [ax, ay] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const v = N.free(x + ax, y + ay) ? F[(y + ay) * N.tw + x + ax] : -1; if (v >= 0 && v < bv) { bv = v; best = [(x + ax + .5) * RT, (y + ay + .5) * RT]; } }
+  return best;
+}
+
+/* ---------- the brain ---------- */
+function mobBrain(m, dt) {
+  const D = m.mob, A = m.ai, stun = m.stunT > 0 || m.trapT > 0, sp = D.spd * (1 - Math.min(.8, m.slowAmt || 0)) * (D.elite ? 1.1 : 1);
+  for (const k in A.cd) if (A.cd[k] > 0) A.cd[k] -= dt;
+  if (A.bang > 0) A.bang -= dt; if (A.surf > 0) A.surf -= dt; if (m.under) A.ut += dt;
+  // who are we after?
+  A.rt = (A.rt || 0) - dt;
+  if (A.rt <= 0 || !A.tg || A.tg.dead) { A.rt = .5; let best = null, bd = 1e18; for (const h of M.heroes) { if (h.dead) continue; const d = (h.x - m.x) ** 2 + (h.y - m.y) ** 2 * 2; if (d < bd) { bd = d; best = h; } }
+    if (best !== A.tg && A.st !== 'wind' && A.st !== 'act') { A.tg = best; } }
+  const tg = A.tg && !A.tg.dead ? A.tg : null;
+  const g = tg ? { tg, dx: tg.x - m.x, dy: tg.y - m.y } : { tg: null, dx: 0, dy: 0 };
+  g.adx = Math.abs(g.dx); g.ady = Math.abs(g.dy); g.dd = Math.hypot(g.dx, g.dy);
+  A.sgt = (A.sgt || 0) - dt; if (A.sgt <= 0) { A.sgt = .2; A.see = !!tg && g.dd < D.sight && (D.phase || los(m, tg, M.solids)); } g.see = A.see && !!tg;
+  let mx = 0, fly = D.fly && A.st !== 'stag';
+  if (stun && A.st === 'wind') { mobDropTok(m); A.st = 'chase'; A.mv = null; }
+  switch (A.st) {
+    case 'hang': { // spiders wait on a thread for someone to pass beneath
+      m.vx = 0; m.vy = 0; m.y = m.hang.y0 + 40 + Math.sin(m.t * 1.6 + m.ph) * 3;
+      for (const h of M.heroes) if (!h.dead && Math.abs(h.x - m.x) < 46 && h.y > m.y && h.y - m.y < 420 && los(m, h, M.solids)) { A.tg = h; A.st = 'drop'; A.t = .28; sfx(900, .15, 'triangle', .02, -400, 'thread'); }
+      return 0; }
+    case 'drop': A.t -= dt; m.vx = 0; m.vy = 0; if (A.t <= 0) { m.hang = null; A.st = 'act'; A.mv = MV.pounce; A.mvId = 'pounce'; A.at = 0; A.t = 1.2; mobHB(m, { ox: 0, oy: 0, r: m.r + 6, dmg: 12, kb: 260, kv: 160 }); } return 0;
+    case 'idle': { // patrol, look around
+      if (g.see && g.dd < D.sight * (m.mob.elite ? 1.1 : 1)) { mobAlert(m); break; }
+      if (D.fixed) break;
+      if (fly) { m.vx += (Math.sin(m.t * .7 + m.ph) * 60 - m.vx) * dt * 2; m.vy += (Math.sin(m.t * 1.3 + m.ph) * 40 - m.vy) * dt * 2; break; }
+      if (m.under) { mx = 0; break; }
+      if (A.pause > 0) { A.pause -= dt; break; }
+      mx = m.dir * .45; if (m.wall || !groundAhead(m, m.dir)) { m.dir *= -1; A.pause = rgR(.4, 1.2); }
+      if (Math.random() < dt * .15) A.pause = rgR(.6, 1.6);
+      break; }
+    case 'alert': A.t -= dt; if (tg) m.dir = Math.sign(g.dx) || m.dir; if (A.t <= 0) A.st = 'chase'; break;
+    case 'stag': A.t -= dt; mx = 0; if (fly) { m.vy += 300 * dt; m.vx *= Math.pow(.2, dt); } if (A.t <= 0) A.st = 'chase'; break;
+    case 'wind': {
+      const V = A.mv; A.t -= dt; A.wt += dt; if (tg && V.tel !== 'charge') m.dir = Math.sign(g.dx) || m.dir;
+      if (V.aim && tg && A.t > (V.lock || 0)) A.ang = V.aim(m, g); // track, then lock in
+      if (V.wtick) V.wtick(m, g, dt);
+      if (V.move && tg) mx = Math.sign(g.dx) * V.move;
+      if (A.t <= 0) { A.st = 'act'; A.at = 0; A.t = V.act; A.shot = 0; if (V.go && tg) V.go(m, g); if (V.snd) sfx(V.snd[0], .1, V.snd[1], .04, -200, 'mswing'); }
+      break; }
+    case 'act': {
+      const V = A.mv; A.t -= dt; A.at += dt;
+      let done = A.t <= 0; if (V.tick && tg) { const r = V.tick(m, g, dt, A.at); if (r === 'stag') break; if (r) done = true; }
+      if (done) { m.hb = null; mobDropTok(m); A.st = 'rec'; A.t = V.rec; A.mv = V; if (m.leap && V.id !== 'hop') m.leap = null; }
+      break; }
+    case 'rec': A.t -= dt; if (fly) { m.vy += (-60 - m.vy) * dt * 3; m.vx *= Math.pow(.15, dt); } if (A.t <= 0) { A.st = 'chase'; A.mv = null; A.think = rgR(.05, .3); } break;
+    case 'chase': {
+      if (!tg) { A.st = 'idle'; break; }
+      // lose interest if they've been out of sight a long while
+      if (!g.see) { A.lost += dt; if (A.lost > 6 && (g.dd > 900 || (A.pd || 0) > 40)) { A.st = 'idle'; A.lost = 0; break; } } else A.lost = 0;
+      m.dir = D.shield ? m.dir : Math.sign(g.dx) || m.dir;
+      if (D.shield) { if (Math.sign(g.dx) !== m.dir && g.adx > 8) { A.turn += dt; if (A.turn > .55) { m.dir = -m.dir; A.turn = 0; } } else A.turn = 0; } // shields turn slowly: get behind them
+      // pick an attack
+      A.think -= dt;
+      if (A.think <= 0 && !stun) { A.think = rgR(.08, .2);
+        const opts = D.moves.filter(id => { const V = MV[id]; return (A.cd[id] || 0) <= 0 && V.can(m, g) && (!V.tok || tokFree(tg, V.tok)); });
+        if (opts.length) { const id = pick(opts), V = MV[id]; A.mv = V; A.mvId = id; A.st = 'wind'; A.t = V.wind * (D.elite ? .8 : 1) * (m.small ? .8 : 1); A.wt = 0; A.stag = 0; A.cd[id] = rgR(V.cd[0], V.cd[1]) * (D.elite ? .8 : 1);
+          if (V.tok) A.tok = { h: tg.id, k: V.tok }; if (V.aim) A.ang = V.aim(m, g); m.vx *= .4; break; } }
+      mx = mobPosition(m, g, dt, sp);
+      break; }
+  }
+  // flying movement
+  if (fly) {
+    if (A.st === 'chase' && tg) {
+      const wait = !tokFree(tg, 'melee'), r0 = wait ? 210 : 140; let tx = tg.x + Math.sin(m.t * 1.3 + m.ph) * r0 * .9, ty = tg.y - r0 * .9 + Math.sin(m.t * 2.1 + m.ph) * 35;
+      if (!g.see && !D.phase) { const w = mobFlyDir(m, tg); if (w) { tx = w[0]; ty = w[1]; } }
+      m.vx += clamp((tx - m.x) * 2.5 - m.vx, -900, 900) * dt * 2; m.vy += clamp((ty - m.y) * 2.5 - m.vy, -900, 900) * dt * 2;
+      const s = Math.hypot(m.vx, m.vy); if (s > sp) { m.vx *= sp / s; m.vy *= sp / s; }
+    } else if (A.st === 'alert' || A.st === 'wind' && A.mv && !A.mv.wtick) { m.vx *= Math.pow(.1, dt); m.vy *= Math.pow(.1, dt); }
+    if (A.st !== 'act' && A.st !== 'wind') m.dir = Math.sign(g.dx || m.vx) || m.dir;
+    if (m.trapT > 0) m.vy = -75;
+    if (D.phase) { m.x += m.vx * dt; m.y += m.vy * dt; m.x = clamp(m.x, 50, W - 50); m.y = clamp(m.y, 50, H - 40); m.wall = 0; m.onGround = false; }
+    else movePlayer(m, m.vx * dt, m.vy * dt);
+    return;
+  }
+  if (stun || D.fixed || A.st === 'stag' || A.st === 'rec' && !m.leap) mx = A.st === 'rec' ? 0 : stun ? 0 : mx;
+  if (D.fixed) mx = 0;
+  // ground movement: slimes hop, everyone else walks (and leaps along the map)
+  if (D.hop && A.st !== 'act' && mx) { A.hop -= dt; if (m.onGround) { m.vx *= Math.pow(.002, dt); if (A.hop <= 0) { A.hop = rgR(.45, .75); m.vy = -360; m.vx = mx * sp * 1.7; m.onGround = false; A.squash = .15; } } mx = 0; }
+  if (m.leap) { m.leap.t += dt; m.vx = m.leap.vx; if ((m.onGround && m.leap.t > .06) || m.wall) m.leap = null; }
+  else if (!(D.hop && !m.onGround)) { const acc = m.onGround ? 1800 : 700, spd = sp * (m.under ? 1 : 1); m.vx += clamp(mx * spd - m.vx, -acc * dt, acc * dt); }
+  if (A.squash > 0) A.squash -= dt;
+  m.vy = Math.min(m.vy + GRAV * dt, 1100); if (m.trapT > 0) { m.vx *= Math.pow(.05, dt); m.vy = -75; }
+  if (A.st === 'act' && A.mv && A.mv.id === 'dive') m.vy -= GRAV * dt;
+  movePlayer(m, m.vx * dt, m.vy * dt);
+}
+// where to stand: melee closes in (or circles while waiting a turn), ranged keeps its distance, burrowers tunnel
+function mobPosition(m, g, dt, sp) {
+  const D = m.mob, A = m.ai, tg = g.tg; if (D.fixed) return 0;
+  if (m.under) { const d = mobPathDir(m, tg); if (A.wantUp) { A.wantUp = 0; A.surf = 0; m.under = false; A.surf = 1.5; } return d; }
+  if (D.role === 'ranged') {
+    const keep = D.keep || 320;
+    if (!g.see || g.adx > keep + 160 || g.ady > 200) return mobPathDir(m, tg);
+    if (g.adx < keep - 90) { const s = -Math.sign(g.dx); return groundAhead(m, s) && m.wall !== s ? s : 0; }
+    A.strafe = (A.strafe || 0) - dt; if (A.strafe <= 0) { A.strafe = rgR(.8, 1.8); A.sd = Math.random() < .4 ? 0 : pick([-1, 1]); }
+    return A.sd && groundAhead(m, A.sd) && m.wall !== A.sd ? A.sd * .5 : 0;
+  }
+  // melee: if every melee slot on this wizard is taken, hang back and circle
+  const myTurn = tokFree(tg, 'melee');
+  if (!myTurn && g.dd < 220 && g.ady < 80) { const want = 140; if (g.adx < want - 30) { const s = -Math.sign(g.dx); return groundAhead(m, s) ? s * .7 : 0; } if (g.adx > want + 40) return Math.sign(g.dx) * .6; return 0; }
+  if (D.kind === 'bomber' && g.see && g.ady < 60) return Math.sign(g.dx);
+  if (g.adx < m.r + 30 && g.ady < 40) return 0;
+  return mobPathDir(m, tg);
+}
+
+/* ---------- what's about to hurt, for the bots: zones with a time until they go live ---------- */
+function mobDangers() {
+  const out = [];
+  for (const m of M.players) { if (!m.mob || m.dead) continue; const A = m.ai;
+    if (m.mob.boss) { const Z = m.dz; if (Z) out.push(...Z); continue; }
+    if (!A) continue;
+    if (A.st === 'wind' || A.st === 'act') { const V = A.mv; if (!V) continue; const t = A.st === 'wind' ? Math.max(0, A.t) : 0, tg = A.tg;
+      if (V.tel === 'front') out.push({ m, type: 'circle', x: m.x + m.dir * (m.r + (V.reach || 40) * .6), y: m.y, r: (V.reach || 40) * .7 + 16, t, jump: false, block: true });
+      else if (V.tel === 'leap' && tg) out.push({ m, type: 'circle', x: A.st === 'wind' ? tg.x : m.x, y: tg.y, r: 70, t, jump: false, block: true, flee: true });
+      else if (V.tel === 'line') out.push({ m, type: 'line', x: m.x, y: m.y, a: A.ang, len: V.id === 'dive' ? 420 : 1000, w: V.id === 'dive' ? m.r + 18 : 14, t: Math.max(0, t - (V.lock || 0) * .3), jump: true, block: true });
+      else if (V.tel === 'ground') out.push({ m, type: 'ground', x: m.x, y: m.y + m.r, r: 230, t: t + .15, jump: true });
+      else if (V.tel === 'charge') out.push({ m, type: 'band', x: m.x, y: m.y, dir: A.cdir || m.dir, len: 560, t, jump: true, block: true });
+      else if (V.tel === 'col') out.push({ m, type: 'col', x: m.x, y: m.y, w: 40, t, jump: false });
+      else if (V.tel === 'blast') out.push({ m, type: 'circle', x: m.x, y: m.y, r: V.id === 'fuse' ? 110 : V.id === 'nova' ? 150 : 0, t, flee: true });
+    }
+    if (m.hb && A.st === 'act' && A.mv && (A.mv.id === 'lunge' || A.mv.id === 'pounce' || A.mv.id === 'charge' || A.mv.id === 'splash' || A.mv.id === 'dive')) out.push({ m, type: 'circle', x: m.x + m.vx * .15, y: m.y + m.vy * .15, r: m.r + 40, t: 0, jump: A.mv.id === 'charge', block: true });
+  }
+  for (const q of M.rgL.quakes) out.push({ type: 'quake', x: q.x, y: q.y, r: q.r, t: 0, jump: true, q });
+  return out;
+}
+function dangerHits(d, p, pad = 0) {
+  if (d.type === 'circle') return d.r > 0 && Math.hypot(p.x - d.x, p.y - d.y) < d.r + p.r + pad;
+  if (d.type === 'ground') return Math.abs(p.x - d.x) < d.r + pad && Math.abs(p.y + p.r - d.y) < 50;
+  if (d.type === 'quake') return Math.abs(Math.abs(p.x - d.x) - d.r) < 90 + pad && Math.abs(p.y + p.r - d.y) < 40 && Math.abs(p.x - d.x) > d.r - 20;
+  if (d.type === 'band') return Math.abs(p.y - d.y) < 50 && Math.sign(p.x - d.x) === d.dir && Math.abs(p.x - d.x) < d.len + pad;
+  if (d.type === 'col') return Math.abs(p.x - d.x) < d.w + pad && p.y < d.y + 30 && d.y - p.y < 220;
+  if (d.type === 'line') { const c = Math.cos(d.a), s = Math.sin(d.a), rx = p.x - d.x, ry = p.y - d.y, along = rx * c + ry * s; if (along < 0 || along > d.len) return false; return Math.abs(-rx * s + ry * c) < d.w + p.r + pad; }
+  return false;
+}
+
+/* ---------- hitboxes and contact ---------- */
+function mobStrikes(m) {
+  const hb = m.hb; if (!hb) return;
+  const hx = m.x + m.dir * hb.ox, hy = m.y + hb.oy;
+  for (const h of M.heroes) {
+    if (h.dead || hb.hit.includes(h) || h.invT > 0) continue;
+    let hit;
+    if (hb.len) { const rx = h.x - hx, along = rx * m.dir; hit = along > -h.r && along < hb.len + h.r && Math.abs(h.y - hy) < hb.r + h.r; }
+    else hit = Math.hypot(h.x - hx, h.y - hy) < hb.r + h.r;
+    if (!hit) continue; hb.hit.push(h);
+    const s = Math.sign(h.x - m.x) || m.dir;
+    if (h.blockT > 0) { // a ward parries: light monsters are knocked off balance
+      ringFx(h.x, h.y, '#ffffff'); sfx(1100, .06, 'square', .04, -500, 'parry'); coin(h.id, 1, 'Parries', h.x, h.y - 20);
+      if (!m.mob.heavy && !m.mob.boss) { mobStagger(m, .8, 'PARRIED'); m.vx = -s * 380; m.vy = -200; } else { m.vx = -s * 200; }
+      m.hb = null; return; }
+    damage(h, hb.dmg * m.dmgK, m); h.invT = Math.max(h.invT || 0, .45); h.vx = clamp(h.vx + s * hb.kb, -1100, 1100); h.vy = Math.min(h.vy, -hb.kv);
+    if (hb.stun) h.stunT = Math.max(h.stunT || 0, hb.stun);
+    M.shake = Math.max(M.shake, 4);
+  }
+}
 
 const rgOn = () => !!(M && M.rogue);
 const rgHeroes = () => M.heroes || M.players;
@@ -5677,12 +6092,16 @@ function rgGenLevel(kind) {
     if (ch === 'c') { if (!N.stand(x, y) || !ok(x, y)) continue; const side = !rm.onRoute;
       if (tre || Math.random() < (side ? .75 : .38)) chests.push({ kind: tre ? pick(['iron', 'gold', 'wood', 'iron']) : Math.random() < (side ? .45 : .25) ? 'iron' : 'wood', x: (x + .5) * RT, y: (y + 1) * RT, mimic: false }); continue; }
     if (near || Math.random() > mobChance) continue;
-    if (ch === 'f') { mobs.push({ a: 'fly', elite: false, x: (x + .5) * RT, y: (y + .5) * RT }); continue; }
+    if (ch === 'f') { // flyers, or something hanging from the ceiling above
+      let ceil = 0; for (let yy = y - 1; yy >= Math.max(0, y - 5); yy--) if (isSolidCh(G[yy][x])) { ceil = (yy + 1) * RT; break; }
+      const e = ceil && Math.random() < .45 ? rgPickMob('ceil') : null;
+      if (e) mobs.push({ e, elite: false, x: (x + .5) * RT, y: ceil + 40, hang: ceil }); else { const f = rgPickMob('fly'); if (f) mobs.push({ e: f, elite: false, x: (x + .5) * RT, y: (y + .5) * RT }); }
+      continue; }
     if (!N.stand(x, y)) continue;
-    let a = pick(['walk', 'walk', 'walk', 'cast', 'cast', 'brute']); if (a === 'brute' && (R.row < 1 && R.act === 1) && Math.random() < .6) a = 'walk';
-    mobs.push({ a, elite: false, x: (x + .5) * RT, y: (y + 1) * RT - MOB_ARCH[a].r - 2 });
+    const e = rgPickMob('ground'); if (!e) continue;
+    mobs.push({ e, elite: false, x: (x + .5) * RT, y: (y + 1) * RT - MK[e.k].r - 2 });
   }
-  const eliteP = hard ? .16 : .05 + .04 * (R.act - 1); for (const m of mobs) m.elite = Math.random() < eliteP;
+  const eliteP = hard ? .16 : .05 + .04 * (R.act - 1); for (const m of mobs) m.elite = !m.hang && Math.random() < eliteP;
   for (const c of chests) c.mimic = c.kind !== 'wood' && (hard || tre) && Math.random() < (tre ? .3 : .18);
   if (hard) chests.push({ kind: 'gold', x: (doorT[0] - 5 + .5) * RT, y: (doorT[1] + 1) * RT, mimic: false });
   if (!tre && Math.random() < .45) { // a shrine somewhere on the route
@@ -5723,34 +6142,23 @@ function rgStartLevel(node) {
     p.hp = R.first ? p.st.maxHp : clamp(hp0, 1, p.st.maxHp); p.dead = !!wasDead; applyWand(p);
   });
   R.first = false;
-  const G = map.rg; M.rgL = { door: G.door, chests: G.chests.map(c => Object.assign({ open: false, t: 0 }, c)), shrines: G.shrines, drops: [], graves: [], wallFx: [], quakes: [], boss: null, nav: G.nav || null, doorT: 0, kind: G.kind, msgs: [] };
+  const G = map.rg; M.rgL = { door: G.door, chests: G.chests.map(c => Object.assign({ open: false, t: 0 }, c)), shrines: G.shrines, drops: [], graves: [], wallFx: [], quakes: [], marks: [], spikes: [], hf: null, boss: null, nav: G.nav || null, doorT: 0, kind: G.kind, msgs: [] };
   for (const h of M.heroes) if (h.dead) M.rgL.graves.push({ pid: h.id, x: h.x + 30, y: h.y - 20, vy: 0 });
-  for (const o of G.mobs) makeMob(o.a, o.x, o.y, { elite: o.elite });
+  for (const o of G.mobs) makeMob(o.e.k, o.x, o.y, { elite: o.elite, ros: o.e, hang: o.hang });
   if (G.boss) M.rgL.boss = makeBoss(G.boss.id, G.boss.x, G.boss.y);
   M.cam = G.kind === 'boss' ? null : { x: SW / 2, y: M.wh - SH / 2, z: 1 }; if (M.cam) rgCamera(1, true);
   M.coinCap = {}; M.phase = 'count'; M.t = G.kind === 'boss' ? 2.2 : 1.5; M.ts = 1; M.playT = 0; M.ot = 0; M.lavaLv = 0; M.lava = []; M.lavaAcc = 0; M.terrCoin = [0, 0, 0, 0]; M.rgEnd = null;
   app = 'match'; show(null); wrap.classList.add('play');
 }
 
-/* ---------- monsters: player-like entities on the 'mobs' team, so every spell, blast and beam already hits them ---------- */
-function makeMob(arch, x, y, o = {}) {
-  const R = M.rogue, B = RG_BIOMES[R.biome], A = MOB_ARCH[arch], k = rgScale(R.kind === 'hard'), el = !!o.elite;
-  const m = newPlayer(0, { mob: true }); m.id = M.players.length;
-  m.mob = Object.assign({ arch, name: o.name || B.mob[MOB_ORDER.indexOf(arch)], biome: R.biome, elite: el }, A, o.extra || {});
-  m.team = 'mobs'; m.color = el ? '#ffd23d' : hexOfPal(PAL[B.pal].acc); m.nick = m.mob.name; m.cards = []; m.look = null;
-  m.st = calcStats([], null); m.st.maxHp = Math.round((o.hp || A.hp) * k.hp * (el ? 2.4 : 1)); m.r = (o.r || A.r) * (el ? 1.15 : 1);
-  Object.assign(m, rgFresh(m, x, y)); m.hp = m.st.maxHp; m.dmgK = k.dmg * (el ? 1.35 : 1);
-  m.sleep = !o.awake; m.dir = Math.random() < .5 ? -1 : 1; m.t = Math.random() * 9; m.ph = Math.random() * 9; m.atkT = rgR(.8, 2.2); m.touchT = 0; m.castT = 0;
-  M.players.push(m); return m;
-}
 const BOSS = {
-  golem: { hp: 1100, r: 54, spd: 70, touch: 26, coins: 60 },
+  golem: { hp: 1100, r: 54, spd: 70, touch: 16, coins: 60 },
   mycelia: { hp: 800, r: 44, spd: 60, touch: 18, coins: 60, fly: true },
   king: { hp: 850, r: 36, spd: 90, touch: 16, coins: 60, fly: true }
 };
 function makeBoss(id, x, y) {
   const R = M.rogue, n = rgHeroes().length, D = BOSS[id];
-  const m = makeMob(id === 'golem' ? 'brute' : 'fly', x, y, { awake: true, name: RG_BIOMES[R.biome].bn, r: D.r, extra: Object.assign({ boss: id }, D) });
+  const m = makeMob(id === 'golem' ? 'brute' : 'bat', x, y, { awake: true, name: RG_BIOMES[R.biome].bn, r: D.r, extra: Object.assign({ boss: id }, D) });
   m.st.maxHp = Math.round(D.hp * (1 + .6 * (R.act - 1)) * (1 + .5 * (n - 1))); m.hp = m.st.maxHp; m.dmgK = 1 + .25 * (R.act - 1); m.phaseN = 0; m.atkT = 2; m.mv = 0; return m;
 }
 function rgNearView(x, y, pad) {
@@ -5768,75 +6176,84 @@ function mobBolt(m, ang, k, mul = 1, o = {}) {
 }
 // aim a lobbed bolt (bolt gravity is BGRAV * g)
 function lobAng(dx, dy, v, g) { const G = BGRAV * g; if (G <= 0) return Math.atan2(dy, dx); const v2 = v * v, d = v2 * v2 - G * (G * dx * dx + 2 * dy * v2); if (d < 0) return Math.atan2(-1, Math.sign(dx) || 1); const a = Math.atan((v2 - Math.sqrt(d)) / (G * Math.abs(dx))); return dx >= 0 ? -a : Math.PI + a; }
-function mobShoot(m, tg) {
-  const k = RG_BIOMES[m.mob.biome].bolt, K = RG_BOLT[k], dx = tg.x - m.x, dy = tg.y - m.y;
-  const a = K.g ? lobAng(dx, dy, K.spd, K.g) : Math.atan2(dy + (tg.vy || 0) * .1, dx + (tg.vx || 0) * Math.hypot(dx, dy) / K.spd * .5);
-  const n = K.n || 1; for (let i = 0; i < n; i++) mobBolt(m, a + (i - (n - 1) / 2) * (K.spread || 0), k);
-  sfx(m.mob.arch === 'cast' ? 520 : 300, .14, 'triangle', .03, -200, 'mshot');
-}
 function updateMob(m, dt) {
   if (m.dead) { m.deathT += dt; return; }
   const D = m.mob;
-  if (m.sleep) { if (rgNearView(m.x, m.y, 200)) m.sleep = false; else return; }
-  for (const k of ['atkT', 'touchT', 'stunT', 'slowT', 'flash', 'trapT', 'castT', 'dashT', 'invT', 'snipeT', 'shredT']) if (m[k] > 0) m[k] -= dt;
+  if (m.sleep) { if (rgNearView(m.x, m.y, 220)) m.sleep = false; else return; }
+  for (const k of ['atkT', 'touchT', 'stunT', 'slowT', 'flash', 'trapT', 'invT', 'snipeT', 'shredT', 'guardT']) if (m[k] > 0) m[k] -= dt;
   if (m.slowT <= 0) m.slowAmt = 0; if (m.shredT <= 0) m.shred = 0;
   for (const d of m.dots) { const a = Math.min(d.t, dt) * d.dps; d.t -= dt; damage(m, a, d.src === null ? null : M.players[d.src], { dot: true, decayed: d.decay, steal: d.steal }); }
   m.dots = m.dots.filter(d => d.t > 0); if (m.dead) return;
   if (isBurning(m) && Math.random() < .3) M.parts.push({ x: m.x + rnd(-m.r, m.r) * .8, y: m.y, vx: rnd(-25, 25), vy: rnd(-220, -120), t: rnd(.2, .4), m: .4, col: Math.random() < .5 ? '#ff7a2a' : '#ffd23d', s: 3 });
   m.t += dt;
-  const tg = mobTarget(m), stun = m.stunT > 0 || m.trapT > 0, sp = D.spd * (1 - Math.min(.8, m.slowAmt || 0));
-  const dx = tg ? tg.x - m.x : 0, dy = tg ? tg.y - m.y : 0, dd = Math.hypot(dx, dy);
-  if (D.boss) bossAI(m, tg, dt, stun, dx, dy, dd);
-  else if (D.fly) {
-    if (!stun && tg && dd < 900) {
-      if (m.dashT > 0) { /* diving */ }
-      else { const tx = tg.x + Math.sin(m.t * 1.3 + m.ph) * 120, ty = tg.y - 130 + Math.sin(m.t * 2.1 + m.ph) * 35;
-        m.vx += clamp((tx - m.x) * 2.5 - m.vx, -900, 900) * dt * 2; m.vy += clamp((ty - m.y) * 2.5 - m.vy, -900, 900) * dt * 2;
-        const s = Math.hypot(m.vx, m.vy); if (s > sp) { m.vx *= sp / s; m.vy *= sp / s; }
-        if (m.atkT <= 0 && dd < 360) { m.vx = dx / dd * sp * 2.7; m.vy = dy / dd * sp * 2.7; m.dashT = .5; m.atkT = rgR(2.8, 4.2); sfx(700, .12, 'sawtooth', .02, -400, 'dive'); } }
-      m.dir = Math.sign(m.vx) || m.dir;
-    } else { m.vx *= Math.pow(.2, dt); m.vy = Math.sin(m.t * 2) * 30; }
-    if (m.trapT > 0) m.vy = -75;
-    if (D.biome === 5) { m.x += m.vx * dt; m.y += m.vy * dt; m.x = clamp(m.x, 50, W - 50); m.y = clamp(m.y, 50, H - 40); } // ghosts drift through rock
-    else movePlayer(m, m.vx * dt, m.vy * dt);
-  } else {
-    let mx = 0;
-    if (!stun) {
-      const near = tg && Math.abs(dx) < 650 && Math.abs(dy) < 380;
-      if (D.arch === 'cast') {
-        if (near) { m.dir = Math.sign(dx) || m.dir; mx = Math.abs(dx) < 240 ? -Math.sign(dx) : Math.abs(dx) > 460 ? Math.sign(dx) : 0; if (mx && !groundAhead(m, mx)) mx = 0;
-          if (m.atkT <= 0 && !m.casting && dd < 680 && los(m, tg, M.solids)) { m.casting = true; m.castT = .5; m.atkT = D.cd * rgR(.85, 1.2); }
-          if (m.casting && m.castT <= 0) { m.casting = false; mobShoot(m, tg); } }
-        else { mx = m.dir * .5; if (m.wall || !groundAhead(m, m.dir)) m.dir *= -1; m.casting = false; }
-      } else if (D.arch === 'brute') {
-        if (m.casting) { mx = 0; if (m.castT <= 0) { m.casting = false; mobSlam(m); } }
-        else if (near) { mx = Math.sign(dx); m.dir = mx; if (m.atkT <= 0 && dd < 160 && m.onGround) { m.casting = true; m.castT = .6; m.atkT = rgR(2.6, 3.4); sfx(90, .5, 'sawtooth', .04, 30, 'wind'); }
-          if (!groundAhead(m, mx) && !(dy > 60)) mx = 0; }
-        else { mx = m.dir * .6; if (m.wall || !groundAhead(m, m.dir)) m.dir *= -1; }
-      } else { // walker
-        if (near) { mx = Math.sign(dx); m.dir = mx || m.dir;
-          if (m.onGround && !groundAhead(m, mx) && dy < 60) { m.vy = -640; m.onGround = false; } // leap the gap
-          if (m.onGround && dy < -90 && Math.abs(dx) < 220 && Math.random() < dt * 2.5) m.vy = -660; }
-        else { mx = m.dir * .55; if (m.wall || !groundAhead(m, m.dir)) m.dir *= -1; }
-        if (m.onGround && m.wall && mx) m.vy = -620;
-      }
-    }
-    const acc = m.onGround ? 1800 : 700; m.vx += clamp(mx * sp - m.vx, -acc * dt, acc * dt);
-    m.vy = Math.min(m.vy + GRAV * dt, 1100); if (m.trapT > 0) { m.vx *= Math.pow(.05, dt); m.vy = -75; }
-    movePlayer(m, m.vx * dt, m.vy * dt);
-  }
+  const stun = m.stunT > 0 || m.trapT > 0;
+  if (D.boss) { const tg = mobTarget(m), dx = tg ? tg.x - m.x : 0, dy = tg ? tg.y - m.y : 0; bossAI(m, tg, dt, stun, dx, dy, Math.hypot(dx, dy)); }
+  else mobBrain(m, dt);
+  if (m.dead) return;
+  mobStrikes(m);
+  // the shield is up whenever it isn't busy swinging
+  m.guard = D.shield && !m.under && (!m.ai || m.ai.st === 'chase' || m.ai.st === 'idle' || m.ai.st === 'alert' || m.ai.st === 'wind' && m.ai.mv && m.ai.mv.id !== 'thrust');
   // pits: lava eats monsters
   if (m.y > H - m.r - 4) { m.y = H - m.r - 4; if (!D.fly) { damage(m, 9999, null, { edge: true }); return; } m.vy = -300; }
   if (m.x < m.r) m.x = m.r; if (m.x > W - m.r) m.x = W - m.r;
-  // contact damage (a ward bounces them off)
-  if (!stun && m.touchT <= 0) for (const h of M.heroes) {
+  // bumping into one: a small knock (the real damage comes from its attacks)
+  if (!stun && m.touchT <= 0 && D.touch && !m.under && !m.hang && !m.hb && (!m.ai || m.ai.st !== 'stag')) for (const h of M.heroes) {
     if (h.dead || Math.hypot(h.x - m.x, h.y - m.y) > m.r + h.r) continue;
     const s = Math.sign(h.x - m.x) || 1;
     if (h.blockT > 0) { m.vx = -s * 520; m.vy = -260; m.stunT = .5; ringFx(h.x, h.y, '#ffffff'); sfx(1100, .06, 'square', .04, -500, 'parry'); }
-    else { damage(h, D.touch * m.dmgK, m); h.vx = clamp(h.vx + s * 480, -1000, 1000); h.vy = Math.min(h.vy, -280); }
-    m.touchT = .8; if (m.dashT > 0) { m.dashT = 0; m.vx *= -.4; m.vy = -200; } break;
+    else { damage(h, D.touch * m.dmgK, m); h.invT = Math.max(h.invT || 0, .3); h.vx = clamp(h.vx + s * 420, -1000, 1000); h.vy = Math.min(h.vy, -240); }
+    m.touchT = .8; break;
   }
 }
+function mobShoot(m, tg, mul = 1) {
+  const k = RG_BIOMES[m.mob.biome].bolt, K = RG_BOLT[k], dx = tg.x - m.x, dy = tg.y - m.y;
+  const a = K.g ? lobAng(dx, dy, K.spd, K.g) : Math.atan2(dy + (tg.vy || 0) * .1, dx + (tg.vx || 0) * Math.hypot(dx, dy) / K.spd * .5);
+  const n = K.n || 1; for (let i = 0; i < n; i++) mobBolt(m, a + (i - (n - 1) / 2) * (K.spread || 0), k, mul);
+  sfx(m.mob.role === 'ranged' ? 520 : 300, .14, 'triangle', .03, -200, 'mshot');
+}
+
+/* ---------- co-op bot helpers: what to shoot, and what to dodge ---------- */
+function rgThreat(p, r) {
+  let best = null, bd = r;
+  for (const m of M.players) { if (!m.mob || m.dead || m.sleep || m.under || m.hang) continue; const A = m.ai;
+    const melee = m.mob.boss === 'golem' || (!m.mob.boss && m.mob.role === 'melee') || (m.mob.fly && !m.mob.boss && A && (A.st === 'wind' || A.st === 'act'));
+    if (!melee) continue; const d = Math.hypot(m.x - p.x, m.y - p.y) - m.r;
+    if (d < bd && Math.abs(m.y - p.y) < 140 && los(p, m, M.solids)) { bd = d; best = m; } }
+  return best;
+}
+function rgBotTarget(p) {
+  let best = null, bs = 1e9;
+  for (const m of M.players) { if (!m.mob || m.dead || m.sleep || m.under) continue; const d = Math.hypot(m.x - p.x, m.y - p.y); if (d > 780 || !los(p, m, M.solids)) continue; const A = m.ai || {};
+    let s = d - (m.mob.boss ? 400 : 0) - (!m.mob.boss && m.mob.role === 'melee' && d < 260 ? 330 : 0) - (A.st === 'rec' || A.st === 'stag' ? 170 : 0) - (m.mob.role === 'ranged' ? 110 : 0) - (A.st === 'wind' ? 60 : 0) - (m.mob.kind === 'bomber' && d < 320 ? 260 : 0) + (m.hp / m.st.maxHp) * 60;
+    if (m.guard && Math.sign(p.x - m.x) === m.dir && p.y > m.y - m.r * .7) s += 240; // that shield will eat the bolt
+    if (s < bs) { bs = s; best = m; } }
+  return best;
+}
+// read the room: if something is about to land on me, get out of the way (jump, step aside or ward)
+function rgDodge(p, B) {
+  const Z = mobDangers(); B.dk = B.dk || {}; const now = M.playT;
+  for (const k in B.dk) if (B.dk[k].until < now) delete B.dk[k];
+  for (const d of Z) {
+    if (d.t > .55 || !dangerHits(d, p, 24)) continue;
+    const key = (d.m ? d.m.id : 'q' + Math.round(d.x)) + d.type; let rec = B.dk[key];
+    if (!rec) rec = B.dk[key] = { ok: Math.random() < .82, until: now + 1.2 }; // bots aren't perfect: they miss a read now and then
+    if (!rec.ok) continue;
+    if (d.type === 'quake') { if (p.onGround && Math.abs(Math.abs(p.x - d.x) - d.r) < 70) return { jump: true }; continue; }
+    if (d.type === 'ground') { if (p.onGround && d.t < .2 && Math.abs(p.x - d.x) < 150) return { jump: true }; continue; }
+    if (d.type === 'band') { const sp = Math.max(240, Math.abs(d.m ? d.m.vx : 0)), gap = Math.abs(p.x - d.x) - (d.m ? d.m.r : 20); if (p.onGround && gap / sp + d.t < .34) return { jump: true }; continue; }
+    if (d.block && p.blockCd <= 0 && d.t < .1 && Math.random() < .6) return { block: true };
+    if (d.jump && p.onGround && d.t < .3 && d.type === 'line' && Math.abs(Math.cos(d.a)) > .55) return { jump: true };
+    if (d.type === 'line') { const c = Math.cos(d.a), s = Math.sin(d.a), side = Math.sign(-(p.x - d.x) * s + (p.y - d.y) * c) || 1; return { mx: Math.sign(-s * side) || 1 }; }
+    // step whichever way is safest from everything that's coming, not just this one
+    const risk = dir => { const q = { x: p.x + dir * 120, y: p.y, r: p.r }; let n = 0; for (const e of Z) if (e.t < .8 && e.type !== 'quake' && dangerHits(e, q, 10)) n++;
+      if (p.wall === dir || (p.x < 110 && dir < 0) || (p.x > W - 110 && dir > 0) || (p.onGround && !groundAhead(p, dir))) n += 5; return n; };
+    const rl = risk(-1), rr = risk(1), pref = Math.sign(p.x - d.x) || 1, away = rl === rr ? pref : rl < rr ? -1 : 1;
+    if (Math.min(rl, rr) >= 5) { if (p.onGround && d.t < .3) return { jump: true }; continue; }
+    return { mx: away, flee: d.flee };
+  }
+  return null;
+}
+
 function mobSlam(m) {
   const D = m.mob, y = m.y + m.r;
   // a shockwave that runs along the ground both ways: jump over it
@@ -5845,56 +6262,115 @@ function mobSlam(m) {
   M.shake = Math.max(M.shake, D.boss ? 16 : 8); puffs(m.x, y, '#c8b090', 18, 260); sfx(70, .4, 'sawtooth', .07, -30, 'slam'); noise(.25, .07);
   for (let i = -6; i <= 6; i++) kickPowder(m.x + i * 8, y - 2, 0, -2);
 }
-/* ---------- bosses ---------- */
+/* ---------- bosses ----------
+   Every boss attack winds up first (the boss shakes and glows, marks the ground or draws its aim), so there's
+   always a tell to read. Each boss has a signature punish window: the Golem stuns itself charging into a wall,
+   Mycelia sinks low after her root spikes, the King hangs still while his beam cools. */
 function bossAI(m, tg, dt, stun, dx, dy, dd) {
-  const D = m.mob, B = D.boss, half = m.hp < m.st.maxHp * .5, k = half ? 1.35 : 1;
+  const D = m.mob, B = D.boss, half = m.hp < m.st.maxHp * .5, k = half ? 1.3 : 1, L = M.rgL;
   if (half && !m.phaseN) { m.phaseN = 1; M.nums.push({ x: m.x, y: m.y - 70, v: 'ENRAGED!', t: 1.4, col: '#ff3d6a' }); ringFx(m.x, m.y, '#ff3d6a'); sfx(80, .8, 'sawtooth', .06, 40); M.shake = 14; }
+  m.dz = [];
   if (!tg) return;
-  m.dir = Math.sign(dx) || m.dir;
-  const biomeK = RG_BIOMES[m.mob.biome].bolt;
-  if (B === 'golem') { // walks you down, slams the floor, lobs boulders; drops rocks from the ceiling when angry
+  const biomeK = RG_BIOMES[D.biome].bolt, kids = M.players.filter(q => q.mob && !q.dead && !q.mob.boss).length;
+  const start = (atk, wind) => { m.atk = atk; m.casting = true; m.castT = wind; m.castMax = wind; };
+  if (m.casting) m.castT -= dt;
+  if (B === 'golem') { // walks you down, slams, lobs boulders, charges the walls; drops the ceiling on you when angry
     let mx = 0;
-    if (m.casting) { if (m.castT <= 0) { m.casting = false;
-        if (m.atk === 'slam') { mobSlam(m); }
-        else if (m.atk === 'lob') { for (let i = -1; i <= 1; i++) { m.dmgK *= 1.4; mobBolt(m, lobAng(dx + i * 110, dy, 560, 1), 'rock', 1, { spd: 560, g: 1, r: 8 }); m.dmgK /= 1.4; } sfx(160, .3, 'square', .05, -80); }
-        else if (m.atk === 'rain') { for (let i = 0; i < 9; i++) { const x = rgR(60, W - 60); M.timers.push({ t: i * .12, fn: () => { if (m.dead) return; const b = { x, y: 40, r: 1 }; mobBolt(Object.assign({}, m, { x, y: 44, r: 0 }), Math.PI / 2, biomeK === 'ice' ? 'ice' : 'rock', 1.2, { spd: 120, g: 1.4, r: 7, life: 4 }); } }); } M.shake = 10; sfx(60, .6, 'sawtooth', .05, -20); }
-      } }
-    else { mx = Math.sign(dx) * (Math.abs(dx) > 90 ? 1 : 0);
-      if (m.atkT <= 0 && !stun) { m.atk = half && Math.random() < .4 ? 'rain' : Math.abs(dx) < 220 && m.onGround ? 'slam' : 'lob'; m.casting = true; m.castT = m.atk === 'slam' ? .55 : .7; m.atkT = rgR(1.8, 2.6) / k;
-        if (m.atk === 'slam') { m.vy = -520; } } }
-    if (stun) mx = 0;
-    m.vx += clamp(mx * D.spd * k - m.vx, -1200 * dt, 1200 * dt); m.vy = Math.min(m.vy + GRAV * dt, 1100); movePlayer(m, m.vx * dt, m.vy * dt);
-    if (m.onGround && m.wall && mx) m.vy = -560;
-  } else if (B === 'mycelia') { // hangs over the arena, bursts spores, calls her children, rains spores
-    const tx = W / 2 + Math.sin(m.t * .4) * 380, ty = 170 + Math.sin(m.t * .9) * 40;
-    m.vx += ((tx - m.x) * 1.5 - m.vx) * dt * 2; m.vy += ((ty - m.y) * 1.5 - m.vy) * dt * 2; m.x += m.vx * dt; m.y += m.vy * dt;
-    if (m.atkT <= 0 && !stun) {
-      const r = Math.random(), kid = M.players.filter(q => q.mob && !q.dead && !q.mob.boss).length;
-      if (r < .4) { const n = half ? 16 : 11, a0 = m.t; for (let i = 0; i < n; i++) mobBolt(m, a0 + i * TAU / n, biomeK, 1, { spd: 230 }); sfx(400, .3, 'triangle', .04, -200); }
-      else if (r < .6 && kid < 3) { for (let i = 0; i < 2; i++) { const c = makeMob('walk', m.x + rgR(-60, 60), m.y + 40, { awake: true }); c.vy = -200; c.vx = rgR(-200, 200); } puffs(m.x, m.y + 30, '#c870ff', 20, 200); sfx(220, .4, 'sawtooth', .03, 60); }
-      else { for (let i = 0; i < 6; i++) M.timers.push({ t: i * .18, fn: () => { if (m.dead) return; const t2 = mobTarget(m); if (t2) mobBolt(m, Math.atan2(t2.y - m.y, t2.x - m.x) + rgR(-.25, .25), biomeK, 1, { spd: 380 }); } }); }
+    if (m.chg) { m.chg.t += dt; m.vx = m.chg.dir * 560 * k; m.dir = m.chg.dir; if (Math.random() < dt * 25) puffs(m.x - m.dir * m.r, m.y + m.r - 4, '#c8b090', 1, 140);
+      m.dz.push({ m, type: 'band', x: m.x, y: m.y, dir: m.dir, len: 260, t: 0, jump: true });
+      if (m.wall === m.chg.dir && m.chg.t > .1) { m.chg = null; m.hb = null; m.dazed = 2.2 / k; M.shake = 24; sfx(50, .8, 'sawtooth', .08, -20); noise(.4, .1); if (SET.nums) M.nums.push({ x: m.x, y: m.y - 80, v: 'STUNNED', t: 1.4, col: '#ffe9b0' });
+        bossRain(m, biomeK, 7, .9); m.vx = -m.dir * 120; }
+      else if (m.chg.t > 2.4) { m.chg = null; m.hb = null; } }
+    else if (m.dazed > 0) { m.dazed -= dt; mx = 0; }
+    else if (m.casting) { if (m.atk === 'slam') m.dz.push({ m, type: 'ground', x: m.x, y: m.y + m.r, r: 520, t: Math.max(0, m.castT) + .2, jump: true });
+      if (m.atk === 'charge') { m.dz.push({ m, type: 'band', x: m.x, y: m.y, dir: m.dir, len: 1200, t: Math.max(0, m.castT), jump: true }); if (Math.random() < dt * 16) puffs(m.x - m.dir * m.r, m.y + m.r - 4, '#c8b090', 1, 140); }
+      else m.dir = Math.sign(dx) || m.dir;
+      if (m.castT <= 0) { m.casting = false;
+        if (m.atk === 'slam') mobSlam(m);
+        else if (m.atk === 'lob') { for (let i = -1; i <= 1; i++) mobBolt(m, lobAng(dx + i * 110, dy, 560, 1), 'rock', 1.4, { spd: 560, g: 1, r: 8 }); sfx(160, .3, 'square', .05, -80); }
+        else if (m.atk === 'rain') bossRain(m, biomeK, 9, .12);
+        else if (m.atk === 'charge') { m.chg = { dir: m.dir, t: 0 }; mobHB(m, { ox: 10, oy: 22, r: m.r - 10, dmg: 26, kb: 800, kv: 420 }); sfx(70, .6, 'sawtooth', .07, 30); } } }
+    else { mx = Math.sign(dx) * (Math.abs(dx) > 90 ? 1 : 0); m.dir = Math.sign(dx) || m.dir;
+      if (m.atkT <= 0 && !stun && m.onGround) { const r = Math.random();
+        if (Math.abs(dx) > 320 && r < .5) start('charge', 1 / k); else if (half && r < .3) start('rain', .8); else if (Math.abs(dx) < 230) { start('slam', .7); m.vy = -480; } else start('lob', .7);
+        m.atkT = rgR(1.8, 2.6) / k; } }
+    if (stun || m.casting && m.atk !== 'slam' || m.dazed > 0) mx = 0;
+    if (!m.chg) m.vx += clamp(mx * D.spd * k - m.vx, -1200 * dt, 1200 * dt);
+    m.vy = Math.min(m.vy + GRAV * dt, 1100); movePlayer(m, m.vx * dt, m.vy * dt);
+    if (m.onGround && m.wall && mx && !m.chg) m.vy = -560;
+  } else if (B === 'mycelia') { // hangs over the arena: spore bursts, a spore stream, roots from below, spore rain, children
+    const low = m.atk === 'spikes' && !m.casting && m.lowT > 0;
+    const tx = W / 2 + Math.sin(m.t * .4) * 380, ty = low ? 380 : 170 + Math.sin(m.t * .9) * 40;
+    if (m.lowT > 0) m.lowT -= dt;
+    if (!m.casting) { m.vx += ((tx - m.x) * 1.5 - m.vx) * dt * 2; m.vy += ((ty - m.y) * 1.5 - m.vy) * dt * 2; } else { m.vx *= Math.pow(.1, dt); m.vy *= Math.pow(.1, dt); }
+    m.x += m.vx * dt; m.y += m.vy * dt;
+    if (m.casting) {
+      if (m.atk === 'spikes' || m.atk === 'rain') for (const mk of m.marks) m.dz.push({ m, type: 'col', x: mk.x, y: mk.y, w: mk.w, t: Math.max(0, m.castT), jump: false });
+      if (m.castT <= 0) { m.casting = false;
+        if (m.atk === 'burst') { const n = half ? 16 : 11, a0 = m.t; for (let i = 0; i < n; i++) mobBolt(m, a0 + i * TAU / n, biomeK, 1, { spd: 230 }); sfx(400, .3, 'triangle', .04, -200); }
+        else if (m.atk === 'summon') { for (let i = 0; i < 2; i++) { const c = makeMob('grunt', m.x + rgR(-60, 60), m.y + 40, { awake: true, minion: true }); c.vy = -200; c.vx = rgR(-200, 200); } puffs(m.x, m.y + 30, '#c870ff', 20, 200); sfx(220, .4, 'sawtooth', .03, 60); }
+        else if (m.atk === 'stream') { for (let i = 0; i < 6; i++) M.timers.push({ t: i * .16, fn: () => { if (m.dead) return; const t2 = mobTarget(m); if (t2) mobBolt(m, Math.atan2(t2.y - m.y, t2.x - m.x) + rgR(-.2, .2), biomeK, 1, { spd: 380 }); } }); }
+        else if (m.atk === 'spikes') { for (const mk of m.marks) bossSpike(m, mk.x, mk.y, 14); m.lowT = 2.2; sfx(90, .5, 'sawtooth', .06, 60); M.shake = 10; }
+        else if (m.atk === 'rain') { for (const mk of m.marks) for (let i = 0; i < 3; i++) M.timers.push({ t: i * .1, fn: () => { if (!m.dead) mobBolt(Object.assign({}, m, { x: mk.x + rgR(-10, 10), y: 34, r: 0 }), Math.PI / 2, biomeK, 1, { spd: 520, g: 0, r: 5, life: 2 }); } }); sfx(500, .4, 'triangle', .04, -300); }
+        m.marks = null; } }
+    else if (m.atkT <= 0 && !stun) {
+      const r = Math.random();
+      if (r < .26) start('burst', .7);
+      else if (r < .45 && kids < 3) start('summon', .9);
+      else if (r < .65) start('stream', .5);
+      else if (r < .85 || !half) { start('spikes', 1.1); m.marks = rgAlive().map(h => ({ x: h.x, y: h.onGround ? h.y + h.r : 640, w: 34 })); }
+      else { start('rain', 1); m.marks = []; for (const h of rgAlive()) m.marks.push({ x: clamp(h.x + rgR(-30, 30), 60, W - 60), y: 640, w: 30 }); for (let i = 0; i < 4; i++) m.marks.push({ x: rgR(80, W - 80), y: 640, w: 30 }); }
       m.atkT = rgR(1.6, 2.4) / k;
     }
-  } else { // the king: teleports, homing skulls, bolt fans, raises the dead
+  } else { // the king: blinks around, homing skulls, bolt fans, a sweeping beam, raises the dead
     if (m.blinkT > 0) { m.blinkT -= dt; if (m.blinkT <= 0) { m.x = m.bx; m.y = m.by; puffs(m.x, m.y, '#b070ff', 24, 260); sfx(900, .2, 'sine', .04, -600); } }
-    else { const ty = 260 + Math.sin(m.t * 1.4) * 60; m.vy += ((ty - m.y) * 2 - m.vy) * dt * 2; m.vx *= Math.pow(.3, dt); m.x += m.vx * dt; m.y += m.vy * dt; }
-    m.mv -= dt; if (m.mv <= 0 && !stun) { m.mv = rgR(4, 6) / k; m.bx = tg.x < W / 2 ? rgR(W * .6, W - 120) : rgR(120, W * .4); m.by = rgR(160, 320); m.blinkT = .45; puffs(m.x, m.y, '#b070ff', 24, 260); }
-    if (m.atkT <= 0 && !stun && !(m.blinkT > 0)) {
-      const r = Math.random(), kid = M.players.filter(q => q.mob && !q.dead && !q.mob.boss).length;
-      if (r < .35) { for (let i = 0; i < (half ? 4 : 3); i++) mobBolt(m, -Math.PI / 2 + (i - 1) * .7, 'skull', 1.1, { spd: 220, life: 3 }); sfx(300, .3, 'sawtooth', .03, 120); }
-      else if (r < .7) { const a = Math.atan2(dy, dx), n = half ? 9 : 7; for (let i = 0; i < n; i++) mobBolt(m, a + (i - (n - 1) / 2) * .16, biomeK === 'sand' ? 'sand' : 'skull', .9, { spd: 360, g: 0 }); sfx(500, .2, 'square', .03, -300); }
-      else if (kid < 3) { for (let i = 0; i < 2; i++) { const c = makeMob('walk', rgR(120, W - 120), 600, { awake: true }); puffs(c.x, c.y, '#b070ff', 14, 160); } sfx(120, .6, 'sawtooth', .04, 40); }
+    else if (!m.beam) { const ty = 260 + Math.sin(m.t * 1.4) * 60; m.vy += ((ty - m.y) * 2 - m.vy) * dt * 2; m.vx *= Math.pow(.3, dt); m.x += m.vx * dt; m.y += m.vy * dt; }
+    m.mv -= dt; if (m.mv <= 0 && !stun && !m.casting && !m.beam) { m.mv = rgR(4, 6) / k; m.bx = tg.x < W / 2 ? rgR(W * .6, W - 120) : rgR(120, W * .4); m.by = rgR(160, 320); m.blinkT = .45; puffs(m.x, m.y, '#b070ff', 24, 260); }
+    if (m.beam) { const Bm = m.beam; Bm.t += dt; const f = clamp(Bm.t / Bm.dur, 0, 1); Bm.a = Bm.a0 + (Bm.a1 - Bm.a0) * f; bossBeam(m, Bm, dt);
+      m.dz.push({ m, type: 'line', x: m.x, y: m.y, a: Bm.a + (Bm.a1 - Bm.a0) * .15, len: Bm.len, w: 22, t: 0, jump: true });
+      if (Bm.t >= Bm.dur) { m.beam = null; m.atkT = Math.max(m.atkT, 1.4); } }
+    else if (m.casting) { m.dir = Math.sign(dx) || m.dir;
+      if (m.atk === 'fan' || m.atk === 'beam') { m.aimA = Math.atan2(dy, dx); m.dz.push({ m, type: 'line', x: m.x, y: m.y, a: m.aimA, len: 1200, w: m.atk === 'beam' ? 30 : 60, t: Math.max(0, m.castT), jump: true }); }
+      if (m.castT <= 0) { m.casting = false;
+        if (m.atk === 'skulls') { for (let i = 0; i < (half ? 4 : 3); i++) mobBolt(m, -Math.PI / 2 + (i - 1) * .7, 'skull', 1.1, { spd: 220, life: 3 }); sfx(300, .3, 'sawtooth', .03, 120); }
+        else if (m.atk === 'fan') { const a = m.aimA, n = half ? 9 : 7; for (let i = 0; i < n; i++) mobBolt(m, a + (i - (n - 1) / 2) * .16, biomeK === 'sand' ? 'sand' : 'skull', .9, { spd: 360, g: 0 }); sfx(500, .2, 'square', .03, -300); }
+        else if (m.atk === 'summon') { for (let i = 0; i < 2; i++) { const c = makeMob('grunt', rgR(120, W - 120), 600, { awake: true, minion: true }); puffs(c.x, c.y, '#b070ff', 14, 160); } sfx(120, .6, 'sawtooth', .04, 40); }
+        else if (m.atk === 'beam') { const s = Math.random() < .5 ? -1 : 1; m.beam = { a0: m.aimA - s * .55, a1: m.aimA + s * .55, t: 0, dur: 1, a: m.aimA - s * .55, len: 1300, hit: {} }; sfx(200, 1, 'sawtooth', .05, 300); } } }
+    else if (m.atkT <= 0 && !stun && !(m.blinkT > 0)) {
+      const r = Math.random();
+      if (r < .28) start('skulls', .5); else if (r < .58) start('fan', .6); else if (r < .82 || kids >= 3) start('beam', 1.05 / Math.sqrt(k)); else start('summon', .9);
       m.atkT = rgR(1.4, 2.2) / k;
     }
   }
   if (m.y > H - m.r - 6) { m.y = H - m.r - 6; m.vy = -400; }
 }
+function bossRain(m, kind, n, gap) { for (let i = 0; i < n; i++) { const x = rgR(60, W - 60); (M.rgL.marks || (M.rgL.marks = [])).push({ x, y: 640, t: .55 + i * gap, w: 22, kind: 'drop' });
+  M.timers.push({ t: .55 + i * gap, fn: () => { if (m.dead) return; mobBolt(Object.assign({}, m, { x, y: 44, r: 0 }), Math.PI / 2, kind === 'ice' ? 'ice' : 'rock', 1.2, { spd: 160, g: 1.4, r: 7, life: 4 }); } }); }
+  M.shake = Math.max(M.shake, 8); sfx(60, .6, 'sawtooth', .05, -20); }
+// roots burst out of the floor in a column
+function bossSpike(m, x, y, dmg) {
+  (M.rgL.spikes || (M.rgL.spikes = [])).push({ x, y, t: 0 });
+  for (const h of rgAlive()) if (Math.abs(h.x - x) < 34 + h.r * .5 && h.y < y + 10 && y - h.y < 150) { if (h.blockT > 0) { ringFx(h.x, h.y, '#ffffff'); continue; } damage(h, dmg * m.dmgK, m); h.vy = -760; }
+  puffs(x, y, '#8a5a3a', 14, 260);
+}
+function bossBeam(m, Bm, dt) {
+  const c = Math.cos(Bm.a), s = Math.sin(Bm.a); let len = 0; for (; len < Bm.len; len += 8) { const x = m.x + c * len, y = m.y + s * len; if (x < 0 || x > W || y < 0 || y > H || solidAt(x, y, M.solids)) break; }
+  Bm.cur = len;
+  for (const h of rgAlive()) { const rx = h.x - m.x, ry = h.y - m.y, along = rx * c + ry * s; if (along < 0 || along > len) continue; if (Math.abs(-rx * s + ry * c) > h.r + 10) continue;
+    if ((Bm.hit[h.id] || 0) > M.playT) continue; Bm.hit[h.id] = M.playT + .3;
+    if (h.blockT > 0) { ringFx(h.x, h.y, '#ffffff'); continue; } damage(h, 13 * m.dmgK, m); h.vx += c * 300; h.vy = Math.min(h.vy, -200); }
+  if (Math.random() < dt * 30) puffs(m.x + c * len, m.y + s * len, '#ff6a8a', 2, 160);
+}
+
 function rgMobDie(q) {
   const D = q.mob, R = M.rogue; q.dead = true; q.deathT = 0; q.hp = 0; R.kills++;
   puffs(q.x, q.y, q.color, D.boss ? 80 : 22, D.boss ? 500 : 260); puffs(q.x, q.y, '#ffffff', 8, 200);
   sfx(D.boss ? 60 : 140, D.boss ? 1.2 : .25, 'sawtooth', .05, -60); noise(D.boss ? .6 : .15, D.boss ? .12 : .05);
   const k = q.lastBy !== undefined ? M.players[q.lastBy] : null; if (k && !k.mob) coin(k.id, D.boss ? 0 : 2, 'Kills', q.x, q.y - 30);
-  const coins = Math.round((D.coins || 2) * (D.elite ? 2.5 : 1) * (1 + .1 * (R.act - 1)));
+  q.hb = null; if (q.ai) q.ai.tok = null;
+  if (D.kind === 'bomber' && q.ai && q.ai.st === 'wind' && !q.boomed) { const o = { x: q.x, y: q.y }; M.timers.push({ t: .22, fn: () => { q.x = o.x; q.y = o.y; mobExplode(q); } }); }
+  if (D.split && !q.small) for (let i = 0; i < D.split; i++) { const c = makeMob(D.kind, q.x + (i ? 12 : -12), q.y - 6, { awake: true, small: true, ros: { n: D.name, p: D.p, hat: D.hat }, elite: false }); c.vx = (i ? 1 : -1) * 260; c.vy = -360; c.ai.st = 'chase'; c.ai.tg = q.ai && q.ai.tg; c.mob.split = 0; }
+  const coins = Math.round((D.coins || 2) * (D.elite ? 2.5 : 1) * (1 + .1 * (R.act - 1)) * (q.small ? .4 : 1) * (q.coinsK || 1));
   rgSpill(q.x, q.y, coins, D.boss ? 14 : D.elite ? 5 : Math.min(4, coins));
   if (D.elite && Math.random() < .45) rgDrop(q.x, q.y, Math.random() < .3 ? 'elixir' : 'heart');
   else if (!D.boss && Math.random() < .08) rgDrop(q.x, q.y, 'heart');
@@ -5991,11 +6467,13 @@ function rogueStep(dt, prev) {
     for (const h of rgAlive()) { if (q.hit.includes(h) || !h.onGround || Math.abs(h.y + h.r - q.y) > 34 || Math.abs(Math.abs(h.x - q.x) - q.r) > h.r + 12) continue;
       q.hit.push(h); if (h.blockT > 0) { ringFx(h.x, h.y, '#ffffff'); continue; } damage(h, q.dmg, src); h.vy = -520; h.vx += Math.sign(h.x - q.x) * 300; } }
   L.quakes = L.quakes.filter(q => !q.dead);
+  for (const mk of L.marks) mk.t -= dt; L.marks = L.marks.filter(mk => mk.t > 0);
+  for (const sp of L.spikes) sp.t += dt; L.spikes = L.spikes.filter(sp => sp.t < .6);
   // chests open at a touch (mimics wake up)
   for (const c of L.chests) { if (c.open) { c.t += dt; continue; }
     for (const h of rgAlive()) if (Math.abs(h.x - c.x) < 30 && Math.abs(h.y - (c.y - 14)) < 32) {
       c.open = true; c.t = 0;
-      if (c.mimic) { const mm = makeMob('brute', c.x, c.y - 22, { awake: true, name: 'Mimic', extra: { mimic: c.kind, coins: 14 }, hp: 260 }); mm.vy = -380; puffs(c.x, c.y - 10, '#ff3d6a', 20, 220); sfx(120, .5, 'sawtooth', .05, 80); if (SET.nums) M.nums.push({ x: c.x, y: c.y - 60, v: 'MIMIC!', t: 1.2, col: '#ff3d6a' }); }
+      if (c.mimic) { const mm = makeMob('mimic', c.x, c.y - 22, { awake: true, extra: { mimic: c.kind } }); mm.vy = -380; puffs(c.x, c.y - 10, '#ff3d6a', 20, 220); sfx(120, .5, 'sawtooth', .05, 80); if (SET.nums) M.nums.push({ x: c.x, y: c.y - 60, v: 'MIMIC!', t: 1.2, col: '#ff3d6a' }); }
       else { rgChestLoot(c); puffs(c.x, c.y - 12, c.kind === 'gold' ? '#ffd23d' : '#e8c890', 16, 200); sfx(300, .12, 'square', .04, 300); setTimeout(() => sfx(900, .2, 'triangle', .03, 500), 90); }
       break; } }
   // drops: bounce, then fly to whoever is close
@@ -6253,32 +6731,706 @@ function sprOf(key, f) { // pixel list with a dark outline: [dx, dy, ch] relativ
   out.h = h; return SPR_CACHE[k] = out;
 }
 const hexP = h => { const n = parseInt(h, 16); return [n >> 16, (n >> 8) & 255, n & 255]; };
+// Monster sprites, facing right. Frames: w1/w2 walk, wi windup, at attack (+ extras per kind).
+// b body · B shade · d deep shade · a accent · A accent shade · e eye/glow (emissive) · w light (bone, teeth, claws) · k dark detail · g glint (emissive white)
+const MOB_SPR = {
+  grunt: {
+    w1: ['.....bbbb....',
+         '....bbbbbb...',
+         '....bbbbebe..',
+         '....bbbbbbbb.',
+         '....Bbbkwkwk.',
+         '.....Bbbbbb..',
+         '...abbbbbb...',
+         '..bbaBbbbBbw.',
+         '..bb.abbbB.ww',
+         '..w..Bbbbb...',
+         '....BbbbbB...',
+         '....bb..bb...',
+         '...BBd..BBd..'],
+    w2: ['.....bbbb....',
+         '....bbbbbb...',
+         '....bbbbebe..',
+         '....bbbbbbbb.',
+         '....Bbbkwkwk.',
+         '.....Bbbbbb..',
+         '...abbbbbb...',
+         '..bbaBbbbBbw.',
+         '..bb.abbbB.ww',
+         '..w..Bbbbb...',
+         '....BbbbbB...',
+         '.....bbbb....',
+         '....BBdBBd...'],
+    wi: ['.............',
+         '.......bbbb..',
+         'w.....bbbbbb.',
+         'ww...bbbbbebe',
+         '.bb..bbbbbbbb',
+         '..bbbBbbkwkwk',
+         '...abbbbbbb..',
+         '....aBbbbbB..',
+         '....Bbbbbb...',
+         '...BbbbbbbB..',
+         '...bbb..bbb..',
+         '..bbb....bbb.',
+         '..BBd....BBd.'],
+    at: ['.......bbbb.....',
+         '......bbbbbb....',
+         '......bbbbbebe..',
+         '......bbbbbbbbb.',
+         '......Bbbkwkwkw.',
+         '...abbbbbbbbbbww',
+         '..bbbaBbbbbbbbbw',
+         '.bb..aBbbbbB..w.',
+         '.....Bbbbbbb....',
+         '....BbbbbbbB....',
+         '...bbb...bbb....',
+         '..BBd.....BBd...',
+         '................']
+  },
+  bat: {
+    w1: ['a...........a',
+         'aa....b....aa',
+         'aAa..bbb..aAa',
+         '.aAabbbbbaAa.',
+         '..aAbebebAa..',
+         '...abbbbba...',
+         '....bwkwb....',
+         '.....bbb.....',
+         '......B......'],
+    w2: ['.....bbb.....',
+         '....bbbbb....',
+         '...bbebebb...',
+         '..aabbbbbaa..',
+         '.aAAbwkwbAAa.',
+         'aAA..bbb..AAa',
+         'aA....B....Aa',
+         'a...........a',
+         '.............'],
+    wi: ['.....bbb.....',
+         '.aa.bbbbb.aa.',
+         'aAAabebebaAAa',
+         'aA.abbbbba.Aa',
+         'a...bkkkb...a',
+         '....bwkwb....',
+         '.....bbb.....',
+         '......B......',
+         '.............'],
+    at: ['.............',
+         '.....aa......',
+         '....aAAa.....',
+         '...aAbbbbb...',
+         '..aAbbbbbebe.',
+         '..AAbbbbbkwkw',
+         '...aAbbbbb...',
+         '....aAa......',
+         '.....a.......']
+  },
+  caster: {
+    w1: ['....aaaa...e.',
+         '...aaaaaa..g.',
+         '..aaaaaaaa.w.',
+         '...kbbebek.w.',
+         '...kbbbbbk.w.',
+         '...aAbbbAa.w.',
+         '..aaaAAAaaaw.',
+         '..aAaaaaaAbw.',
+         '..aAaaaaaA.w.',
+         '.aaAaaaaaAaw.',
+         '.aAAaaaaaAAw.',
+         'aAAaaaaaaaAA.',
+         'AAAAAAAAAAAA.'],
+    w2: ['....aaaa...e.',
+         '...aaaaaa..g.',
+         '..aaaaaaaa.w.',
+         '...kbbebek.w.',
+         '...kbbbbbk.w.',
+         '...aAbbbAa.w.',
+         '..aaaAAAaaaw.',
+         '..aAaaaaaAbw.',
+         '..aAaaaaaA.w.',
+         '..aAaaaaaAaw.',
+         '.aAAaaaaaAAw.',
+         '.AAaaaaaaaA..',
+         '.AAAA..AAAA..'],
+    wi: ['..........eee',
+         '....aaaa..eWe',
+         '...aaaaaa.eee',
+         '..aaaaaaaa.w.',
+         '...kbbebekbw.',
+         '...kbbbbbkbw.',
+         '...aAbbbAa.w.',
+         '..aaaAAAaa.w.',
+         '..aAaaaaaA.w.',
+         '.aaAaaaaaA.w.',
+         '.aAAaaaaaAA..',
+         'aAAaaaaaaaAA.',
+         'AAAAAAAAAAAA.'],
+    at: ['....aaaa.....',
+         '...aaaaaa....',
+         '..aaaaaaaa...',
+         '...kbbebek...',
+         '...kbbbbbkbbw',
+         '...aAbbbAaa.e',
+         '..aaaAAAaaa..',
+         '..aAaaaaaA...',
+         '..aAaaaaaA...',
+         '.aaAaaaaaAa..',
+         '.aAAaaaaaAA..',
+         'aAAaaaaaaaAA.',
+         'AAAAAAAAAAAA.']
+  },
+  brute: {
+    w1: ['.......bbbbbb.......',
+         '......bbbbbbbb......',
+         '.....bbbbbbbebe.....',
+         '.....bbbbbbbbbb.....',
+         '....bbBbbkwkwkb.....',
+         '..bbbbbbBbbbbbbbbb..',
+         '.bbbbbbbbbbbbbbbbbb.',
+         'bbBbbbbbbbbbbbbbBbbb',
+         'bbBBbbbaaaaabbbbBBbb',
+         'bbBBbbbbbbbbbbbbBBbb',
+         'bBB.bbbbbbbbbbbb.BBb',
+         'www.BbbbbbbbbbbB.www',
+         'w.w..bbbbbbbbbb..w.w',
+         '.....bbbbBBbbbb.....',
+         '.....bbbb..bbbb.....',
+         '....Bbbb....bbbB....',
+         '...BBBdd....BBBdd...'],
+    w2: ['.......bbbbbb.......',
+         '......bbbbbbbb......',
+         '.....bbbbbbbebe.....',
+         '.....bbbbbbbbbb.....',
+         '....bbBbbkwkwkb.....',
+         '..bbbbbbBbbbbbbbbb..',
+         '.bbbbbbbbbbbbbbbbbb.',
+         'bbBbbbbbbbbbbbbbBbbb',
+         'bbBBbbbaaaaabbbbBBbb',
+         'bbBBbbbbbbbbbbbbBBbb',
+         'bBB.bbbbbbbbbbbb.BBb',
+         'www.BbbbbbbbbbbB.www',
+         'w.w..bbbbbbbbbb..w.w',
+         '.....bbbbBBbbbb.....',
+         '......bbbbbbbb......',
+         '......bbbBBbbb......',
+         '.....BBBdd.BBBdd....'],
+    wi: ['bbb..............bbb',
+         'wbbb.....bbbbbb.bbbw',
+         'wbBb....bbbbbbbbbBbw',
+         '.bBBb..bbbbbbbebebB.',
+         '..bBBb.bbbbbbbbbbB..',
+         '...bBBbbBbkkkkkbbb..',
+         '....bbbbbbbbbbbbb...',
+         '....bbbbbbbbbbbbb...',
+         '....bbbbaaaaabbbb...',
+         '.....bbbbbbbbbbb....',
+         '.....BbbbbbbbbbB....',
+         '.....bbbbbbbbbbb....',
+         '.....bbbbBBbbbbb....',
+         '....bbbbb..bbbbb....',
+         '...bbbbb....bbbbb...',
+         '..BBbb........bbBB..',
+         '.BBBdd........BBBdd.'],
+    at: ['....................',
+         '.......bbbbbb.......',
+         '......bbbbbbbb......',
+         '.....bbbbbbbebe.....',
+         '.....bbbbbbbbbb.....',
+         '....bbBbbkwkwkb.....',
+         '...bbbbbBbbbbbbbb...',
+         '..bbbbbbbbbbbbbbbb..',
+         '.bbBbbbbaaaaabbbBbb.',
+         '.bBBbbbbbbbbbbbbBBb.',
+         'bBB.bbbbbbbbbbbb.BBb',
+         'bB..BbbbbbbbbbbB..Bb',
+         'bB...bbbbbbbbbb...Bb',
+         'www..bbbbBBbbbb..www',
+         'wwww.bbbb..bbbb.wwww',
+         '....Bbbb....bbbB....',
+         '...BBBdd....BBBdd...']
+  },
+  bomber: {
+    w1: ['.....g...',
+         '......a..',
+         '..aaaaa..',
+         '.aAaaaaa.',
+         'aAaaaaaaa',
+         'aAaaaaaaa',
+         'aAAaaaaAa',
+         '.aAAAAAa.',
+         '..bbebb..',
+         '..bbbbbb.',
+         '.bbbbbbb.',
+         '..bb..bb.',
+         '.Bd..Bd..'],
+    w2: ['....g....',
+         '......a..',
+         '..aaaaa..',
+         '.aAaaaaa.',
+         'aAaaaaaaa',
+         'aAaaaaaaa',
+         'aAAaaaaAa',
+         '.aAAAAAa.',
+         '..bbebb..',
+         '..bbbbbb.',
+         '.bbbbbbb.',
+         '...bbb...',
+         '..BdBd...'],
+    wi: ['....ggg..',
+         '.....ga..',
+         '..eeeee..',
+         '.eaeeeae.',
+         'eaeeeeeae',
+         'eeeaeaeee',
+         'eaeeeeeae',
+         '.eaaeaae.',
+         '..bbebb..',
+         '..bbbbbb.',
+         '.bbbbbbb.',
+         '..bb..bb.',
+         '.Bd..Bd..']
+  },
+  shield: {
+    w1: ['....aaaa......',
+         '...aAAAAa.....',
+         '...akkekk.....',
+         '...abbbbb..w..',
+         '....bbbb...w..',
+         '..bbbbbbbaaaa.',
+         '.bbBbbbbaAwwAa',
+         '.bBbbbbbaAwwAa',
+         '.bBbbbbbaAAAAa',
+         '..bbbbbbaAwwAa',
+         '..Bbbbbbaaaaa.',
+         '..bb..bb..w...',
+         '.BBd.BBd......'],
+    w2: ['....aaaa......',
+         '...aAAAAa.....',
+         '...akkekk.....',
+         '...abbbbb..w..',
+         '....bbbb...w..',
+         '..bbbbbbbaaaa.',
+         '.bbBbbbbaAwwAa',
+         '.bBbbbbbaAwwAa',
+         '.bBbbbbbaAAAAa',
+         '..bbbbbbaAwwAa',
+         '..Bbbbbbaaaaa.',
+         '...bbbb...w...',
+         '..BBdBd.......'],
+    wi: ['.w..aaaa......',
+         '.w.aAAAAa.....',
+         '.wbakkekk.....',
+         '.wbabbbbb.....',
+         '.w.bbbbb......',
+         '..bbbbbbbaaaa.',
+         '.bbBbbbbaAwwAa',
+         '.bBbbbbbaAwwAa',
+         '.bBbbbbbaAAAAa',
+         '..bbbbbbaAwwAa',
+         '..Bbbbbbaaaaa.',
+         '..bb..bb......',
+         '.BBd.BBd......'],
+    at: ['....aaaa..........',
+         '...aAAAAa.........',
+         '...akkekk.........',
+         '...abbbbbb........',
+         '....bbbbbbbbwwwwwg',
+         '..bbbbbbbaaaa.....',
+         '.bbBbbbbaAwwAa....',
+         '.bBbbbbbaAwwAa....',
+         '.bBbbbbbaAAAAa....',
+         '..bbbbbbaAwwAa....',
+         '..Bbbbbbaaaaa.....',
+         '..bb...bb.........',
+         '.BBd...BBd........'],
+    bs: ['....aaaa.......',
+         '...aAAAAa......',
+         '...akkekk......',
+         '...abbbbb......',
+         '....bbbb.......',
+         '..bbbbbbbb.aaaa',
+         '.bbBbbbbbbaAwwA',
+         '.bBbbbbbbbaAwwA',
+         '.bBbbbbbbbaAAAA',
+         '..bbbbbbbbaAwwA',
+         '..Bbbbbbb..aaaa',
+         '..bb..bb.......',
+         '.BBd.BBd.......']
+  },
+  sniper: {
+    w1: ['...aaaa.....',
+         '..aAAAAa....',
+         '..akbebe....',
+         '..akbbbb....',
+         '...abbb..w..',
+         '..aaaaaa.w..',
+         '.aAbbbbbbw..',
+         '.aAaaaaa.w..',
+         '..Aaaaaa.w..',
+         '..bbbbbb....',
+         '..Bbbbb.....',
+         '..bb..bb....',
+         '.BBd.BBd....'],
+    w2: ['...aaaa.....',
+         '..aAAAAa....',
+         '..akbebe....',
+         '..akbbbb....',
+         '...abbb..w..',
+         '..aaaaaa.w..',
+         '.aAbbbbbbw..',
+         '.aAaaaaa.w..',
+         '..Aaaaaa.w..',
+         '..bbbbbb....',
+         '..Bbbbb.....',
+         '...bbbb.....',
+         '..BBdBd.....'],
+    wi: ['...aaaa.......',
+         '..aAAAAa......',
+         '..akbebe..w...',
+         '..akbbbb...w..',
+         '...abbbbbbbwww',
+         '..aaaaaa...w..',
+         '.aAbbbbbb.w...',
+         '.aAaaaaa......',
+         '..Aaaaaa......',
+         '..bbbbbb......',
+         '..Bbbbbb......',
+         '.bbb..bbb.....',
+         'BBd....BBd....'],
+    at: ['...aaaa.......',
+         '..aAAAAa......',
+         '..akbebe.w....',
+         '..akbbbb..w...',
+         '...abbbbbbwg..',
+         '..aaaaaa..w...',
+         '.aAbbbbbbw....',
+         '.aAaaaaa......',
+         '..Aaaaaa......',
+         '..bbbbbb......',
+         '..Bbbbbb......',
+         '.bbb..bbb.....',
+         'BBd....BBd....']
+  },
+  burrow: {
+    mound: ['....d.dd.d....',
+            '..ddBdBBdBdd..',
+            '.dBBBBBBBBBBd.'],
+    w1: ['......bbbb...',
+         '....bbbbbbbb.',
+         '...bbbbbbbebe',
+         '..bbBbbbbbbbb',
+         '.bbBbbbkwkwkw',
+         'bbBbbbbbbbbb.',
+         'bBbbbaaabbbb.',
+         'bBbbbbbbbbbw.',
+         'bbbBBbbbbbBw.',
+         '.bbbbBBBBbb..',
+         '..BBd...BBd..'],
+    w2: ['......bbbb...',
+         '....bbbbbbbb.',
+         '...bbbbbbbebe',
+         '..bbBbbbbbbbb',
+         '.bbBbbbkwkwkw',
+         'bbBbbbbbbbbb.',
+         'bBbbbaaabbbb.',
+         'bBbbbbbbbbbw.',
+         'bbbBBbbbbbBw.',
+         '.bbbbBBBBbb..',
+         '...BBdBBd....'],
+    wi: ['.............',
+         '.............',
+         '.............',
+         '.............',
+         '.....bbbb....',
+         '...bbbbbbbb..',
+         '..bbbbbbbebe.',
+         '.dBBbbkwkwkwd',
+         'dBBBBBBBBBBBd'],
+    at: ['.....w.w.w...',
+         '....wbbbbbw..',
+         '...bbbbbbbbw.',
+         '..bbbbbbbebe.',
+         '..bbBbkkkkkk.',
+         '..bBbbkwwwwk.',
+         '..bBbbbbbbbb.',
+         '..bbbbaaabbb.',
+         '..bBbbbbbbbb.',
+         '..bbBbbbbbBb.',
+         '..bbbBBbbbbb.',
+         '.dbbbbbbbbbbd',
+         'dBBBBBBBBBBBd']
+  },
+  turret: {
+    w1: ['....aaaaa....',
+         '..aaAAAAAaa..',
+         '.aAAaaaaaAAa.',
+         '.aAaaekeaaAa.',
+         '.aAAaaaaaAAa.',
+         '..aaAAAAAaa..',
+         '....bbbbb....',
+         '.....bbb.....',
+         '...b.bbb.b...',
+         '..bb.bbb.bb..',
+         '.bBbbbbbbbBb.',
+         'bBBBBBBBBBBBb'],
+    wi: ['...eaaaaae...',
+         '.eaaAAAAAaae.',
+         'eaAAaaaaaAAae',
+         'eaAaaeeeaaAae',
+         'eaAAaaaaaAAae',
+         '.eaaAAAAAaae.',
+         '...eaaaaae...',
+         '.....bbb.....',
+         '...b.bbb.b...',
+         '..bb.bbb.bb..',
+         '.bBbbbbbbbBb.',
+         'bBBBBBBBBBBBb'],
+    at: ['.aa.aaaaa.aa.',
+         'aAAaAAAAAaAAa',
+         'aAaa.....aaAa',
+         '.aa.keeek.aa.',
+         'aAaa.....aaAa',
+         'aAAaAAAAAaAAa',
+         '.aa.aaaaa.aa.',
+         '.....bbb.....',
+         '...b.bbb.b...',
+         '..bb.bbb.bb..',
+         '.bBbbbbbbbBb.',
+         'bBBBBBBBBBBBb']
+  },
+  leaper: {
+    w1: ['...............',
+         '.....bbbbb.....',
+         '...bbbbbbbbb...',
+         '..bbBBbbbBBbb..',
+         '..bbbbbebebbb..',
+         '.a.bbbkkkkbb.a.',
+         'a.a.bbwbwbb.a.a',
+         'a..a.......a..a',
+         'a...a.....a...a',
+         '.a..a.....a..a.'],
+    w2: ['...............',
+         '.....bbbbb.....',
+         '...bbbbbbbbb...',
+         '..bbBBbbbBBbb..',
+         '..bbbbbebebbb..',
+         '..abbbkkkkbba..',
+         '.a.abbwbwbba.a.',
+         'a...a.....a...a',
+         '.a..a.....a..a.',
+         '.a...a...a...a.'],
+    wi: ['...............',
+         '...............',
+         '...............',
+         '.....bbbbb.....',
+         '...bbbbbbbbb...',
+         '..bbBBbbbBBbb..',
+         'aa.bbbbebebb.aa',
+         '.aa.bbkkkkb.aa.',
+         '..aaabwbwbaaa..',
+         '.a.a.......a.a.'],
+    at: ['..a.........a..',
+         '...a.......a...',
+         '....abbbbba....',
+         '...bbbbbbbbb...',
+         '..bbBBbbbBBbb..',
+         '.abbbbbebebbba.',
+         'a..bbbkkkkbb..a',
+         '....bbwbwbb....',
+         '...a.......a...',
+         '..a.........a..'],
+    hang: ['......w......',
+           '....bbbbb....',
+           '..bbbbbbbbb..',
+           '.bbBBbbbBBbb.',
+           'a.bbbbbbbbb.a',
+           'a..bbebebb..a',
+           '.a.bbkkkkb.a.',
+           '.a..bwbwb..a.',
+           'a...........a']
+  },
+  slime: {
+    w1: ['.....aaaa.....',
+         '...aabbbbaa...',
+         '..abbbbbbbba..',
+         '.abbbbbbwbbba.',
+         '.abbbebbbebba.',
+         'abbbbbbbbbbbba',
+         'abbbbkkkkbbbba',
+         'aBbbbbbbbbbbBa',
+         '.aBBBBBBBBBBa.'],
+    w2: ['..............',
+         '.....aaaa.....',
+         '...aabbbbaa...',
+         '..abbbbbbwba..',
+         '.abbbebbbebba.',
+         'abbbbbbbbbbbba',
+         'abbbbkkkkbbbba',
+         'aBBbbbbbbbbBBa',
+         'aaBBBBBBBBBBaa'],
+    wi: ['..............',
+         '..............',
+         '..............',
+         '....aaaaaa....',
+         '..aabbbbbbaa..',
+         '.abbbebbbebba.',
+         'abbbbbkkbbbbba',
+         'aBbbbbbbbbbbBa',
+         'aaBBBBBBBBBBaa'],
+    at: ['......aa......',
+         '....aabbaa....',
+         '...abbbbwba...',
+         '...abbbbbba...',
+         '..abebbbbeba..',
+         '..abbbkkbbba..',
+         '..abbbbbbbba..',
+         '...aBbbbbBa...',
+         '....aBBBBa....']
+  },
+  mimic: {
+    w1: ['.aaaaaaaaaaa.',
+         'aAAAAAAAAAAAa',
+         'aAwwwwwwwwwAa',
+         'a.w.w.w.w.w.a',
+         '..k.k.e.e.k..',
+         'aw.w.w.w.w.wa',
+         'aBwwwwwwwwwBa',
+         'aBBBBBBBBBBBa',
+         'aBBBBBBBBBBBa',
+         '.aaaaaaaaaaa.'],
+    wi: ['.aaaaaaaaaaa.',
+         'aAAAAAAAAAAAa',
+         'aAwwwwwwwwwAa',
+         'a.w.w.w.w.w.a',
+         '.............',
+         'aw.w.w.w.w.wa',
+         'aBwwwwwwwwwBa',
+         'aBBBBeBeBBBBa',
+         'aBBBBBBBBBBBa',
+         '.aaaaaaaaaaa.']
+  }
+};
+MOB_SPR.mimic.w2 = MOB_SPR.mimic.w1; MOB_SPR.mimic.at = MOB_SPR.mimic.wi;
+// headgear, drawn on top of the head (anchor: the row above the sprite's top, centred on the head)
+const MOB_HAT = {
+  miner: { dx: 1, rows: ['..eg...', '.aaaaa.', 'aAAAAAa'] },
+  cap: { dx: 1, rows: ['..aaaa..', '.awaaaa.', 'aaaawaaa', 'AAAAAAAA'] },
+  horns: { dx: 1, rows: ['w......w', 'w......w', '.w....w.'] },
+  crest: { dx: 0, rows: ['.a.a.a.', 'aAaAaAa'] },
+  wrap: { dx: 1, rows: ['.wwwww.', 'wwBwwww'] },
+  helm: { dx: 1, rows: ['..aaa..', '.aAAAa.', 'aAAAAAa'] },
+  witch: { dx: 1, rows: ['....a..', '...aA..', '..aAA..', '.aaAAa.', 'aaaaaaa'] },
+  crown: { dx: 1, rows: ['e.e.e', 'aaaaa'] },
+  feather: { dx: 0, rows: ['..e..', '.ewe.', '..w..', 'aaaaa'] },
+  bigcap: { dx: 1, rows: ['....aaaaaa....', '..aawaaaaawa..', '.aaaaaawaaaaa.', 'AAAAAAAAAAAAAA'] }
+};
+
+const SPR2 = {};
+function sprOf2(kind, fr, small) { // outlined pixel list relative to the bottom-centre; small = 70% nearest-neighbour
+  const key = kind + fr + (small ? 's' : ''); if (SPR2[key]) return SPR2[key];
+  let T = (MOB_SPR[kind] && (MOB_SPR[kind][fr] || MOB_SPR[kind].w1)) || MOB_SPR.grunt.w1;
+  if (small) { const h = Math.max(4, Math.round(T.length * .7)), w = Math.max(4, Math.round(T[0].length * .7)), o = [];
+    for (let y = 0; y < h; y++) { let s = ''; for (let x = 0; x < w; x++) s += T[Math.min(T.length - 1, Math.floor(y / .7))][Math.min(T[0].length - 1, Math.floor(x / .7))]; o.push(s); } T = o; }
+  const h = T.length, w = T[0].length, out = [], on = (x, y) => y >= 0 && y < h && x >= 0 && x < w && T[y][x] !== '.';
+  let ex = 0, en = 0, top = 99;
+  for (let y = -1; y <= h; y++) for (let x = -1; x <= w; x++) { if (on(x, y)) { out.push([x - (w >> 1), y - h + 1, T[y][x]]); if (T[y][x] === 'e' && en < 4) { ex += x; en++; } } else if (on(x - 1, y) || on(x + 1, y) || on(x, y - 1) || on(x, y + 1)) out.push([x - (w >> 1), y - h + 1, 'o']); }
+  // where a hat sits: centred just behind the eyes, on top of the head
+  const hx = en ? Math.round(ex / en) - 1 : w >> 1; for (let y = 0; y < h && top === 99; y++) for (let x = hx - 2; x <= hx + 2; x++) if (on(x, y)) { top = y; break; }
+  out.h = h; out.w = w; out.hx = hx - (w >> 1); out.top = top - h + 1; return SPR2[key] = out;
+}
+const MOB_TELCOL = { melee: [255, 70, 60], ranged: [200, 110, 255], none: [255, 240, 200] };
 function drawMob(m) {
-  const D = m.mob, t = RX.t, B = D.biome;
-  const key = D.boss || (D.mimic ? 'mimic' : D.arch), moving = D.fly || D.boss === 'mycelia' || D.boss === 'king' ? true : Math.abs(m.vx) > 25 && m.onGround;
-  const f = moving ? ((t * (D.fly ? 10 : 7) + m.ph) | 0) & 1 : 0, S = sprOf(key, f);
-  const pal = D.boss ? BOSS_PAL[D.boss][B === 0 || B === 1 || B === 4 ? 0 : 1] : D.mimic ? ['a0703a', '6a4422', 'c89a50', 'ff3d4a', 'f0e0c0'] : MOB_PAL[B][D.arch];
-  const P = { b: hexP(pal[0]), B: hexP(pal[1]), a: hexP(pal[2]), A: hexP(pal[2]).map(v => v * .75), e: hexP(pal[3]), w: hexP(pal[4]), o: [18, 10, 14], y: [255, 214, 80], g: [190, 140, 50] };
-  if (D.boss === 'mycelia') P.A = P.a.map(v => v * .7);
-  const Z = D.boss ? 2 : 1, flip = m.dir < 0, cx = Math.round(m.x / SC), R = Math.round(m.r / SC), bob = D.fly && !D.boss ? Math.round(Math.sin(t * 6 + m.ph)) : 0;
-  const by = D.fly || D.boss === 'mycelia' || D.boss === 'king' ? Math.round(m.y / SC) + (S.h * Z >> 1) + bob : Math.round(m.y / SC) + R;
-  const flash = m.flash > 0, wind = m.casting && (D.arch === 'brute' || D.boss) ? Math.round(Math.sin(t * 60)) : 0, blink = m.blinkT > 0 && ((t * 30) | 0) & 1;
-  if (blink) return;
-  const ghost = B === 5 && D.fly && !D.boss;
+  const D = m.mob; if (D.boss) return drawBoss(m);
+  const t = RX.t, A = m.ai || {}, kind = D.kind, cx = Math.round(m.x / SC), R = Math.round(m.r / SC), flash = m.flash > 0;
+  const pal = D.p, P = { b: hexP(pal[0]), B: hexP(pal[1]), a: hexP(pal[2]), A: hexP(pal[2]).map(v => v * .72), e: hexP(pal[3]), w: hexP(pal[4]), k: [34, 22, 30], g: [255, 255, 255], W: [255, 255, 255] }; P.d = P.B.map(v => v * .62);
+  if (m.under) { // a mound of dirt sliding along the floor
+    const S = sprOf2(kind, 'mound'), by = Math.round((m.y + m.r) / SC); for (const [dx, dy, ch] of S) if (ch !== 'o') pA(cx + dx + (((t * 20) | 0) & 1), by + dy, packC(P[ch][0] | 0, P[ch][1] | 0, P[ch][2] | 0));
+    if (A.st === 'wind') { const k = .5 + .5 * Math.sin(t * 30); for (let x = -6; x <= 6; x++) pE(cx + x, by, 255 * k, 60 * k, 40 * k); addLight(m.x, m.y + m.r, 90, 255, 80, 60, .5 * k); }
+    return; }
+  let fr;
+  if (A.st === 'hang' || A.st === 'drop') fr = 'hang';
+  else if (A.st === 'wind') fr = 'wi';
+  else if (A.st === 'act') fr = kind === 'shield' && A.mv && A.mv.id === 'bash' ? 'bs' : 'at';
+  else if (A.st === 'rec') fr = kind === 'bat' || kind === 'turret' ? 'w1' : A.t > (A.mv ? A.mv.rec * .55 : 0) ? 'at' : 'w1';
+  else if (A.st === 'stag') fr = 'w1';
+  else if (kind === 'slime') fr = !m.onGround ? 'at' : A.squash > 0 ? 'wi' : ((t * 2.5 + m.ph) | 0) & 1 ? 'w1' : 'w2';
+  else if (D.fly) fr = ((t * 10 + m.ph) | 0) & 1 ? 'w1' : 'w2';
+  else if (kind === 'turret') fr = 'w1';
+  else fr = Math.abs(m.vx) > 25 && m.onGround ? (((t * 8 + m.ph) | 0) & 1 ? 'w1' : 'w2') : 'w1';
+  if (kind === 'mimic' && A.st !== 'wind' && A.st !== 'act') fr = ((t * 6 + m.ph) | 0) & 1 ? 'w1' : 'wi';
+  const S = sprOf2(kind, fr, m.small), flip = m.dir < 0, bob = D.fly ? Math.round(Math.sin(t * 6 + m.ph)) : 0;
+  const by = D.fly || A.st === 'hang' || A.st === 'drop' ? Math.round(m.y / SC) + (S.h >> 1) + bob : Math.round(m.y / SC) + R;
+  // the tell: shaking for big moves, then a coloured outline in the last instant before it lands
+  const V = A.mv, winding = A.st === 'wind' && V, heavy = winding && (D.heavy || V.id === 'charge' || V.id === 'fuse' || V.id === 'erupt' || V.id === 'nova' || V.id === 'summon');
+  const shake = heavy ? (((RX.frame >> 1) & 1) ? 1 : -1) : A.st === 'stag' ? Math.round(Math.sin(t * 40)) : 0;
+  const late = winding && A.t < .2, tc = winding ? MOB_TELCOL[V.tok === 'ranged' ? 'ranged' : V.tok ? 'melee' : 'none'] : null, outl = late && ((RX.frame >> 1) & 1) ? packC(tc[0], tc[1], tc[2]) : packC(18, 10, 14);
+  const fuse = winding && V.id === 'fuse', fuseOn = fuse && ((t * (6 + 20 * (1 - A.t / V.wind))) | 0) & 1;
   for (const [dx, dy, ch] of S) {
-    const c = P[ch], col = flash && ch !== 'o' ? packC(255, 255, 255) : packC(c[0] | 0, c[1] | 0, c[2] | 0);
-    for (let zy = 0; zy < Z; zy++) for (let zx = 0; zx < Z; zx++) {
-      const x = cx + (flip ? -dx * Z - zx : dx * Z + zx) + wind, y = by + dy * Z - zy;
-      if (ghost && ch !== 'e' && ch !== 'o' && ((x + y + (RX.frame >> 2)) & 1)) continue;
-      pA(x, y, col); if (ch === 'e') pE(x, y, c[0] * .8, c[1] * .8, c[2] * .8); }
+    const c = P[ch], white = flash || fuseOn && ch !== 'o';
+    const col = ch === 'o' ? outl : white ? packC(255, 255, 255) : packC(c[0] | 0, c[1] | 0, c[2] | 0), x = cx + (flip ? -dx : dx) + shake, y = by + dy;
+    pA(x, y, col); if (ch === 'e' || ch === 'g') pE(x, y, c[0] * (winding ? 1 : .75), c[1] * (winding ? 1 : .75), c[2] * (winding ? 1 : .75));
+    if (late && ch === 'o') pE(x, y, tc[0] * .35, tc[1] * .35, tc[2] * .35);
+  }
+  // headgear
+  if (D.hat && MOB_HAT[D.hat] && fr !== 'hang' && !m.small) { const H = MOB_HAT[D.hat], hw = H.rows[0].length, hh = H.rows.length, x0 = S.hx - (hw >> 1) + (H.dx || 0), y0 = S.top - hh + 1;
+    H.rows.forEach((row, yy) => [...row].forEach((ch, xx) => { if (ch === '.') return; const c = P[ch] || P.a, x = cx + (flip ? -(x0 + xx) : x0 + xx) + shake, y = by + y0 + yy; pA(x, y, flash ? packC(255, 255, 255) : packC(c[0] | 0, c[1] | 0, c[2] | 0)); if (ch === 'e' || ch === 'g') { pE(x, y, c[0], c[1], c[2]); if (D.hat === 'miner') addLight(x * SC, y * SC, 120, c[0], c[1], c[2], .4); } }));
+    // outline the hat's top edge so it reads against the rock
+    H.rows[0].split('').forEach((ch, xx) => { if (ch !== '.') pA(cx + (flip ? -(x0 + xx) : x0 + xx) + shake, by + y0 - 1, packC(18, 10, 14)); }); }
+  // spider thread
+  if (m.hang) { const y0 = Math.round(m.hang.y0 / SC); for (let y = y0; y < by - S.h; y++) pA(cx, y, packC(200, 200, 200)); }
+  // aim lines: a sniper's laser, a diver's line of attack
+  if (winding && (V.id === 'snipe' || V.id === 'dive') && A.ang !== undefined) { const locked = A.t < (V.lock || 0), c = Math.cos(A.ang), s = Math.sin(A.ang), len = V.id === 'dive' ? 140 : 340;
+    for (let i = 4; i < len; i += V.id === 'dive' ? 3 : 2) { const x = m.x / SC + c * i, y = m.y / SC + s * i; if (solidAt(x * SC, y * SC, M.solids)) break; const k = locked ? 1 : .35 + .2 * Math.sin(t * 20 + i * .3); pE(x, y, 255 * k, 50 * k, 60 * k); } }
+  if (winding && V.id === 'fuse') { pE(cx + (flip ? 1 : -1) + shake, by - S.h - 1, 255, 220, 120); addLight(m.x, m.y - m.r, 130, 255, 160, 60, .5 + .5 * Math.sin(t * 30)); ringPix(cx, by - (S.h >> 1), 88 / SC, (x, y, a) => (((a * 8 + t * 6) % 1) < .35) && pE(x, y, 120, 40, 20), 2); }
+  if (winding && V.id === 'charge') for (let k = 1; k < 4; k++) pE(cx + (flip ? -1 : 1) * (S.w / 2 + k * 2), by - (S.h >> 1), 255, 80, 50);
+  if (m.guardT > 0) { const k = m.guardT / .15; for (let y = -8; y <= -2; y++) pE(cx + (flip ? -1 : 1) * (S.w / 2 - 1), by + y, 255 * k, 255 * k, 255 * k); }
+  if (A.st === 'stag') for (let k = 0; k < 3; k++) { const a = t * 6 + k * TAU / 3; pE(cx + Math.cos(a) * 4, by - S.h - 3 + Math.sin(a) * 1.5, 255, 240, 140); }
+  if (m.trapT > 0) drawTrap(cx, Math.round(m.y / SC), R);
+  if (isBurning(m)) for (let i = 0; i < 2; i++) pE(cx + rnd(-R, R), by - rnd(0, S.h), 255, 120, 30);
+  if (D.elite) for (let k = 0; k < 5; k++) { const a = t * 2 + k * TAU / 5 + m.ph, rr2 = S.h * .62 + 2; pE(cx + Math.cos(a) * rr2, by - S.h / 2 + Math.sin(a) * rr2 * .6, 140, 115, 35); }
+  if (winding && V.tok === 'ranged') { const sx = cx + (flip ? -1 : 1) * (S.w >> 1), sy = by - S.h + 2, k = clamp(A.wt / V.wind, 0, 1); ringPix(sx, sy, 1 + k * 3, (x, y) => pE(x, y, P.e[0] * k, P.e[1] * k, P.e[2] * k), 1); addLight(sx * SC, sy * SC, 90, P.e[0], P.e[1], P.e[2], .5 * k); }
+  else if (D.role === 'ranged') addLight(m.x, m.y, 70, P.e[0], P.e[1], P.e[2], .18);
+}
+// the bosses keep their big sprites
+function drawBoss(m) {
+  const D = m.mob, t = RX.t, B = D.biome, key = D.boss, f = ((t * 7 + m.ph) | 0) & 1, S = sprOf(key, key === 'golem' ? (Math.abs(m.vx) > 25 ? f : 0) : 0);
+  const pal = BOSS_PAL[key][B === 0 || B === 1 || B === 4 ? 0 : 1];
+  const P = { b: hexP(pal[0]), B: hexP(pal[1]), a: hexP(pal[2]), A: hexP(pal[2]).map(v => v * .75), e: hexP(pal[3]), w: hexP(pal[4]), o: [18, 10, 14], y: [255, 214, 80], g: [190, 140, 50] };
+  if (key === 'mycelia') P.A = P.a.map(v => v * .7);
+  const Z = 2, flip = m.dir < 0, cx = Math.round(m.x / SC), R = Math.round(m.r / SC);
+  const by = key === 'mycelia' || key === 'king' ? Math.round(m.y / SC) + (S.h * Z >> 1) : Math.round(m.y / SC) + R;
+  const late = m.casting && m.castT < .22, wind = m.casting || m.chg ? Math.round(Math.sin(t * 60)) : m.dazed > 0 ? Math.round(Math.sin(t * 30)) : 0, blink = m.blinkT > 0 && ((t * 30) | 0) & 1;
+  if (blink) return;
+  for (const [dx, dy, ch] of S) {
+    const c = P[ch], o = ch === 'o' && late && ((RX.frame >> 1) & 1), col = m.flash > 0 && ch !== 'o' ? packC(255, 255, 255) : o ? packC(255, 70, 60) : packC(c[0] | 0, c[1] | 0, c[2] | 0);
+    for (let zy = 0; zy < Z; zy++) for (let zx = 0; zx < Z; zx++) { const x = cx + (flip ? -dx * Z - zx : dx * Z + zx) + wind, y = by + dy * Z - zy; pA(x, y, col); if (ch === 'e') pE(x, y, c[0] * .8, c[1] * .8, c[2] * .8); }
   }
   if (m.trapT > 0) drawTrap(cx, Math.round(m.y / SC), R);
-  if (isBurning(m)) for (let i = 0; i < 2; i++) pE(cx + rnd(-R, R), by - S.h * Z + rnd(0, S.h * Z), 255, 120, 30);
-  if (D.elite || D.boss) { const c = D.boss ? [255, 60, 100] : [255, 210, 60]; for (let k = 0; k < (D.boss ? 10 : 5); k++) { const a = t * 2 + k * TAU / (D.boss ? 10 : 5) + m.ph, rr2 = S.h * Z * .62 + 2; pE(cx + Math.cos(a) * rr2, by - S.h * Z / 2 + Math.sin(a) * rr2 * .6, c[0] * .55, c[1] * .55, c[2] * .55); } }
-  if (m.casting) { const c = P.e, sx = D.arch === 'cast' ? cx + (flip ? -1 : 1) * 4 : cx, sy = D.arch === 'cast' ? by - S.h + 1 : by - S.h * Z / 2, k = 1 - Math.max(0, m.castT) / .6;
-    ringPix(sx, sy, 1 + k * 3, (x, y) => pE(x, y, c[0] * k, c[1] * k, c[2] * k), 1); addLight(sx * SC, sy * SC, 90, c[0], c[1], c[2], .5 * k); }
-  else if (D.arch === 'cast' || D.boss) addLight(m.x, m.y, D.boss ? 200 : 70, P.e[0], P.e[1], P.e[2], D.boss ? .35 : .18);
+  for (let k = 0; k < 10; k++) { const a = t * 2 + k * TAU / 10 + m.ph, rr2 = S.h * Z * .62 + 2; pE(cx + Math.cos(a) * rr2, by - S.h * Z / 2 + Math.sin(a) * rr2 * .6, 140, 33, 55); }
+  if (m.casting) { const c = P.e, k = 1 - Math.max(0, m.castT) / (m.castMax || .6); ringPix(cx, by - S.h * Z / 2, 2 + k * 8, (x, y) => pE(x, y, c[0] * k, c[1] * k, c[2] * k), 1); addLight(m.x, m.y, 220, c[0], c[1], c[2], .6 * k); }
+  else addLight(m.x, m.y, 200, P.e[0], P.e[1], P.e[2], .35);
+  if (m.dazed > 0) for (let k = 0; k < 4; k++) { const a = t * 5 + k * TAU / 4; pE(cx + Math.cos(a) * 9, by - S.h * Z - 4 + Math.sin(a) * 2, 255, 240, 140); }
+  // the King's aim and beam
+  if (key === 'king' && m.casting && (m.atk === 'fan' || m.atk === 'beam') && m.aimA !== undefined) { const c = Math.cos(m.aimA), s = Math.sin(m.aimA), locked = m.castT < .25;
+    for (let i = 6; i < 400; i += m.atk === 'beam' ? 2 : 4) { const x = m.x / SC + c * i, y = m.y / SC + s * i; if (solidAt(x * SC, y * SC, M.solids)) break; const k = locked ? .9 : .35; pE(x, y, 255 * k, 60 * k, 120 * k); } }
+  if (m.beam && m.beam.cur) { const Bm = m.beam, c = Math.cos(Bm.a), s = Math.sin(Bm.a), n = -s, q = c;
+    for (let i = 4; i < Bm.cur / SC; i++) for (let w = -2; w <= 2; w++) { const k = w === 0 ? 1 : Math.abs(w) === 1 ? .8 : .4; pE(m.x / SC + c * i + n * w, m.y / SC + s * i + q * w, 255 * k, (w === 0 ? 240 : 80) * k, (w === 0 ? 255 : 140) * k); }
+    addLight(m.x + c * Bm.cur, m.y + s * Bm.cur, 160, 255, 80, 140, .8); }
+  // Mycelia's marks while she winds up
+  if (m.marks && m.casting) for (const mk of m.marks) { const x0 = Math.round(mk.x / SC), y0 = Math.round(mk.y / SC), k = .4 + .6 * (1 - m.castT / (m.castMax || 1)), w = Math.round(mk.w / SC);
+    for (let x = -w; x <= w; x++) pE(x0 + x, y0 - 1, 255 * k, 50 * k, 60 * k);
+    if (m.atk === 'rain') for (let y = 12; y < y0; y += 6) pE(x0, y, 120 * k, 50 * k, 160 * k); else for (let y = 1; y < 8; y += 2) pE(x0 + ((y * 3) % 5) - 2, y0 - y, 255 * k * .6, 60 * k, 40 * k); }
 }
+// ground marks (falling rocks) and root spikes
+function drawRogueMarks() {
+  const L = M.rgL; if (!L) return; const t = RX.t;
+  for (const mk of L.marks || []) { const x0 = Math.round(mk.x / SC), y0 = Math.round(mk.y / SC), k = clamp(1 - mk.t / 1.2, .25, 1) * (.6 + .4 * Math.sin(t * 20)), w = Math.round(mk.w / SC);
+    for (let x = -w; x <= w; x++) pE(x0 + x, y0 - 1, 255 * k, 60 * k, 50 * k); }
+  for (const sp of L.spikes || []) { const x0 = Math.round(sp.x / SC), y0 = Math.round(sp.y / SC), hgt = Math.round((sp.t < .12 ? sp.t / .12 : sp.t > .4 ? Math.max(0, 1 - (sp.t - .4) / .2) : 1) * 40);
+    for (let i = -4; i <= 4; i++) { const hh = hgt - Math.abs(i) * 4 - ((i * 7) & 3); for (let y = 0; y < hh; y++) pA(x0 + i * 2, y0 - y, packC(110 - y, 70 - y, 50)); } }
+}
+
 function chestPix(c) {
   const x0 = Math.round(c.x / SC) - 5, y0 = Math.round(c.y / SC) - 1, open = c.open, lid = open ? Math.min(3, (c.t * 12) | 0) : 0;
   const K = c.kind === 'gold' ? [[250, 200, 70], [200, 140, 40], [140, 90, 20]] : c.kind === 'iron' ? [[150, 156, 170], [100, 106, 120], [60, 64, 76]] : [[170, 116, 60], [124, 80, 38], [80, 50, 24]];
@@ -6315,7 +7467,8 @@ function drawRogueSprites() {
 // canvas overlays in world space: monster health, labels, damage numbers
 function drawRogueWorldUI() {
   if (!M.rgL) return; const s = SC;
-  for (const m of M.players) { if (!m.mob || m.dead || m.sleep || m.mob.boss) continue;
+  for (const m of M.players) { if (!m.mob || m.dead || m.sleep || m.mob.boss || m.under) continue;
+    if (m.ai && m.ai.bang > 0) { ctx.globalAlpha = clamp(m.ai.bang * 3, 0, 1); txt('!', m.x, m.y - m.r - 40 - (1 - m.ai.bang) * 10, '#ff4a3a', 14); ctx.globalAlpha = 1; }
     if (m.hp < m.st.maxHp || m.mob.elite) { const bw = Math.max(14, m.r * 1.6) * s / 3.2, x0 = snap(m.x - bw / 2), y0 = snap(m.y - m.r - 18), fr = clamp(m.hp / m.st.maxHp, 0, 1);
       ctx.fillStyle = '#000'; ctx.fillRect(x0 - 2, y0 - 2, bw + 4, 6); ctx.fillStyle = '#3a1418'; ctx.fillRect(x0, y0, bw, 2); ctx.fillStyle = m.mob.elite ? '#ffd23d' : '#e04040'; ctx.fillRect(x0, y0, snap(bw * fr), 2); }
     if (m.mob.elite) txt(m.nick.toUpperCase(), m.x, m.y - m.r - 24, '#ffd23d', 7); }
@@ -6357,7 +7510,6 @@ function rgEndHTML() {
    Moves along the level's navigation map towards the door (so walls and ledges don't trap it), holds back and
    shoots when monsters are in sight, backs away from anything in melee range, plays it safe when hurt, waits for
    a friend who has fallen behind, and grabs hearts and loot when it's close. */
-function rgThreat(p, r) { let best = null, bd = r; for (const m of M.players) { if (!m.mob || m.dead || m.sleep) continue; const melee = m.mob.arch === 'walk' || m.mob.arch === 'brute' || m.mob.mimic || m.dashT > 0 || m.mob.boss === 'golem'; const d = Math.hypot(m.x - p.x, m.y - p.y) - m.r; if (melee && d < bd && Math.abs(m.y - p.y) < 140 && los(p, m, M.solids)) { bd = d; best = m; } } return best; }
 function navCellOf(N, p) {
   const x = Math.floor(p.x / RT), y = Math.floor((p.y + p.r - 3) / RT);
   if (N.stand(x, y)) return [x, y];
@@ -6368,20 +7520,25 @@ const navD = (N, c) => c ? N.dist[c[1] * N.tw + c[0]] : -1;
 function rogueBot(p) {
   const o = { mx: 0, jump: false, shoot: false, block: false, aim: p.aim, aimPt: { x: p.x + Math.cos(p.aim) * 200, y: p.y + Math.sin(p.aim) * 200 } }, L = M.rgL; if (!L) return o;
   const B = p.rb || (p.rb = { t: 0, tg: null, jt: 0, plan: null, bad: {}, stuck: 0, lx: p.x, skip: new Set() });
-  B.t -= DT; B.jt -= DT;
+  B.t -= DT; B.jt -= DT; B.dodged = (B.dodged || 0) - DT;
+  B.badT = (B.badT || 0) + DT; if (B.badT > 10) { B.badT = 0; B.bad = {}; B.fails = {}; } // forget old failures: a monster in the way isn't a wall
   const hpF = p.hp / p.st.maxHp, hurt = hpF < .4, N = L.nav, rng = clamp(buildRange(p.st) || 400, 200, 620);
   const ally = M.heroes.find(h => h !== p && !h.dead);
   // targeting (re-checked a few times a second)
-  if (B.t <= 0) { B.t = .15 + Math.random() * .08;
-    let best = null, bd = 1e9; for (const m of M.players) { if (!m.mob || m.dead || m.sleep) continue; const d = Math.hypot(m.x - p.x, m.y - p.y) - (m.mob.boss ? 400 : 0); if (d < 760 && d < bd && los(p, m, M.solids)) { bd = d; best = m; } } B.tg = best; }
-  const tg = B.tg && !B.tg.dead ? B.tg : null;
+  if (B.t <= 0) { B.t = .15 + Math.random() * .08; B.tg = rgBotTarget(p); }
+  const tg = B.tg && !B.tg.dead && !B.tg.under ? B.tg : null;
   if (tg) { // lead the target and allow for the bolt's drop
     const st = p.st, spd = BSPD * (st.spd || 1) * (st.tscale || 1), d = Math.hypot(tg.x - p.x, tg.y - p.y), t = d / Math.max(200, spd);
     const ax = tg.x + (tg.vx || 0) * t * .7, ay = tg.y + (tg.vy || 0) * t * .3 - (st.grav ? .5 * BGRAV * st.grav * (st.tscale || 1) ** 2 * t * t : 0) + (st.rocket || st.explode ? 10 : 0);
-    o.aim = Math.atan2(ay - p.y, ax - p.x) + rnd(-.04, .04); o.aimPt = { x: ax, y: ay }; o.shoot = !((st.rad || st.selfBlast || st.explode) && d < 120); } // no point-blank blasts
+    o.aim = Math.atan2(ay - p.y, ax - p.x) + rnd(-.04, .04); o.aimPt = { x: ax, y: ay }; o.shoot = !((st.rad || st.selfBlast || st.explode) && d < 120);
+    if (o.shoot) { B.sf = (B.sf || 0) - DT; if (B.sf <= 0) { B.sf = .12; B.safe = safeShot(p, o.aim); } o.shoot = B.safe !== false; } } // no point-blank blasts, no ricochets into our own face
   // defence: ward against incoming bolts and diving flyers
   if (p.blockCd <= 0) { for (const b of M.bullets) if (b.mob && Math.hypot(b.x - p.x, b.y - p.y) < 75 && (b.vx * (p.x - b.x) + b.vy * (p.y - b.y)) > 0 && Math.random() < .55) { o.block = true; break; }
-    for (const m of M.players) if (m.mob && !m.dead && (m.dashT > 0 || m.casting && m.mob.arch === 'brute') && Math.hypot(m.x - p.x, m.y - p.y) < m.r + 70) o.block = true; }
+  }
+  const dodge = rgDodge(p, B); if (dodge && dodge.block) o.block = true;
+  const fin = o2 => { if (dodge) { if (dodge.mx !== undefined && dodge.mx !== null) { o2.mx = dodge.mx; B.dodged = .4; if (B.plan) B.plan.t = Math.max(0, B.plan.t - DT); } if (dodge.jump) B.jt = Math.max(B.jt, .3); }
+    if (tg && tg.guard && p.onGround && Math.sign(p.x - tg.x) === tg.dir && Math.random() < DT * 2.5) B.jt = Math.max(B.jt, .4); // hop to shoot over a shield
+    o2.jump = B.jt > 0; return o2; };
   // the boss arena has no map: keep a healthy distance, keep moving, hop over anything that corners you
   if (!N) {
     const boss = L.boss && !L.boss.dead ? L.boss : null, th = rgThreat(p, 230), cornered = p.x < 130 || p.x > W - 130;
@@ -6392,7 +7549,7 @@ function rogueBot(p) {
       if (Math.abs(dx) >= keep && Math.abs(dx) <= keep + 180 && Math.random() < .01) B.strafe = -(B.strafe || 1);
       if ((p.x < 110 && want < 0) || (p.x > W - 110 && want > 0)) want = 0; }
     o.mx = want; if (p.onGround && (p.wall && want || Math.random() < .015)) B.jt = .4;
-    o.jump = B.jt > 0; return o;
+    return fin(o);
   }
   // where am I on the map, and how far from the door?
   const cell = p.onGround ? navCellOf(N, p) : null, myD = cell ? navD(N, cell) : (B.lastD ?? 9999);
@@ -6413,7 +7570,7 @@ function rogueBot(p) {
   if (loot) { if (B.lt === loot) { B.lc += DT; if (B.lc > 3) { B.skip.add(loot); B.lc = 0; } } else { B.lt = loot; B.lc = 0; } }
   // pick a move from the map
   if (p.onGround && cell && (!B.plan || B.plan.done || (B.plan.jumped && B.plan.t > .25))) {
-    const P0 = B.plan; if (P0 && !P0.done) { const k = P0.tx + ',' + P0.ty + ',' + P0.from[0] + ',' + P0.from[1]; B.fails = B.fails || {}; B.fails[k] = (B.fails[k] || 0) + 1; if (B.fails[k] >= 2) B.bad[k] = 1; }
+    const P0 = B.plan; if (P0 && !P0.done && !(B.dodged > 0)) { const k = P0.tx + ',' + P0.ty + ',' + P0.from[0] + ',' + P0.from[1]; B.fails = B.fails || {}; B.fails[k] = (B.fails[k] || 0) + 1; if (B.fails[k] >= 2) B.bad[k] = 1; }
     const edges = navEdges(N, cell[0], cell[1], 2).filter(e => !B.bad[e[0] + ',' + e[1] + ',' + cell[0] + ',' + cell[1]]);
     const val = e => N.dist[e[1] * N.tw + e[0]];
     let pickE = null;
@@ -6446,8 +7603,7 @@ function rogueBot(p) {
   if (o.mx && Math.abs(p.x - B.lx) < 1.5 && p.onGround) { B.stuck += DT; if (B.stuck > .4) { B.jt = .45; B.stuck = 0; } } else B.stuck = 0;
   if (!p.onGround && p.wall && o.mx === p.wall && p.vy > 0 && B.plan && B.plan.ty < (B.plan.from || [0, 99])[1]) B.jt = .3; // wall-jump onto a ledge
   B.lx = p.x;
-  o.jump = B.jt > 0;
-  return o;
+  return fin(o);
 }
 
 let ctlBack = 'title';
