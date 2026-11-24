@@ -1,13 +1,13 @@
 {
-  "version": "1.5.2",
+  "version": "1.5.3",
   "notes": "",
   "minShell": "0.10.0",
   "released": "2026-11-24",
   "files": [
     {
       "path": "index.html",
-      "sha256": "86d222badc69f35a6fadfcf14796c936f42968fce11d39ab4caa8f4786c79e5e",
-      "bytes": 688330
+      "sha256": "f94131e63fcb31b875814292964799ad23c8f8d2464f24a6103c6ec1216292fa",
+      "bytes": 689467
     }
   ]
 }
