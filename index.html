@@ -1726,8 +1726,10 @@ const PAD = { prev: {}, press: {}, dir: {}, vEdge: {}, hEdge: {}, rep: {} };
 function pads() { try { return [...(navigator.getGamepads ? navigator.getGamepads() : [])].filter(Boolean); } catch (e) { return []; } }
 function padState(gp) {
   const b = i => !!(gp.buttons[i] && (gp.buttons[i].pressed || gp.buttons[i].value > .35));
-  const z = SET.dz, dz = v => Math.abs(v) < z ? 0 : v;
-  return { lx: dz(gp.axes[0] || 0), ly: dz(gp.axes[1] || 0), rx: dz(gp.axes[2] || 0), ry: dz(gp.axes[3] || 0), btn: gp.buttons.map((_, i) => b(i)),
+  // radial deadzone: measured on the stick's distance from centre, not per axis, so every angle is reachable (per-axis zones snap aim to the axes)
+  const z = SET.dz, stick = (x, y) => { const m = Math.hypot(x, y); if (m < z) return [0, 0, 0, 0]; const k = Math.min(1, (m - z) / (1 - z)) / m; return [x * k, y * k, x, y]; };
+  const L = stick(gp.axes[0] || 0, gp.axes[1] || 0), R = stick(gp.axes[2] || 0, gp.axes[3] || 0);
+  return { lx: L[0], ly: L[1], rx: R[0], ry: R[1], lrx: L[2], lry: L[3], rrx: R[2], rry: R[3], btn: gp.buttons.map((_, i) => b(i)),
     a: b(0), bb: b(1), x: b(2), y: b(3), lb: b(4), rb: b(5), lt: b(6), rt: b(7), back: b(8), start: b(9), up: b(12), down: b(13), left: b(14), right: b(15) };
 }
 // Input sources produce {mx, jump(held), block(held), shoot(held), aim(angle)}
@@ -1746,8 +1748,8 @@ function readPad(p, idx) {
   const s = padState(gp);
   let mx = s.lx; if (s.left) mx = -1; if (s.right) mx = 1;
   let aim = p.padAim === undefined ? (p.id === 0 ? 0 : Math.PI) : p.padAim;
-  if (Math.hypot(s.rx, s.ry) > .3) aim = Math.atan2(s.ry, s.rx);
-  else if (SET.aimLeft && Math.hypot(s.lx, s.ly) > .5) aim = Math.atan2(s.ly, s.lx);
+  if (Math.hypot(s.rx, s.ry) > .12) aim = Math.atan2(s.rry, s.rrx);
+  else if (SET.aimLeft && Math.hypot(s.lx, s.ly) > .45) aim = Math.atan2(s.lry, s.lrx);
   p.padAim = aim;
   return { mx, jump: padBound(s, 'jump'), shoot: padBound(s, 'shoot'), block: padBound(s, 'block'), aim, aimPt: { x: p.x + Math.cos(aim) * 260, y: p.y + Math.sin(aim) * 260 } };
 }
@@ -4450,7 +4452,7 @@ const $ = id => document.getElementById(id);
 const PANELS = ['title', 'setup', 'pick', 'end', 'library', 'settings', 'maps', 'online', 'lobby', 'help', 'pause', 'custom', 'controls', 'wpick', 'wand', 'shop', 'rpath', 'rcamp'];
 let focusIdx = 0;
 // shown under the title logo; bump with each published update (MAKE-UPDATE uses the same number)
-const GAME_VERSION = '1.5.2';
+const GAME_VERSION = '1.5.3';
 function drawMapPreviews() {
   document.querySelectorAll('#maps canvas[data-m]').forEach(cv => {
     const m = MAPS[+cv.dataset.m], c = cv.getContext('2d'), k = cv.width / SW; c.imageSmoothingEnabled = false;
@@ -7700,21 +7702,26 @@ function uiKey(e) {
   }
 }
 // gamepad menu navigation + pause
-let navT = 0;
+let navT = 0, pollLast = 0, pollDt = 1 / 60;
 function pollPads() {
-  const ps = pads();
-  navT -= 1 / 60;
+  const ps = pads(), now = performance.now(); pollDt = pollLast ? Math.min(.1, (now - pollLast) / 1000) : 1 / 60; pollLast = now;
+  navT -= pollDt;
   for (const gp of ps) {
     const s = padState(gp), pr = PAD.prev[gp.index] || {};
     // menus move one step per D-pad press or stick push; holding it scrolls after a short pause, like most games
     PAD.press[gp.index] = s.btn.map((v, k) => v && !(pr.btn && pr.btn[k]));
-    const vDir = (s.down || s.ly > .5) ? 1 : (s.up || s.ly < -.5) ? -1 : 0, hDir = (s.right || s.lx > .5) ? 1 : (s.left || s.lx < -.5) ? -1 : 0;
-    const was = PAD.dir[gp.index] || { v: 0, h: 0 }, rp = PAD.rep[gp.index] || (PAD.rep[gp.index] = { v: 0, h: 0 });
+    const was = PAD.dir[gp.index] || { v: 0, h: 0 }, rp = PAD.rep[gp.index] || (PAD.rep[gp.index] = { v: 0, h: 0, vn: 0, hn: 0 });
+    // a stick direction engages past 0.6 and only lets go below 0.3, so a wobble near the edge can't count as extra presses
+    const ax = (v, held) => held > 0 ? (v > .3 ? 1 : v < -.6 ? -1 : 0) : held < 0 ? (v < -.3 ? -1 : v > .6 ? 1 : 0) : (v > .6 ? 1 : v < -.6 ? -1 : 0);
+    const sv = Math.abs(s.lry) > Math.abs(s.lrx) * .8 ? ax(s.lry, was.v) : 0, sh = Math.abs(s.lrx) > Math.abs(s.lry) * .8 ? ax(s.lrx, was.h) : 0;
+    const vDir = s.down ? 1 : s.up ? -1 : sv, hDir = s.right ? 1 : s.left ? -1 : sh;
     let vE = vDir !== was.v ? vDir : 0, hE = hDir !== was.h ? hDir : 0;
-    if (vDir && vDir === was.v) { rp.v += 1 / 60; if (rp.v > .4) { rp.v -= .07; vE = vDir; } } else rp.v = 0;
-    if (hDir && hDir === was.h) { rp.h += 1 / 60; if (rp.h > .4) { rp.h -= .07; hE = hDir; } } else rp.h = 0;
+    // hold to scroll: wait 0.5 s, then step every 0.25 s, easing to 0.14 s over about ten steps (measured in real time, so 144 Hz screens aren't faster)
+    const gap = n => Math.max(.14, .25 - n * .01);
+    if (vDir && vDir === was.v) { rp.v += pollDt; if (rp.v > .5) { rp.v = .5 - gap(rp.vn++); vE = vDir; } } else { rp.v = 0; rp.vn = 0; }
+    if (hDir && hDir === was.h) { rp.h += pollDt; if (rp.h > .5) { rp.h = .5 - gap(rp.hn++); hE = hDir; } } else { rp.h = 0; rp.hn = 0; }
     PAD.vEdge[gp.index] = vE; PAD.hEdge[gp.index] = hE; PAD.dir[gp.index] = { v: vDir, h: hDir };
-    if (s.btn.some(v => v) || Math.abs(s.lx) > .5) { if (!usingPad) { usingPad = true; markFocus(); } audio(); }
+    if (s.btn.some(v => v) || Math.abs(s.lrx) > .6) { if (!usingPad) { usingPad = true; markFocus(); } audio(); }
     if (DEMO.on) { if (s.btn.some((v, k) => v && !(pr.btn && pr.btn[k]))) { PAD.prev[gp.index] = s; exitDemo(); return; } PAD.prev[gp.index] = s; continue; }
     if (REB && REB.kind === 'pad') {
       const i = s.btn.findIndex((v, k) => v && !(pr.btn && pr.btn[k]));
